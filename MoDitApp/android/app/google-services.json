@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "345728532216",
+    "project_id": "modit-a81ba",
+    "storage_bucket": "modit-a81ba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345728532216:android:e09017154ba086260d450d",
+        "android_client_info": {
+          "package_name": "com.example.moditapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAH5gY0nEYJUxGljVbLXTRoIs_XCijYUxw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
