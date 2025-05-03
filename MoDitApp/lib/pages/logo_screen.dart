@@ -13,7 +13,7 @@ class LogoScreen extends StatelessWidget {
           children: [
             // 로고 이미지 (logo.png 또는 logo_img.png 중 하나)
             Image.asset(
-              'assets/logo.png', // 또는 'assets/logo_img.png'
+              'assets/images/logo.png', // 또는 'assets/logo_img.png'
               width: 100, // 필요시 크기 조절
             ),
             const SizedBox(height: 16),

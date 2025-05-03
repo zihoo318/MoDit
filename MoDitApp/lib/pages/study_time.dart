@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 class StudyTimeScreen extends StatelessWidget {
   final List<Map<String, String>> studyData = [
     {'name': '가을', 'time': '3:25:45'},
-    {'name': '문지', 'time': '5:43:23'},
+    {'name': '윤지', 'time': '5:43:23'},
     {'name': '유진', 'time': '1:38:10'},
-    {'name': '지훈', 'time': '3:25:45'},
+    {'name': '지후', 'time': '3:25:45'},
     {'name': '시연', 'time': '5:43:23'},
     {'name': '지연', 'time': '1:38:10'},
   ];

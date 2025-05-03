@@ -66,7 +66,7 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
           body: Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/background1.png'),
+                image: AssetImage('assets/images/background1.png'),
                 fit: BoxFit.cover,
               ),
             ),
@@ -84,11 +84,11 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
                       Row(
                         children: [
                           IconButton(
-                            icon: Image.asset('assets/meetingplan_icon.png', width: 24),
+                            icon: Image.asset('assets/images/meetingplan_icon.png', width: 24),
                             onPressed: () {},
                           ),
                           IconButton(
-                            icon: Image.asset('assets/microphone_icon.png', width: 24),
+                            icon: Image.asset('assets/images/microphone_icon.png', width: 24),
                             onPressed: () {
                               setState(() {
                                 showRecordingPopup = true;
@@ -98,7 +98,7 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
                           const SizedBox(width: 10),
                           Text("MoDit", style: TextStyle(color: Colors.blue[800], fontSize: 16)),
                           const SizedBox(width: 4),
-                          Image.asset('assets/user_icon.png', width: 24),
+                          Image.asset('assets/images/user_icon.png', width: 24),
                           const SizedBox(width: 16),
                         ],
                       ),
@@ -127,7 +127,7 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
                 children: [
                   const Text("녹음을 하시겠습니까?"),
                   const SizedBox(height: 8),
-                  Image.asset('assets/microphone_icon.png', width: 32),
+                  Image.asset('assets/images/microphone_icon.png', width: 32),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -151,7 +151,7 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
             child: _buildPopup(
               content: Column(
                 children: [
-                  Image.asset('assets/microphone_icon.png', width: 32),
+                  Image.asset('assets/images/microphone_icon.png', width: 32),
                   const SizedBox(height: 8),
                   Text(formatDuration(elapsed), style: const TextStyle(fontSize: 18)),
                   const SizedBox(height: 8),
