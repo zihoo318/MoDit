@@ -1,31 +1,24 @@
 import 'package:flutter/material.dart';
-import 'pages/home.dart';
+import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() async {
-  //firebase 초기화(로그인, 회원가입 기능)
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MyApp());
+  runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
 }
 
-class MyApp extends StatelessWidget {
+class MoDitApp extends StatelessWidget {
+  const MoDitApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Multi-Page App',
-      theme: ThemeData(
-        //fontFamily: 'dohyeon', // 전체 폰트 지정
-        //primarySwatch: Colors.blue,
-      ),
-      themeMode: ThemeMode.system,
-      initialRoute: '/home',
-      routes: {
-        //'/': (context) => temp_startPage(),
-      },
+      debugShowCheckedModeBanner: false,
+      home: const HomeScreen(), // ← first_page.dart 안의 HomeScreen
     );
   }
 }
