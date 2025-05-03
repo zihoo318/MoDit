@@ -59,10 +59,19 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/background1.png
+    - assets/images/background2.png
+    - assets/images/calendar_icon.png
+    - assets/images/heart_icon.png
+    - assets/images/homework_icon.png
+    - assets/images/meetingplan_icon.png
+    - assets/images/microphone_icon.png
+    - assets/images/notice_icon.png
+    - assets/images/study_icon.png
+    - assets/images/studytime_icon.png
     - assets/images/note_icon.png
     - assets/images/user_icon.png
-    - assets/logo.png
-    - assets/logo_img.png
+    - assets/images/logo.png
+    - assets/images/logo_img.png
 
 
   # To add assets to your application, add an assets section, like this:
