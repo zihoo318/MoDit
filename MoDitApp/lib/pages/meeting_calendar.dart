@@ -20,7 +20,7 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
           // 배경 이미지
           SizedBox.expand(
             child: Image.asset(
-              'assets/background1.png',
+              'assets/images/background1.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -39,7 +39,7 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
                         '〈 미팅 일정',
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                      Image.asset('assets/user_icon.png', width: 30),
+                      Image.asset('assets/images/user_icon.png', width: 30),
                     ],
                   ),
                 ),
@@ -47,7 +47,7 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
                 const SizedBox(height: 10),
 
                 // 중앙 타이틀 아이콘
-                Image.asset('assets/meetingplan_icon.png', height: 50),
+                Image.asset('assets/images/meetingplan_icon.png', height: 50),
 
                 const SizedBox(height: 10),
 
@@ -94,7 +94,7 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
                 // 하단 아이콘
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
-                  child: Image.asset('assets/calendar_icon.png', width: 40),
+                  child: Image.asset('assets/images/calendar_icon.png', width: 40),
                 ),
               ],
             ),
