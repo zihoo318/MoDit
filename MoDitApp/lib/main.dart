@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
+import 'pages/logo_screen.dart';
+import 'pages/meeting_calendar.dart';
+import 'pages/meeting_record.dart';
+import 'pages/meeting_schedule.dart';
+import 'pages/notice.dart';
+import 'pages/study_first_page.dart';
+import 'pages/study_time.dart';
 import 'package:moditapp/pages/chatting.dart';
 import 'package:moditapp/pages/homeworkManager.dart';
 import 'package:moditapp/pages/homwork.dart';
@@ -13,16 +21,19 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MyApp());
+  runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
 }
 
-class MyApp extends StatelessWidget {
+class MoDitApp extends StatelessWidget {
+  const MoDitApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+  debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: const Home(), // 👈 앱 첫 화면을 LoginScreen으로 설정
+      home: const MeetingSchedulePage(), // ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨
     );
   }
 }
