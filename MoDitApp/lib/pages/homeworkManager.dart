@@ -36,14 +36,14 @@ class HomeworkManagerScreen extends StatelessWidget {
                     color: const Color(0xFFDBEDFF),
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  child: Column(
+                  child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text("그룹과제", style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
                       SizedBox(height: 16),
-                      _GroupTaskRow(task: "어쩌고"),
+                      _GroupTaskRow(task: "어쩌고", userName: "가을"),
                       SizedBox(height: 20),
-                      _GroupTaskRow(task: "저쩌고"),
+                      _GroupTaskRow(task: "저쩌고", userName: "가을"),
                     ],
                   ),
                 ),
@@ -68,8 +68,9 @@ class HomeworkManagerScreen extends StatelessWidget {
 
 class _GroupTaskRow extends StatefulWidget {
   final String task;
+  final String userName; // ✅ 추가
 
-  const _GroupTaskRow({required this.task});
+  const _GroupTaskRow({required this.task, required this.userName});
 
   @override
   State<_GroupTaskRow> createState() => _GroupTaskRowState();
@@ -103,7 +104,9 @@ class _GroupTaskRowState extends State<_GroupTaskRow> {
         if (isSubmitted) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const HomeworkCheckScreen(userName: "가을")),
+            MaterialPageRoute(
+              builder: (_) => HomeworkCheckScreen(userName: widget.userName), // ✅ 반영
+            ),
           );
         }
       },
@@ -113,25 +116,21 @@ class _GroupTaskRowState extends State<_GroupTaskRow> {
           const SizedBox(width: 10),
           Text(widget.task, style: const TextStyle(fontSize: 22)),
           const SizedBox(width: 10),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(30),
-              onTap: _showFileSelectionDialog,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text("제출", style: TextStyle(fontWeight: FontWeight.bold)),
-                    if (isSubmitted) const SizedBox(width: 6),
-                    if (isSubmitted) const Icon(Icons.check, size: 18, color: Colors.green),
-                  ],
-                ),
+          GestureDetector(
+            onTap: _showFileSelectionDialog,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: [
+                  const Text("제출", style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (isSubmitted) const SizedBox(width: 6),
+                  if (isSubmitted)
+                    const Icon(Icons.check, size: 18, color: Colors.green),
+                ],
               ),
             ),
           ),

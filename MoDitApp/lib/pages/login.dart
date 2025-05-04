@@ -1,4 +1,6 @@
+// login.dart
 import 'package:flutter/material.dart';
+import 'home.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -12,6 +14,13 @@ class LoginScreen extends StatelessWidget {
             child: Image.asset(
               'assets/images/background2.png',
               fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 40, left: 20),
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("뒤로가기"),
             ),
           ),
           Center(
@@ -63,14 +72,7 @@ class LoginScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF404040),
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF404040))),
           const SizedBox(height: 6),
           SizedBox(
             width: 500,
@@ -94,23 +96,14 @@ class LoginScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF404040),
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF404040))),
           const SizedBox(height: 6),
           SizedBox(
             width: 500,
             child: TextField(
               obscureText: true,
               decoration: InputDecoration(
-                hintText: isConfirm
-                    ? "비밀번호를 한번 더 입력해주세요."
-                    : "영문, 숫자 조합 8~16자",
+                hintText: isConfirm ? "비밀번호를 한번 더 입력해주세요." : "영문, 숫자 조합 8~16자",
                 fillColor: Colors.white,
                 filled: true,
                 border: const OutlineInputBorder(),

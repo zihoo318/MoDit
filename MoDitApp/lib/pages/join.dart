@@ -8,12 +8,25 @@ class JoinScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // 배경 이미지
           Positioned.fill(
             child: Image.asset(
               'assets/images/background2.png',
               fit: BoxFit.cover,
             ),
           ),
+          // 뒤로 가기 버튼
+          Positioned(
+            top: 30,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, size: 40),
+              onPressed: () {
+                Navigator.pop(context); // 뒤로가기
+              },
+            ),
+          ),
+          // 본문
           Center(
             child: Container(
               width: 700,

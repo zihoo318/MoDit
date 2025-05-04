@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: const HomeworkManagerScreen(), // 👈 앱 첫 화면을 LoginScreen으로 설정
+      home: const Home(), // 👈 앱 첫 화면을 LoginScreen으로 설정
     );
   }
 }
