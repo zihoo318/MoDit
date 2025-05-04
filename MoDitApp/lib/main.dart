@@ -38,7 +38,7 @@ class MoDitApp extends StatelessWidget {
       theme: ThemeData(),
 
       // 기본 첫 화면
-      initialRoute: '/schedule',
+      initialRoute: '/notice',
 
       // 라우팅 정의
       routes: {
@@ -51,6 +51,7 @@ class MoDitApp extends StatelessWidget {
         '/study_first': (context) => const StudyFirstPage(),
         '/study_time': (context) => StudyTimeScreen(),
         '/logo': (context) => const LogoScreen(),
+        '/notice': (context) => const NoticePage(),
         // ... 추가적으로 연결할 라우트 있으면 여기에 계속 확장
       },
     );
