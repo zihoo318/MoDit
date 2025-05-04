@@ -1,9 +1,50 @@
-// login.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'home.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  void _login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Home()),
+      );
+    } catch (e) {
+      _showMessage("로그인 실패: ${e.toString()}");
+    }
+  }
+
+  void _showMessage(String msg) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        content: Text(msg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("확인"),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +67,7 @@ class LoginScreen extends StatelessWidget {
           Center(
             child: Container(
               width: 700,
-              height: 500,
+              height: 520,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
               decoration: BoxDecoration(
                 color: const Color(0xFFDBEDFF),
@@ -54,9 +95,17 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _buildTextField("아이디", "예: abc@gmail.com"),
-                  _buildPasswordField("비밀번호", false),
-                  _buildPasswordField("비밀번호 확인", true),
+                  _buildTextField("아이디", "예: abc@gmail.com", emailController),
+                  _buildPasswordField("비밀번호", passwordController),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0x996495ED),
+                      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                    ),
+                    child: const Text("로그인", style: TextStyle(fontSize: 18)),
+                  ),
                 ],
               ),
             ),
@@ -66,7 +115,7 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String label, String hint) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -77,6 +126,7 @@ class LoginScreen extends StatelessWidget {
           SizedBox(
             width: 500,
             child: TextField(
+              controller: controller,
               decoration: InputDecoration(
                 hintText: hint,
                 fillColor: Colors.white,
@@ -90,7 +140,7 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPasswordField(String label, bool isConfirm) {
+  Widget _buildPasswordField(String label, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -101,13 +151,14 @@ class LoginScreen extends StatelessWidget {
           SizedBox(
             width: 500,
             child: TextField(
+              controller: controller,
               obscureText: true,
-              decoration: InputDecoration(
-                hintText: isConfirm ? "비밀번호를 한번 더 입력해주세요." : "영문, 숫자 조합 8~16자",
+              decoration: const InputDecoration(
+                hintText: "비밀번호를 입력하세요",
                 fillColor: Colors.white,
                 filled: true,
-                border: const OutlineInputBorder(),
-                suffixIcon: const Icon(Icons.visibility_off),
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.visibility_off),
               ),
             ),
           ),
