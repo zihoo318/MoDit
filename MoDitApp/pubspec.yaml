@@ -74,7 +74,8 @@ flutter:
     - assets/images/logo.png
     - assets/images/logo_img.png
     - assets/images/location_icon.png
-
+    - assets/images/heart_icon.png
+    - assets/images/hand_icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
