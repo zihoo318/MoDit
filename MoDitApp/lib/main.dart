@@ -17,7 +17,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart'; // ← 요거 추가!
 
-
+// s
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
