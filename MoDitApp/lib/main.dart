@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:moditapp/pages/chatting.dart';
+import 'package:moditapp/pages/homeworkManager.dart';
+import 'package:moditapp/pages/homwork.dart';
+import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
+import 'pages/login.dart'; // 👈 login.dart 임포트 추가
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() async {
-  //firebase 초기화(로그인, 회원가입 기능)
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -16,16 +20,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Multi-Page App',
-      theme: ThemeData(
-        //fontFamily: 'dohyeon', // 전체 폰트 지정
-        //primarySwatch: Colors.blue,
-      ),
-      themeMode: ThemeMode.system,
-      initialRoute: '/home',
-      routes: {
-        //'/': (context) => temp_startPage(),
-      },
+      title: 'MoDitApp',
+      theme: ThemeData(),
+      home: const HomeworkManagerScreen(), // 👈 앱 첫 화면을 LoginScreen으로 설정
     );
   }
 }
