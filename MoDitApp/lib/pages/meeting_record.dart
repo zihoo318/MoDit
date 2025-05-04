@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:async';
 
 class MeetingRecordPage extends StatefulWidget {
-  const MeetingRecordPage({Key? key}) : super(key: key);
+  final String date;
+  final String meetingId;
+
+  const MeetingRecordPage({Key? key, required this.date, required this.meetingId}) : super(key: key);
 
   @override
   State<MeetingRecordPage> createState() => _MeetingRecordPageState();
@@ -50,6 +55,17 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
     });
   }
 
+  void saveNoteToFirebase() {
+    final recordRef = FirebaseDatabase.instance
+        .ref('meetings/${widget.meetingId}/records')
+        .push();
+
+    recordRef.set({
+      'name': noteName,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
   String formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final hours = twoDigits(duration.inHours);
@@ -60,10 +76,10 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          body: Container(
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/images/background1.png'),
@@ -77,9 +93,9 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text("2025. 04. 25.", style: TextStyle(fontSize: 18)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(widget.date, style: const TextStyle(fontSize: 18)),
                       ),
                       Row(
                         children: [
@@ -113,97 +129,137 @@ class _MeetingRecordPageState extends State<MeetingRecordPage> {
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-        ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: StreamBuilder<DatabaseEvent>(
+                      stream: FirebaseDatabase.instance
+                          .ref('meetings/${widget.meetingId}/records')
+                          .onValue,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+                          return const Center(child: Text('저장된 녹음이 없습니다.'));
+                        }
 
-        // 녹음 시작 여부 팝업
-        if (showRecordingPopup)
-          Center(
-            child: _buildPopup(
-              content: Column(
-                children: [
-                  const Text("녹음을 하시겠습니까?"),
-                  const SizedBox(height: 8),
-                  Image.asset('assets/images/microphone_icon.png', width: 32),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _popupButton("Start", () => startRecording()),
-                      _popupButton("No", () {
-                        setState(() {
-                          showRecordingPopup = false;
-                        });
-                      }),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+                        final Map<dynamic, dynamic> recordsMap =
+                            snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
 
-        // 녹음 중 팝업
-        if (isRecording)
-          Center(
-            child: _buildPopup(
-              content: Column(
-                children: [
-                  Image.asset('assets/images/microphone_icon.png', width: 32),
-                  const SizedBox(height: 8),
-                  Text(formatDuration(elapsed), style: const TextStyle(fontSize: 18)),
-                  const SizedBox(height: 8),
-                  _popupButton("Stop", () => stopRecording()),
-                ],
-              ),
-            ),
-          ),
+                        final records = recordsMap.entries.map((e) {
+                          final value = Map<String, dynamic>.from(e.value);
+                          return {
+                            'name': value['name'],
+                            'timestamp': value['timestamp'],
+                          };
+                        }).toList();
 
-        // 노트 이름 저장 팝업
-        if (showNameInputPopup)
-          Center(
-            child: _buildPopup(
-              content: Column(
-                children: [
-                  const Text("노트 이름을 저장해주세요."),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      onChanged: (val) => noteName = val,
-                      decoration: const InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(),
-                      ),
+                        return ListView.builder(
+                          itemCount: records.length,
+                          itemBuilder: (context, index) {
+                            final record = records[index];
+                            return ListTile(
+                              title: Text(record['name']),
+                              subtitle: Text(record['timestamp']),
+                              leading: const Icon(Icons.mic),
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  _popupButton("저장", () {
-                    setState(() {
-                      showNameInputPopup = false;
-                    });
-                    // 여기서 노트 저장 처리 가능
-                  }),
                 ],
               ),
             ),
           ),
-      ],
+
+          if (showRecordingPopup)
+            Center(
+              child: _buildPopup(
+                content: Column(
+                  children: [
+                    const Text("녹음을 하시겠습니까?"),
+                    const SizedBox(height: 8),
+                    Image.asset('assets/images/microphone_icon.png', width: 32),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _popupButton("Start", () => startRecording()),
+                        _popupButton("No", () {
+                          setState(() {
+                            showRecordingPopup = false;
+                          });
+                        }),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          if (isRecording)
+            Center(
+              child: _buildPopup(
+                content: Column(
+                  children: [
+                    Image.asset('assets/images/microphone_icon.png', width: 32),
+                    const SizedBox(height: 8),
+                    Text(formatDuration(elapsed), style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 8),
+                    _popupButton("Stop", () => stopRecording()),
+                  ],
+                ),
+              ),
+            ),
+
+          if (showNameInputPopup)
+            Center(
+              child: _buildPopup(
+                content: Column(
+                  children: [
+                    const Text("노트 이름을 저장해주세요."),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextField(
+                        onChanged: (val) => noteName = val,
+                        decoration: const InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _popupButton("저장", () {
+                      saveNoteToFirebase();
+                      setState(() {
+                        showNameInputPopup = false;
+                      });
+                    }),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _buildPopup({required Widget content}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      width: 220,
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(16),
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(
+          maxHeight: 250, // 👈 팝업 최대 높이 지정
+          minHeight: 100,
+        ),
+        padding: const EdgeInsets.all(16),
+        width: 240,
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SingleChildScrollView(child: content), // 👈 스크롤 가능하도록
       ),
-      child: content,
     );
   }
 

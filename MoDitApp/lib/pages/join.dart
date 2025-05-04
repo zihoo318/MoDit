@@ -1,36 +1,90 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
-class JoinScreen extends StatelessWidget {
+class JoinScreen extends StatefulWidget {
   const JoinScreen({super.key});
+
+  @override
+  State<JoinScreen> createState() => _JoinScreenState();
+}
+
+class _JoinScreenState extends State<JoinScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
+
+  void _register() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirm = confirmPasswordController.text.trim();
+    final name = nameController.text.trim();
+
+    if (password != confirm) {
+      _showMessage('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DatabaseReference ref = FirebaseDatabase.instance.ref("users/${user.uid}");
+        await ref.set({
+          "email": email,
+          "name": name,
+        });
+      }
+
+      _showMessage('회원가입 완료!');
+      Navigator.pop(context); // 가입 후 이전 화면(로그인)으로 이동
+    } catch (e) {
+      _showMessage('에러: ${e.toString()}');
+    }
+  }
+
+  void _showMessage(String msg) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        content: Text(msg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // 배경 이미지
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/background2.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/background2.png', fit: BoxFit.cover),
           ),
-          // 뒤로 가기 버튼
           Positioned(
             top: 30,
             left: 20,
             child: IconButton(
               icon: const Icon(Icons.arrow_back, size: 40),
               onPressed: () {
-                Navigator.pop(context); // 뒤로가기
+                Navigator.pop(context);
               },
             ),
           ),
-          // 본문
           Center(
             child: Container(
               width: 700,
-              height: 600,
+              height: 650,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
               decoration: BoxDecoration(
                 color: const Color(0xFFDBEDFF),
@@ -39,29 +93,21 @@ class JoinScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 300,
-                    height: 70,
-                    margin: const EdgeInsets.only(bottom: 30),
-                    decoration: BoxDecoration(
-                      color: const Color(0x996495ED),
-                      borderRadius: BorderRadius.circular(35),
+                  const Text("회원가입", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  _buildTextField("이메일", "예: abc@gmail.com", emailController),
+                  _buildPasswordField("비밀번호", passwordController),
+                  _buildPasswordField("비밀번호 확인", confirmPasswordController),
+                  _buildTextField("이름", "예: 홍길동", nameController),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _register,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0x996495ED),
+                      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                     ),
-                    child: const Center(
-                      child: Text(
-                        "회원가입",
-                        style: TextStyle(
-                          color: Color(0xFF404040),
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    child: const Text("회원가입", style: TextStyle(fontSize: 18)),
                   ),
-                  _buildTextField("이메일", "예: abc@gmail.com"),
-                  _buildPasswordField("비밀번호", false),
-                  _buildPasswordField("비밀번호 확인", true),
-                  _buildTextField("이름", "예: 홍길동"),
                 ],
               ),
             ),
@@ -71,24 +117,18 @@ class JoinScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String label, String hint) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF404040),
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           SizedBox(
             width: 500,
             child: TextField(
+              controller: controller,
               decoration: InputDecoration(
                 hintText: hint,
                 fillColor: Colors.white,
@@ -102,33 +142,25 @@ class JoinScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPasswordField(String label, bool isConfirm) {
+  Widget _buildPasswordField(String label, TextEditingController controller) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF404040),
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           SizedBox(
             width: 500,
             child: TextField(
+              controller: controller,
               obscureText: true,
-              decoration: InputDecoration(
-                hintText: isConfirm
-                    ? "비밀번호를 한번 더 입력해주세요."
-                    : "영문, 숫자 조합 8~16자",
+              decoration: const InputDecoration(
+                hintText: "영문, 숫자 조합 8~16자",
                 fillColor: Colors.white,
                 filled: true,
-                border: const OutlineInputBorder(),
-                suffixIcon: const Icon(Icons.visibility_off),
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.visibility_off),
               ),
             ),
           ),
