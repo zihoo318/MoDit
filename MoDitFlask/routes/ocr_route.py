@@ -1,13 +1,22 @@
-# 예시 코드
-
 from flask import Blueprint, request, jsonify
 from ocr.ocr_processor import run_ocr
-from firebase.firebase_config import upload_to_firebase
 from utils.file_handler import save_temp_file, delete_file
 
 import uuid
+import boto3
+from botocore.client import Config
+import config  # 환경 변수 불러오는 파일
 
 ocr_bp = Blueprint('ocr', __name__, url_prefix='/ocr')
+
+# Naver Cloud Object Storage 클라이언트 설정
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=config.NCLOUD_ACCESS_KEY,
+    aws_secret_access_key=config.NCLOUD_SECRET_KEY,
+    endpoint_url=config.NCLOUD_ENDPOINT,
+    config=Config(signature_version='s3v4')
+)
 
 @ocr_bp.route('/upload', methods=['POST'])
 def upload_ocr_image():
@@ -15,18 +24,33 @@ def upload_ocr_image():
         return jsonify({'error': 'No image file provided'}), 400
 
     file = request.files['image']
-    temp_filename = f"{uuid.uuid4()}.jpg"q
+    filename_base = str(uuid.uuid4())
+    temp_filename = f"{filename_base}.jpg"
     temp_path = save_temp_file(file, temp_filename)
 
     try:
-        # OCR 실행
+        # 1. OCR 처리
         extracted_text = run_ocr(temp_path)
 
-        # Firebase Storage에 결과 저장
-        result_path = f"ocr_results/{temp_filename}.txt"
-        upload_to_firebase(result_path, extracted_text)
+        # 2. 텍스트 업로드용 파일 생성
+        result_filename = f"{filename_base}.txt"
+        result_key = f"ocr_results/{result_filename}"
 
-        return jsonify({'text': extracted_text, 'firebase_path': result_path}), 200
+        # 3. 문자열을 바이너리로 변환해 Object Storage에 업로드
+        s3_client.put_object(
+            Bucket=config.NCLOUD_BUCKET_NAME,
+            Key=result_key,
+            Body=extracted_text.encode('utf-8'),
+            ContentType='text/plain'
+        )
+
+        result_url = f"{config.NCLOUD_ENDPOINT}/{config.NCLOUD_BUCKET_NAME}/{result_key}"
+
+        return jsonify({
+            'text': extracted_text,
+            'object_storage_path': result_key,
+            'url': result_url
+        }), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
