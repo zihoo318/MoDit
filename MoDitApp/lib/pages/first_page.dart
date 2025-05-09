@@ -1,243 +1,135 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'study_first_page.dart';
+import 'friend_add_popup.dart';
+import 'group_create_popup.dart';
+import 'notice.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String currentUserEmail;
+  const HomeScreen({required this.currentUserEmail, super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> groupRooms = [];
-  List<String> friends = [];
-
-  final uid = FirebaseAuth.instance.currentUser!.uid;
-  final dbRef = FirebaseDatabase.instance.ref();
+  final db = FirebaseDatabase.instance.ref();
+  List<Map<String, dynamic>> groupStudies = [];
+  List<Map<String, dynamic>> notes = [];
 
   @override
   void initState() {
     super.initState();
-    _loadFriends();
-    _loadGroupStudies();
+    loadGroupStudies();
+    loadNotes();
   }
 
-  void _loadFriends() async {
-    final snapshot = await dbRef.child('users/$uid/friends').get();
+  void loadGroupStudies() async {
+    final snapshot = await db.child('groupStudies').get();
     if (snapshot.exists) {
-      final friendMap = Map<String, dynamic>.from(snapshot.value as Map);
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final List<Map<String, dynamic>> visibleGroups = [];
+      final userKey = widget.currentUserEmail.replaceAll('.', '_');
+
+      for (var entry in data.entries) {
+        final value = Map<String, dynamic>.from(entry.value);
+        if ((value['members'] as Map?)?.containsKey(userKey) ?? false) {
+          visibleGroups.add({
+            'id': entry.key,
+            'name': value['name'] ?? '이름없음',
+          });
+        }
+      }
+
       setState(() {
-        friends = friendMap.values.map((e) => e.toString()).toList();
+        groupStudies = visibleGroups;
       });
     }
   }
 
-  void _loadGroupStudies() async {
-    final snapshot = await dbRef.child('users/$uid/groupStudies').get();
+  void loadNotes() async {
+    final snapshot = await db.child('notes').get();
     if (snapshot.exists) {
-      final groupMap = Map<String, dynamic>.from(snapshot.value as Map);
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
       setState(() {
-        groupRooms = groupMap.entries.map((e) {
-          return {
-            'name': e.key,
-            'members': List<String>.from(e.value as List),
-          };
+        notes = data.entries.map((e) => {
+          'id': e.key,
+          'title': e.value['title'] ?? '노트',
         }).toList();
       });
-    } else {
-      setState(() {
-        groupRooms = [];
-      });
     }
   }
 
-  void showAddFriendDialog() {
-    final TextEditingController emailController = TextEditingController();
+  void _showFriendAddPopup() {
     showDialog(
       context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: const Color(0xFFD7EBFF),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("추가할 친구의 이메일을 입력하세요"),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: TextField(
-                    controller: emailController,
-                    decoration: const InputDecoration(border: InputBorder.none),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () async {
-                    final friendEmail = emailController.text.trim();
-                    final usersSnapshot = await dbRef.child('users').get();
-                    String? friendUid;
-                    for (final entry in usersSnapshot.children) {
-                      final data = Map<String, dynamic>.from(entry.value as Map);
-                      if (data['email'] == friendEmail) {
-                        friendUid = entry.key;
-                        break;
-                      }
-                    }
+      builder: (context) => FriendAddPopup(currentUserEmail: widget.currentUserEmail), // ✅ 전달
+    );
+  }
 
-                    if (friendUid != null) {
-                      await dbRef.child('users/$uid/friends/$friendUid').set(friendEmail);
-                      Navigator.of(context).pop();
-                      _loadFriends();
-                    } else {
-                      Navigator.of(context).pop();
-                      _showAlert("해당 이메일의 사용자를 찾을 수 없습니다.");
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9EB8E3),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  child: const Text("저장"),
-                ),
-              ],
+
+
+  _showGroupCreatePopup() {
+    showDialog(
+      context: context,
+      builder: (context) => GroupCreatePopup(currentUserEmail: widget.currentUserEmail),
+    ).then((_) => loadGroupStudies());
+  }
+
+
+  Widget _buildGroupStudyCard(Map<String, dynamic> group) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NoticePage(
+              groupId: group['id'],
+              currentUserEmail: widget.currentUserEmail,
             ),
           ),
         );
       },
+      child: Container(
+        width: 193,
+        height: 177,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFB8BDF1).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(60),
+        ),
+        child: Center(child: Text(group['name'], style: const TextStyle(fontSize: 16))),
+      ),
     );
   }
 
-  void showCreateGroupStudyDialog() {
-    final TextEditingController nameController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: const Color(0xFFD7EBFF),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("그룹 스터디 이름을 설정하세요"),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(border: InputBorder.none),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    showSelectMembersDialog(nameController.text.trim());
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9EB8E3),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  child: const Text("저장"),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  Widget _buildNoteCard(String title) {
+    return Container(
+      width: 150,
+      height: 177,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(60),
+      ),
+      child: Center(child: Text(title, style: const TextStyle(fontSize: 14))),
     );
   }
 
-  void showSelectMembersDialog(String groupName) {
-    final Map<String, bool> selectedFriends = {
-      for (var f in friends) f: false,
-    };
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            backgroundColor: const Color(0xFFD7EBFF),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text("그룹 스터디에 참여할 친구들을 선택해주세요"),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    children: selectedFriends.keys.map((friend) {
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Checkbox(
-                            value: selectedFriends[friend],
-                            onChanged: (val) {
-                              setState(() {
-                                selectedFriends[friend] = val!;
-                              });
-                            },
-                          ),
-                          Text(friend),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final selected = selectedFriends.entries
-                          .where((e) => e.value)
-                          .map((e) => e.key)
-                          .toList();
-
-                      await dbRef.child('users/$uid/groupStudies/$groupName').set(selected);
-                      Navigator.of(context).pop();
-                      _loadGroupStudies(); // 🔄 여기서 새로 불러오기
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF9EB8E3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    child: const Text("선택 완료"),
-                  ),
-                ],
-              ),
-            ),
-          );
-        });
-      },
-    );
-  }
-
-  void _showAlert(String msg) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        content: Text(msg),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("확인"),
-          ),
-        ],
+  Widget _buildAddCard(VoidCallback onTap, {double width = 193, Color? color}) {
+    return Container(
+      width: width,
+      height: 177,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: color ?? const Color(0xFFB8BDF1).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(60),
+      ),
+      child: Center(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Image.asset('assets/images/plus_icon.png', width: 40),
+        ),
       ),
     );
   }
@@ -248,84 +140,74 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/background1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/background_logo.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
           ),
-          const Positioned(
-            top: 20,
-            right: 20,
-            child: Image(
-              image: AssetImage('assets/images/user_icon.png'),
-              width: 50,
-            ),
-          ),
-          SafeArea(
+          Padding(
+            padding: const EdgeInsets.only(top: 100, left: 40, right: 40, bottom: 40),
             child: Column(
               children: [
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: showAddFriendDialog,
-                      icon: const Icon(Icons.add),
-                      label: const Text("친구 추가"),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton.icon(
-                      onPressed: showCreateGroupStudyDialog,
-                      icon: const Icon(Icons.add),
-                      label: const Text("그룹스터디 추가"),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(20),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 0.7,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                    ),
-                    itemCount: groupRooms.length,
-                    itemBuilder: (context, index) {
-                      final group = groupRooms[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StudyFirstPage(
-                                groupName: group['name'],
-                                members: group['members'],
-                              ),
-                            ),
-                          );
-                        },
-                        child: Column(
+                // 상단바 박스
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      GestureDetector(
+                        onTap: _showFriendAddPopup,
+                        child: Row(
                           children: [
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD7EBFF),
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(group['name'], style: const TextStyle(fontSize: 12)),
-                            ),
-                            const SizedBox(height: 8),
-                            Image.asset('assets/images/note_icon.png', width: 50),
-                            const SizedBox(height: 4),
-                            const Text('이름설정'),
+                            const Text('친구 추가', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 4),
+                            Image.asset('assets/images/plus_icon2.png', width: 30),
                           ],
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 12),
+                      ClipOval(
+                        child: Image.asset('assets/images/user_icon2.png', width: 50),
+                      )
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 60),
+
+                // 그룹스터디 박스
+                Container(
+                  height: 220,
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(60),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 20),
+                        ...groupStudies.map((g) => _buildGroupStudyCard(g)).toList(),
+                        _buildAddCard(_showGroupCreatePopup),
+                        const SizedBox(width: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 60),
+
+                // 노트 카드 (배경 없이, 개별 카드 흰색)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 20),
+                      ...notes.map((n) => _buildNoteCard(n['title'])).toList(),
+                      _buildAddCard(() {}, width: 150, color: Colors.white),
+                      const SizedBox(width: 20),
+                    ],
                   ),
                 ),
               ],

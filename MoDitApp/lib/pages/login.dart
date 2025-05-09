@@ -24,7 +24,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (data['password'] == password.text) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()), // ✅ 로그인 성공 시 이동
+          MaterialPageRoute(
+            builder: (_) => HomeScreen(currentUserEmail: email.text),
+          ),
         );
       } else {
         _showError('비밀번호가 일치하지 않습니다');
