@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'home.dart';
 
 class JoinScreen extends StatefulWidget {
   const JoinScreen({super.key});
@@ -10,57 +10,32 @@ class JoinScreen extends StatefulWidget {
 }
 
 class _JoinScreenState extends State<JoinScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
-  final TextEditingController nameController = TextEditingController();
+  final db = FirebaseDatabase.instance.ref();
+  final TextEditingController email = TextEditingController();
+  final TextEditingController password = TextEditingController();
+  final TextEditingController confirmPassword = TextEditingController();
+  final TextEditingController name = TextEditingController();
 
-  void _register() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-    final confirm = confirmPasswordController.text.trim();
-    final name = nameController.text.trim();
-
-    if (password != confirm) {
-      _showMessage('비밀번호가 일치하지 않습니다.');
+  void registerUser() {
+    if (password.text != confirmPassword.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비밀번호가 일치하지 않습니다')),
+      );
       return;
     }
 
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+    final userData = {
+      'email': email.text,
+      'password': password.text,
+      'name': name.text,
+    };
+
+    db.child('user').child(email.text.replaceAll('.', '_')).set(userData).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('회원가입 완료')),
       );
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        DatabaseReference ref = FirebaseDatabase.instance.ref("users/${user.uid}");
-        await ref.set({
-          "email": email,
-          "name": name,
-        });
-      }
-
-      _showMessage('회원가입 완료!');
-      Navigator.pop(context); // 가입 후 이전 화면(로그인)으로 이동
-    } catch (e) {
-      _showMessage('에러: ${e.toString()}');
-    }
-  }
-
-  void _showMessage(String msg) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        content: Text(msg),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
+      Navigator.pop(context); // 뒤로가기 = Home으로
+    });
   }
 
   @override
@@ -69,45 +44,36 @@ class _JoinScreenState extends State<JoinScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/background2.png', fit: BoxFit.cover),
+            child: Image.asset('assets/images/background_logo.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
           ),
           Positioned(
-            top: 30,
-            left: 20,
+            left: 30,
+            bottom: 30,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back, size: 40),
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              icon: const Icon(Icons.arrow_back, size: 30),
+              onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const Home())),
             ),
           ),
           Center(
             child: Container(
-              width: 700,
-              height: 650,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
+              width: 750,
+              padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 60),
               decoration: BoxDecoration(
-                color: const Color(0xFFDBEDFF),
+                color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(60),
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text("회원가입", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  _buildField('이메일', 'ex) abc@gmail.com', false, email),
                   const SizedBox(height: 20),
-                  _buildTextField("이메일", "예: abc@gmail.com", emailController),
-                  _buildPasswordField("비밀번호", passwordController),
-                  _buildPasswordField("비밀번호 확인", confirmPasswordController),
-                  _buildTextField("이름", "예: 홍길동", nameController),
+                  _buildField('비밀번호', '영문, 숫자 포함 8~16자', true, password),
                   const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0x996495ED),
-                      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                    ),
-                    child: const Text("회원가입", style: TextStyle(fontSize: 18)),
-                  ),
+                  _buildField('비밀번호 확인', '비밀번호를 한번 더 입력해주세요.', true, confirmPassword),
+                  const SizedBox(height: 20),
+                  _buildField('이름', 'ex) 홍길동', false, name),
+                  const SizedBox(height: 40),
+                  _buildRoundedButton(context, '회원가입', registerUser),
                 ],
               ),
             ),
@@ -117,24 +83,23 @@ class _JoinScreenState extends State<JoinScreen> {
     );
   }
 
-  Widget _buildTextField(String label, String hint, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+  Widget _buildField(String label, String hint, bool obscure, TextEditingController controller) {
+    return SizedBox(
+      width: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 500,
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: hint,
-                fillColor: Colors.white,
-                filled: true,
-                border: const OutlineInputBorder(),
-              ),
+          Text(label, style: const TextStyle(color: Color(0xFF404040), fontSize: 16, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            obscureText: obscure,
+            decoration: InputDecoration(
+              hintText: hint,
+              border: const OutlineInputBorder(),
+              isDense: true,
+              contentPadding: const EdgeInsets.all(12),
+              suffixIcon: obscure ? const Icon(Icons.visibility_off) : null,
             ),
           ),
         ],
@@ -142,30 +107,28 @@ class _JoinScreenState extends State<JoinScreen> {
     );
   }
 
-  Widget _buildPasswordField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 500,
-            child: TextField(
-              controller: controller,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: "영문, 숫자 조합 8~16자",
-                fillColor: Colors.white,
-                filled: true,
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.visibility_off),
-              ),
-            ),
+  Widget _buildRoundedButton(BuildContext context, String text, VoidCallback onPressed) {
+    return SizedBox(
+      width: 360,
+      height: 60,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFB8BDF1).withOpacity(0.3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          elevation: 0, // ✅ 그림자 제거
+          shadowColor: Colors.transparent, // ✅ 번짐 방지
+        ),
+        onPressed: onPressed,
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF404040),
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
           ),
-        ],
+        ),
       ),
     );
   }
+
 }
