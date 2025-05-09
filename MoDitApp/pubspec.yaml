@@ -61,32 +61,30 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-  flutter:
-    assets:
-      - assets/images/background_logo.png
-      - assets/images/calendar_icon.png
-      - assets/images/calendar_icon2.png
-      - assets/images/chatting_icon.png
-      - assets/images/chatting_icon2.png
-      - assets/images/homework_icon.png
-      - assets/images/homework_icon2.png
-      - assets/images/menu_icon.png
-      - assets/images/menu_icon2.png
-      - assets/images/microphone_icon.png
-      - assets/images/microphone_icon2.png
-      - assets/images/note_icon.png
-      - assets/images/notice_icon.png
-      - assets/images/notice_icon2.png
-      - assets/images/plus_icon.png
-      - assets/images/plus_icon2.png
-      - assets/images/start_icon.png
-      - assets/images/stop_icon.png
-      - assets/images/study_icon.png
-      - assets/images/study_icon2.png
-      - assets/images/studytime_icon.png
-      - assets/images/studytime_icon2.png
-
-
+  assets:
+    - assets/images/background_logo.png
+    - assets/images/calendar_icon.png
+    - assets/images/calendar_icon2.png
+    - assets/images/chatting_icon.png
+    - assets/images/chatting_icon2.png
+    - assets/images/homework_icon.png
+    - assets/images/homework_icon2.png
+    - assets/images/menu_icon.png
+    - assets/images/menu_icon2.png
+    - assets/images/microphone_icon.png
+    - assets/images/microphone_icon2.png
+    - assets/images/notice_icon.png
+    - assets/images/notice_icon2.png
+    - assets/images/plus_icon.png
+    - assets/images/plus_icon2.png
+    - assets/images/start_icon.png
+    - assets/images/stop_icon.png
+    - assets/images/study_icon.png
+    - assets/images/study_icon2.png
+    - assets/images/studytime_icon.png
+    - assets/images/studytime_icon2.png
+    - assets/images/user_icon2.png
+    - assets/images/logo.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

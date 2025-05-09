@@ -78,7 +78,7 @@ class StudyFirstPage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildIconBox(context, '공지사항', 'assets/images/notice_icon.png', const NoticePage()),
+                    _buildIconBox(context, '공지사항', 'assets/images/notice_icon.png', const NoticePage(groupId: '', currentUserEmail: '',)),
                     _buildIconBox(context, '과제 관리', 'assets/images/homework_icon.png', const HomeworkScreen()),
                     _buildIconBox(context, '미팅 일정', 'assets/images/meetingplan_icon.png', const MeetingSchedulePage()),
                   ],
