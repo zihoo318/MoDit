@@ -1,17 +1,15 @@
-
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert'; // jsonDecode 사용을 위해 필요
 
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart'; // MediaType 사용
 import 'package:path/path.dart';
+import 'package:mime/mime.dart';
 
-class api {
-  // 공통 API URL 설정
-  static const String baseUrl = "http://172.27.176.1:8080";
+class Api {
+  static const String baseUrl = "http://223.194.136.124:8080/api";
 
-  Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
+  Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
     final request = http.MultipartRequest('POST', uri);
 
@@ -24,9 +22,6 @@ class api {
       filename: basename(audioFile.path),
     ));
 
-    // 그룹 이름 추가
-    request.fields['groupName'] = groupName;
-
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -37,6 +32,4 @@ class api {
       return null;
     }
   }
-
-
 }
