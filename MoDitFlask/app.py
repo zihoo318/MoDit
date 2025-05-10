@@ -3,8 +3,11 @@ from flask import Flask
 from routes.stt_route import stt_bp
 from routes.ocr_route import ocr_bp
 from routes.summary_route import summary_bp
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
 
 # 블루프린트 등록
 app.register_blueprint(stt_bp)
