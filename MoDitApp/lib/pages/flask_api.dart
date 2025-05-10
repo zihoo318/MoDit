@@ -7,9 +7,10 @@ import 'package:path/path.dart';
 import 'package:mime/mime.dart';
 
 class Api {
-  static const String baseUrl = "http://223.194.136.124:8080/api";
+  // 공통 API URL 설정
+  static const String baseUrl = "http://172.27.176.1:8080";
 
-  Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile) async {
+  Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
     final request = http.MultipartRequest('POST', uri);
 
@@ -22,6 +23,9 @@ class Api {
       filename: basename(audioFile.path),
     ));
 
+    // 그룹 이름 추가
+    request.fields['groupName'] = groupName;
+
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -32,4 +36,5 @@ class Api {
       return null;
     }
   }
+
 }
