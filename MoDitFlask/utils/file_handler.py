@@ -25,5 +25,23 @@ def upload_to_object_storage(local_path, key):
         aws_secret_access_key=config_env.NCLOUD_SECRET_KEY,
         endpoint_url=config_env.NCLOUD_ENDPOINT
     )
-    s3.upload_file(local_path, config_env.NCLOUD_BUCKET_NAME, key)
+
+    # 파일 확장자에 따라 ContentType 자동 지정 (기본은 binary)
+    content_type = "application/octet-stream"
+    if key.endswith(".txt"):
+        content_type = "text/plain; charset=utf-8"
+    elif key.endswith(".m4a"):
+        content_type = "audio/mp4"
+
+    s3.upload_file(
+        local_path,
+        config_env.NCLOUD_BUCKET_NAME,
+        key,
+        ExtraArgs={
+            "ContentType": content_type,
+            "ACL": "public-read"
+        }
+    )
+
     return f"{config_env.NCLOUD_ENDPOINT}/{config_env.NCLOUD_BUCKET_NAME}/{key}"
+
