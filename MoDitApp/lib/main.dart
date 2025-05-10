@@ -14,6 +14,7 @@ import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
 import 'pages/login.dart'; // 👈 login.dart 임포트 추가
 import 'pages/note_screen.dart';
+import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -34,7 +35,7 @@ class MoDitApp extends StatelessWidget {
   debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: NoteScreen(), // ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨
+      home: TestApiPage(), // ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨
     );
   }
 }
