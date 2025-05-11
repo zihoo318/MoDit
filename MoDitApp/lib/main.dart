@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:moditapp/pages/group_main_screen.dart';
 import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
 import 'pages/logo_screen.dart';
 import 'pages/meeting_calendar.dart';
@@ -35,7 +36,11 @@ class MoDitApp extends StatelessWidget {
   debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: const Home(), // ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨
+      home: GroupMainScreen(
+        groupId: '-OPqe387N6zi4K4UK3IT',
+        currentUserEmail: 'ga@naver.com',
+      ),
+
     );
   }
 }
