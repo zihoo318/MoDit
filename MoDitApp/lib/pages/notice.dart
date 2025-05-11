@@ -12,7 +12,6 @@ class NoticePage extends StatefulWidget {
 
 class _NoticePageState extends State<NoticePage> {
   String groupName = '';
-  List<String> memberNames = [];
   List<Map<String, String>> notices = [];
   final db = FirebaseDatabase.instance.ref();
   int currentPage = 1;
@@ -21,31 +20,7 @@ class _NoticePageState extends State<NoticePage> {
   @override
   void initState() {
     super.initState();
-    loadGroupInfo();
     loadNotices();
-  }
-
-  void loadGroupInfo() async {
-    final groupSnap = await db.child('groupStudies').child(widget.groupId).get();
-    if (groupSnap.exists) {
-      final data = groupSnap.value as Map;
-      setState(() {
-        groupName = data['name'] ?? '';
-      });
-
-      final members = Map<String, dynamic>.from(data['members'] ?? {});
-      final List<String> names = [];
-      for (var emailKey in members.keys) {
-        final userSnap = await db.child('user').child(emailKey).get();
-        if (userSnap.exists) {
-          final userData = userSnap.value as Map;
-          names.add(userData['name'] ?? emailKey);
-        }
-      }
-      setState(() {
-        memberNames = names;
-      });
-    }
   }
 
   void loadNotices() async {
@@ -120,41 +95,14 @@ class _NoticePageState extends State<NoticePage> {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset('assets/images/background_logo.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
-          ),
           Padding(
-            padding: const EdgeInsets.all(40),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 상단바
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(groupName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
-                    Row(
-                      children: [
-                        for (var name in memberNames)
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFD9D9D9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(name, style: const TextStyle(fontSize: 12)),
-                          ),
-                        const SizedBox(width: 12),
-                        const CircleAvatar(
-                          radius: 16,
-                          backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                        )
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
+                // 상단바 부분 제거됨
+
+                const SizedBox(height: 0),
 
                 // 공지사항 제목 + 등록
                 Row(
@@ -173,13 +121,13 @@ class _NoticePageState extends State<NoticePage> {
                     )
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 40),
 
                 // 공지사항 리스트
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFECEEFF),
+                      color: const Color(0xFFB8BDF1).withOpacity(0.3), // 공지사항 배경색
                       borderRadius: BorderRadius.circular(30),
                     ),
                     padding: const EdgeInsets.all(24),

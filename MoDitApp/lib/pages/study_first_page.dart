@@ -1,4 +1,4 @@
-import 'dart:math';
+/*import 'dart:math';
 import 'package:flutter/material.dart';
 
 // 각 페이지 import
@@ -145,3 +145,4 @@ class StudyFirstPage extends StatelessWidget {
     );
   }
 }
+*/
