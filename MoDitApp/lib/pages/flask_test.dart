@@ -21,7 +21,7 @@ class _TestApiPageState extends State<TestApiPage> {
   String resultText = '';
   bool showSummarySplit = false;
 
-  final String baseUrl = "http://192.168.45.232:8080"; // Flask 서버 주소
+  final String baseUrl = "http://192.168.0.222:8080"; // Flask 서버 주소
   final String groupName = "테스트스터디";
 
   final String hardcodedOriginalText = '''SK텔레콤이 모든 직원을 동원해 유심(USIM) 해킹 사태 해결을 위해 총력전에 나섰다. 국내 1위 통신사업자로서의 사회적 역할을 다하겠다는 것이다. 일각에서는 유심사태에 대한 과도한 괴담을 경계하는 목소리도 나온다.

@@ -31,7 +31,7 @@ def process_stt(file_path, base_filename, group_name):
     }
     
     # # 이 위까지의 코드가 실제 코드 아래는 테스트용 가짜 코드===================================
-    # print(f"⚠️ [TEST MODE] stt 호출 생략됨.")
+    # print(f"[TEST MODE] stt 호출 생략됨.")
 
     # # === 가짜 결과 반환 ===
     # return "이것은 테스트용 stt 결과입니다."
@@ -65,11 +65,11 @@ def request_stt(audio_path, completion, callback=None, userdata=None, forbiddens
     try:
         data = response.json()
     except Exception as e:
-        print("❌ 응답 파싱 오류:", e)
-        print("📦 원본 응답:", response.text)
+        print("응답 파싱 오류:", e)
+        print("원본 응답:", response.text)
         return {"text": ""}
 
-    #print("✅ Clova 응답:", json.dumps(data, indent=2, ensure_ascii=False))
+    #print("Clova 응답:", json.dumps(data, indent=2, ensure_ascii=False))
 
     segments = data.get("segments", [])
     # text만 추출해서 이어붙이기

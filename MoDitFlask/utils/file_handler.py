@@ -2,6 +2,8 @@
 import os
 import boto3
 from config import config_env
+from urllib.parse import quote
+
 
 TEMP_DIR = "temp_files"  # 임시 디렉토리 (원하는 경로로 지정 가능)
 
@@ -32,6 +34,8 @@ def upload_to_object_storage(local_path, key):
         content_type = "text/plain; charset=utf-8"
     elif key.endswith(".m4a"):
         content_type = "audio/mp4"
+    elif key.endswith(".jpg"):
+        content_type = "image/jpeg"
 
     s3.upload_file(
         local_path,
