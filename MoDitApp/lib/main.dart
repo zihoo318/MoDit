@@ -3,7 +3,6 @@ import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
 import 'pages/logo_screen.dart';
 import 'pages/meeting_calendar.dart';
 import 'pages/meeting_record.dart';
-import 'pages/meeting_schedule.dart';
 import 'pages/notice.dart';
 import 'pages/study_first_page.dart';
 import 'pages/study_time.dart';
