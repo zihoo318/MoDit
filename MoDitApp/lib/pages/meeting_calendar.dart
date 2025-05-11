@@ -85,7 +85,6 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
     return Scaffold(
       body: Row(
         children: [
-          _buildSidebar(),
           Expanded(
             child: Container(
               decoration: const BoxDecoration(
@@ -98,7 +97,6 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  _buildTopBar(members),
                   _buildTitleBar(),
                   _buildCalendar(),
                   const SizedBox(height: 16),
@@ -121,62 +119,6 @@ class _MeetingCalendarScreenState extends State<MeetingCalendarScreen> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebar() {
-    return Container(
-      width: 200,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFDCDFFD), Color(0xFFF2DAFA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Text("MoDit", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF9496DB))),
-          ),
-          _buildSidebarItem(Icons.grid_view_rounded, "메뉴"),
-          _buildSidebarItem(Icons.alarm, "공부 시간"),
-          _buildSidebarItem(Icons.calendar_month_outlined, "미팅 일정 & 녹음", active: true),
-          _buildSidebarItem(Icons.book, "과제 관리"),
-          _buildSidebarItem(Icons.announcement, "공지사항"),
-          _buildSidebarItem(Icons.chat, "채팅"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarItem(IconData icon, String title, {bool active = false}) {
-    return Container(
-      color: active ? const Color(0xFFCAD0FF) : Colors.transparent,
-      child: ListTile(
-        leading: Icon(icon, color: active ? const Color(0xFF6C79FF) : Colors.grey),
-        title: Text(title, style: TextStyle(color: active ? const Color(0xFF6C79FF) : Colors.grey)),
-      ),
-    );
-  }
-
-  Widget _buildTopBar(List<String> members) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        children: [
-          const Text("그룹스터디이름", style: TextStyle(fontSize: 18)),
-          const Spacer(),
-          ...members.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Chip(label: Text(e)),
-              )),
-          const SizedBox(width: 12),
-          const CircleAvatar(backgroundColor: Colors.white, radius: 20, child: Icon(Icons.person)),
         ],
       ),
     );

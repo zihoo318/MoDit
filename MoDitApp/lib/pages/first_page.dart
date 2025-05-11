@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'friend_add_popup.dart';
 import 'group_create_popup.dart';
+import 'group_main_screen.dart';
 import 'notice.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -83,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => NoticePage(
+            builder: (_) => GroupMainScreen(
               groupId: group['id'],
               currentUserEmail: widget.currentUserEmail,
             ),

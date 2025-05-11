@@ -1,144 +1,174 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'notice_write.dart';
-import 'notice_detail.dart';
 
 class NoticePage extends StatefulWidget {
-  const NoticePage({super.key});
+  final String groupId;
+  final String currentUserEmail;
+  const NoticePage({required this.groupId, required this.currentUserEmail, super.key});
 
   @override
   State<NoticePage> createState() => _NoticePageState();
 }
 
 class _NoticePageState extends State<NoticePage> {
-  final _database = FirebaseDatabase.instance.ref('notices');
-  List<Map<String, dynamic>> _notices = [];
+  String groupName = '';
+  List<Map<String, String>> notices = [];
+  final db = FirebaseDatabase.instance.ref();
+  int currentPage = 1;
+  final int itemsPerPage = 5;
 
   @override
   void initState() {
     super.initState();
-    _loadNotices();
+    loadNotices();
   }
 
-  void _loadNotices() {
-    _database.onValue.listen((event) {
-      final data = event.snapshot.value;
-      if (data == null) return;
+  void loadNotices() async {
+    final noticeSnap = await db.child('notices').child(widget.groupId).get();
+    if (noticeSnap.exists) {
+      final data = Map<String, dynamic>.from(noticeSnap.value as Map);
 
-      final Map<String, dynamic> noticeMap = Map<String, dynamic>.from(data as Map);
-      final newList = noticeMap.entries.map((entry) {
-        final val = Map<String, dynamic>.from(entry.value);
-        return {
-          'key': entry.key,
-          'title': val['title'] ?? '',
-          'content': val['content'] ?? '',
-          'timestamp': val['timestamp'] ?? '',
+      final list = data.entries.map((e) {
+        final item = Map<String, dynamic>.from(e.value as Map);
+        return <String, String>{
+          'title': item['title'] ?? '',
+          'body': item['body'] ?? '',
         };
       }).toList();
 
-      newList.sort((a, b) => b['timestamp'].compareTo(a['timestamp'])); // 시간순 정렬
-
       setState(() {
-        _notices = newList;
+        notices = List<Map<String, String>>.from(list.reversed);
       });
-    });
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: Image.asset('assets/images/background1.png', fit: BoxFit.cover)),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.arrow_back, size: 24),
-                          SizedBox(width: 8),
-                          Text('공지사항', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Image.asset('assets/images/notice_icon.png', width: 24),
-                          const SizedBox(width: 12),
-                          const Text('MoDit', style: TextStyle(color: Color(0xFF0D0A64), fontSize: 16, fontWeight: FontWeight.bold)),
-                          const SizedBox(width: 8),
-                          Image.asset('assets/images/user_icon.png', width: 32),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+  void _showNoticeDialog() {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
 
-                // 공지사항 카드
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.blue.shade100, width: 2),
-                  ),
-                  child: Column(
-                    children: [
-                      ..._notices.map((notice) => _buildNoticeItem(notice)).toList(),
-                      const SizedBox(height: 12),
-                      const Text('<1|2|3|4|5>', style: TextStyle(fontSize: 16, color: Colors.black54)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const NoticeWritePage()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade200),
-                  child: const Text("공지사항 작성"),
-                ),
-              ],
-            ),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFECE6F0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        title: const Text('공지사항 등록'),
+        content: SizedBox(
+          width: 300,
+          height: 180,
+          child: Column(
+            children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: '공지사항 제목')),
+              TextField(controller: bodyController, decoration: const InputDecoration(labelText: '공지사항 내용'), maxLines: 3),
+            ],
           ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          TextButton(
+            onPressed: () async {
+              final newRef = db.child('notices').child(widget.groupId).push();
+              await newRef.set({
+                'title': titleController.text,
+                'body': bodyController.text,
+                'createdAt': DateTime.now().millisecondsSinceEpoch,
+              });
+              Navigator.pop(context);
+              loadNotices();
+            },
+            child: const Text('등록'),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildNoticeItem(Map<String, dynamic> notice) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => NoticeDetailPage(
-              title: notice['title'],
-              content: notice['content'],
-            ),
-          ),
-        );
-      },
-      child: Column(
+  List<Map<String, String>> get pagedNotices {
+    final start = (currentPage - 1) * itemsPerPage;
+    final end = (start + itemsPerPage > notices.length) ? notices.length : start + itemsPerPage;
+    return notices.sublist(start, end);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalPages = (notices.length / itemsPerPage).ceil();
+
+    return Scaffold(
+      body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(notice['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                // 상단바 부분 제거됨
+
+                const SizedBox(height: 0),
+
+                // 공지사항 제목 + 등록
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('공지사항', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                    GestureDetector(
+                      onTap: _showNoticeDialog,
+                      child: Row(
+                        children: [
+                          const Text('공지사항 등록', style: TextStyle(fontSize: 14)),
+                          const SizedBox(width: 4),
+                          Image.asset('assets/images/plus_icon2.png', width: 20),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 40),
+
+                // 공지사항 리스트
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB8BDF1).withOpacity(0.3), // 공지사항 배경색
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: ListView.separated(
+                      itemCount: pagedNotices.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (_, i) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(pagedNotices[i]['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(pagedNotices[i]['body'] ?? ''),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // 페이지네이션
+                if (totalPages > 1)
+                  Center(
+                    child: Wrap(
+                      spacing: 8,
+                      children: List.generate(
+                        totalPages,
+                            (index) => GestureDetector(
+                          onTap: () => setState(() => currentPage = index + 1),
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              fontWeight: currentPage == index + 1 ? FontWeight.bold : FontWeight.normal,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          const Divider(thickness: 1),
         ],
       ),
     );

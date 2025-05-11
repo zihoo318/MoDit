@@ -79,32 +79,6 @@ class _StudyTimeScreenState extends State<StudyTimeScreen> {
     return Scaffold(
       body: Row(
         children: [
-          // 사이드바
-          Container(
-            width: 200,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFDCDFFD), Color(0xFFF2DAFA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text("MoDit", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF9496DB))),
-                ),
-                _buildSidebarItem(Icons.grid_view_rounded, "메뉴"),
-                _buildSidebarItem(Icons.alarm, "공부 시간", active: true),
-                _buildSidebarItem(Icons.calendar_month_outlined, "미팅 일정 & 녹음"),
-                _buildSidebarItem(Icons.book, "과제 관리"),
-                _buildSidebarItem(Icons.announcement, "공지사항"),
-                _buildSidebarItem(Icons.chat, "채팅"),
-              ],
-            ),
-          ),
           // 본문
           Expanded(
             child: Container(
@@ -119,22 +93,6 @@ class _StudyTimeScreenState extends State<StudyTimeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 상단 바
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Row(
-                      children: [
-                        const Text("그룹스터디이름", style: TextStyle(fontSize: 18)),
-                        const Spacer(),
-                        ...members.map((e) => Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Chip(label: Text(e)),
-                            )),
-                        const SizedBox(width: 12),
-                        const CircleAvatar(backgroundColor: Colors.white, radius: 20, child: Icon(Icons.person)),
-                      ],
-                    ),
-                  ),
                   // 타이머 및 시작/정지 버튼
                   Center(
                     child: Container(
