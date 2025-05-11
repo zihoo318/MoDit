@@ -4,7 +4,7 @@ import 'notice_write.dart';
 import 'notice_detail.dart';
 
 class NoticePage extends StatefulWidget {
-  const NoticePage({super.key});
+  const NoticePage({super.key, required groupId, required String currentUserEmail});
 
   @override
   State<NoticePage> createState() => _NoticePageState();
