@@ -31,14 +31,11 @@ dependencies:
   flutter:
     sdk: flutter
   firebase_core: ^2.24.2
-  path_provider: ^2.0.14
-  permission_handler: ^11.0.1
-  image: ^4.1.3
-  http: ^0.13.6
-  path: ^1.8.0
-  mime: ^1.0.4
-  http_parser: ^4.0.2
-  file_selector: ^1.0.3
+
+  firebase_auth: ^4.17.4  # ✅ 이 줄 추가
+  firebase_database: ^10.3.7 # ✅ 추가
+  cloud_firestore: ^4.5.0
+  collection: ^1.17.0
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -68,24 +65,28 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/images/background1.png
-    - assets/images/background2.png
+    - assets/images/background_logo.png
     - assets/images/calendar_icon.png
-    - assets/images/heart_icon.png
+    - assets/images/calendar_icon2.png
+    - assets/images/chatting_icon.png
+    - assets/images/chatting_icon2.png
     - assets/images/homework_icon.png
-    - assets/images/meetingplan_icon.png
+    - assets/images/homework_icon2.png
+    - assets/images/menu_icon.png
+    - assets/images/menu_icon2.png
     - assets/images/microphone_icon.png
+    - assets/images/microphone_icon2.png
     - assets/images/notice_icon.png
+    - assets/images/notice_icon2.png
+    - assets/images/plus_icon.png
+    - assets/images/plus_icon2.png
+    - assets/images/start_icon.png
+    - assets/images/stop_icon.png
     - assets/images/study_icon.png
+    - assets/images/study_icon2.png
     - assets/images/studytime_icon.png
-    - assets/images/note_icon.png
-    - assets/images/user_icon.png
-    - assets/images/logo.png
-    - assets/images/logo_img.png
-    - assets/images/location_icon.png
-    - assets/images/heart_icon.png
-    - assets/images/hand_icon.png
-
+    - assets/images/studytime_icon2.png
+    - assets/images/user_icon2.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
