@@ -9,7 +9,7 @@ import 'pages/study_first_page.dart';
 import 'pages/study_time.dart';
 import 'package:moditapp/pages/chatting.dart';
 import 'package:moditapp/pages/homeworkManager.dart';
-import 'package:moditapp/pages/homwork.dart';
+import 'package:moditapp/pages/homework.dart';
 import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
 import 'pages/login.dart'; // 👈 login.dart 임포트 추가
@@ -23,6 +23,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
 }
 
@@ -35,7 +36,9 @@ class MoDitApp extends StatelessWidget {
   debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: TestApiPage(), // ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨
+
+      home: StudyTimeScreen(), /* ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨*/
+
     );
   }
 }

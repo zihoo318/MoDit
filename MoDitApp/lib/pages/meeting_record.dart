@@ -1,250 +1,257 @@
+// meeting_record.dart with sidebar and top bar
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-class MeetingRecordPage extends StatefulWidget {
-  const MeetingRecordPage({Key? key}) : super(key: key);
+class MeetingRecordScreen extends StatefulWidget {
+  final DateTime selectedDate;
+  const MeetingRecordScreen({super.key, required this.selectedDate});
 
   @override
-  State<MeetingRecordPage> createState() => _MeetingRecordPageState();
+  State<MeetingRecordScreen> createState() => _MeetingRecordScreenState();
 }
 
-class _MeetingRecordPageState extends State<MeetingRecordPage> {
-  bool showRecordingPopup = false;
+class _MeetingRecordScreenState extends State<MeetingRecordScreen> {
+  List<Map<String, dynamic>> recordings = [];
   bool isRecording = false;
-  bool showNameInputPopup = false;
-  String noteName = '';
-  Duration elapsed = Duration.zero;
-  late final Ticker _ticker;
+  Duration recordDuration = Duration.zero;
+  late final TextEditingController _nameController;
+
+  final List<String> members = ['가을', '윤지', '유진', '지후'];
 
   @override
   void initState() {
     super.initState();
-    _ticker = Ticker((elapsedTime) {
-      if (isRecording) {
-        setState(() {
-          elapsed = elapsedTime;
-        });
-      }
-    });
+    _nameController = TextEditingController();
   }
 
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
+  void _showRecordPrompt() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFFF1ECFA),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('녹음을 하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _startRecording();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE1D9F8)),
+            child: const Text('Start'),
+          ),
+        ],
+      ),
+    );
   }
 
-  void startRecording() {
+  void _startRecording() {
     setState(() {
-      showRecordingPopup = false;
       isRecording = true;
-      elapsed = Duration.zero;
+      recordDuration = Duration.zero;
     });
-    _ticker.start();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future.delayed(const Duration(seconds: 1), () {
+            if (isRecording) {
+              setState(() => recordDuration += const Duration(seconds: 1));
+              setDialogState(() {});
+            }
+          });
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFFF1ECFA),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Column(
+              children: [
+                const Icon(Icons.mic, size: 40, color: Color(0xFF9F8DF1)),
+                Text(_formatDuration(recordDuration), style: const TextStyle(fontSize: 24))
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  setState(() => isRecording = false);
+                  Navigator.pop(context);
+                  _showSaveDialog();
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE1D9F8)),
+                child: const Text('Stop'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
-  void stopRecording() {
-    _ticker.stop();
-    setState(() {
-      isRecording = false;
-      showNameInputPopup = true;
-    });
+  void _showSaveDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFFF1ECFA),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('노트 이름을 저장해주세요.'),
+        content: TextField(
+          controller: _nameController,
+          decoration: const InputDecoration(hintText: '예: 회의녹음_1'),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                recordings.add({
+                  'name': _nameController.text,
+                  'timestamp': DateTime.now(),
+                });
+                _nameController.clear();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
   }
 
-  String formatDuration(Duration duration) {
+  String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final hours = twoDigits(duration.inHours);
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$hours:$minutes:$seconds";
+    return '${duration.inHours}:$minutes:$seconds';
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: 200,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFDCDFFD), Color(0xFFF2DAFA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text("MoDit", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF9496DB))),
+          ),
+          _buildSidebarItem(Icons.grid_view_rounded, "메뉴"),
+          _buildSidebarItem(Icons.alarm, "공부 시간"),
+          _buildSidebarItem(Icons.calendar_month_outlined, "미팅 일정 & 녹음", active: true),
+          _buildSidebarItem(Icons.book, "과제 관리"),
+          _buildSidebarItem(Icons.announcement, "공지사항"),
+          _buildSidebarItem(Icons.chat, "채팅"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarItem(IconData icon, String title, {bool active = false}) {
+    return Container(
+      color: active ? const Color(0xFFCAD0FF) : Colors.transparent,
+      child: ListTile(
+        leading: Icon(icon, color: active ? const Color(0xFF6C79FF) : Colors.grey),
+        title: Text(title, style: TextStyle(color: active ? const Color(0xFF6C79FF) : Colors.grey)),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          const Text("그룹스터디이름", style: TextStyle(fontSize: 18)),
+          const Spacer(),
+          ...members.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Chip(label: Text(e)),
+              )),
+          const SizedBox(width: 12),
+          const CircleAvatar(backgroundColor: Colors.white, radius: 20, child: Icon(Icons.person)),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          body: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/background1.png'),
-                fit: BoxFit.cover,
+    final dateStr = DateFormat('yyyy. MM. dd.').format(widget.selectedDate);
+
+    return Scaffold(
+      body: Row(
+        children: [
+          _buildSidebar(),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFDCDFFD), Color(0xFFF2DAFA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-            ),
-            child: SafeArea(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
+                  _buildTopBar(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text("2025. 04. 25.", style: TextStyle(fontSize: 18)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1ECFA),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(dateStr, style: const TextStyle(fontSize: 24)),
                       ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Image.asset('assets/images/meetingplan_icon.png', width: 24),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                            icon: Image.asset('assets/images/microphone_icon.png', width: 24),
-                            onPressed: () {
-                              setState(() {
-                                showRecordingPopup = true;
-                              });
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          Text("MoDit", style: TextStyle(color: Colors.blue[800], fontSize: 16)),
-                          const SizedBox(width: 4),
-                          Image.asset('assets/images/user_icon.png', width: 24),
-                          const SizedBox(width: 16),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.mic, color: Color(0xFF9F8DF1)),
+                        onPressed: _showRecordPrompt,
                       ),
                     ],
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: "새 노트",
-                        border: UnderlineInputBorder(),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: ListView.builder(
+                        itemCount: recordings.length,
+                        itemBuilder: (context, index) {
+                          final r = recordings[index];
+                          return Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.mic),
+                              title: Text(r['name'] ?? '이름 없음'),
+                              subtitle: Text(r['timestamp'].toString()),
+                              trailing: const Icon(Icons.download),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-
-        // 녹음 시작 여부 팝업
-        if (showRecordingPopup)
-          Center(
-            child: _buildPopup(
-              content: Column(
-                children: [
-                  const Text("녹음을 하시겠습니까?"),
-                  const SizedBox(height: 8),
-                  Image.asset('assets/images/microphone_icon.png', width: 32),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _popupButton("Start", () => startRecording()),
-                      _popupButton("No", () {
-                        setState(() {
-                          showRecordingPopup = false;
-                        });
-                      }),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-        // 녹음 중 팝업
-        if (isRecording)
-          Center(
-            child: _buildPopup(
-              content: Column(
-                children: [
-                  Image.asset('assets/images/microphone_icon.png', width: 32),
-                  const SizedBox(height: 8),
-                  Text(formatDuration(elapsed), style: const TextStyle(fontSize: 18)),
-                  const SizedBox(height: 8),
-                  _popupButton("Stop", () => stopRecording()),
-                ],
-              ),
-            ),
-          ),
-
-        // 노트 이름 저장 팝업
-        if (showNameInputPopup)
-          Center(
-            child: _buildPopup(
-              content: Column(
-                children: [
-                  const Text("노트 이름을 저장해주세요."),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      onChanged: (val) => noteName = val,
-                      decoration: const InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _popupButton("저장", () {
-                    setState(() {
-                      showNameInputPopup = false;
-                    });
-                    // 여기서 노트 저장 처리 가능
-                  }),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPopup({required Widget content}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      width: 220,
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(16),
+          )
+        ],
       ),
-      child: content,
     );
-  }
-
-  Widget _popupButton(String text, VoidCallback onPressed) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue.shade200,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      onPressed: onPressed,
-      child: Text(text),
-    );
-  }
-}
-
-class Ticker {
-  final void Function(Duration elapsed) callback;
-  Duration _elapsed = Duration.zero;
-  bool _active = false;
-
-  Ticker(this.callback);
-
-  void start() {
-    _active = true;
-    _tick();
-  }
-
-  void stop() {
-    _active = false;
-  }
-
-  void _tick() async {
-    final start = DateTime.now();
-    while (_active) {
-      await Future.delayed(const Duration(seconds: 1));
-      _elapsed = DateTime.now().difference(start);
-      callback(_elapsed);
-    }
-  }
-
-  void dispose() {
-    _active = false;
   }
 }
