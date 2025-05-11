@@ -3,7 +3,6 @@ import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
 import 'pages/logo_screen.dart';
 import 'pages/meeting_calendar.dart';
 import 'pages/meeting_record.dart';
-import 'pages/meeting_schedule.dart';
 import 'pages/notice.dart';
 import 'pages/study_first_page.dart';
 import 'pages/study_time.dart';
@@ -13,6 +12,8 @@ import 'package:moditapp/pages/homework.dart';
 import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
 import 'pages/login.dart'; // 👈 login.dart 임포트 추가
+import 'pages/note_screen.dart';
+import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -21,6 +22,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
 }
 
