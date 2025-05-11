@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 
 // 각 페이지 import
 import 'homework.dart';
+import 'meeting_calendar.dart';
 import 'study_time.dart';
 import 'chatting.dart';
 import 'notice.dart';
 import 'homework.dart';
-import 'meeting_schedule.dart';
 
 class StudyFirstPage extends StatelessWidget {
   final String groupName;
@@ -80,7 +80,7 @@ class StudyFirstPage extends StatelessWidget {
                   children: [
                     _buildIconBox(context, '공지사항', 'assets/images/notice_icon.png', const NoticePage(groupId: '', currentUserEmail: '',)),
                     _buildIconBox(context, '과제 관리', 'assets/images/homework_icon.png', const HomeworkScreen()),
-                    _buildIconBox(context, '미팅 일정', 'assets/images/meetingplan_icon.png', const MeetingSchedulePage()),
+                    _buildIconBox(context, '미팅 일정', 'assets/images/meetingplan_icon.png', const MeetingCalendarScreen()),
                   ],
                 ),
               ],

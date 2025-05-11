@@ -26,5 +26,5 @@ It integrates with an AI-powered Flask backend for OCR, voice-to-text, and summa
 Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동됩니다:
 
 - 이미지 업로드 → Flask OCR → 결과 텍스트를 Firebase에 저장  
-- 음성 녹음 파일 업로드 → Flask STT → 결과 텍스트 저장  
+- 음성 녹음 파일 업로드 → Flask Naver Clova Speech Recognition API → 결과 텍스트 저장  
 - 메모 or 필기 텍스트 → Flask Summarization → 요약 텍스트 저장

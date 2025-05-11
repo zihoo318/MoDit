@@ -31,9 +31,20 @@ dependencies:
   flutter:
     sdk: flutter
   firebase_core: ^2.24.2
+
   firebase_auth: ^4.17.4  # ✅ 이 줄 추가
   firebase_database: ^10.3.7 # ✅ 추가
   cloud_firestore: ^4.5.0
+  collection: ^1.17.0
+  path_provider: ^2.0.14
+  permission_handler: ^11.0.1
+  image: ^4.1.3
+  http: ^0.13.6
+  path: ^1.8.0
+  mime: ^1.0.4
+  http_parser: ^4.0.2
+  file_selector: ^1.0.3
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -82,6 +93,8 @@ flutter:
     - assets/images/study_icon.png
     - assets/images/study_icon2.png
     - assets/images/studytime_icon.png
+    - assets/images/studytime_icon2.png
+    - assets/images/user_icon2.png
     - assets/images/studytime_icon2.png
     - assets/images/user_icon2.png
     - assets/images/logo.png
