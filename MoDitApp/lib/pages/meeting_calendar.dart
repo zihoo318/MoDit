@@ -1,4 +1,4 @@
-// ✅ 통합 버전: meeting_calendar.dart (스크롤 가능한 일정 박스 포함)
+// ✅ 통합 버전: meeting_calendar.dart (스크롤 + 포맷 전환 버튼 포함)
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +16,7 @@ class MeetingCalendarWidget extends StatefulWidget {
 class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   DateTime selectedDate = DateTime.now();
   DateTime focusedDate = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   final List<Map<String, dynamic>> meetings = [
     {
@@ -95,14 +96,13 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         const SizedBox(height: 16),
         _buildCalendar(),
         const SizedBox(height: 16),
-        // 일정 표시 영역
         Expanded(
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: const Color(0xFFB8BDF1).withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Scrollbar(
               child: ListView.builder(
@@ -161,13 +161,23 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: focusedDate,
         selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+        calendarFormat: _calendarFormat,
+        onFormatChanged: (format) {
+          setState(() {
+            _calendarFormat = format;
+          });
+        },
+        availableCalendarFormats: const {
+          CalendarFormat.month: '월',
+          CalendarFormat.twoWeeks: '2주',
+          CalendarFormat.week: '주',
+        },
         onDaySelected: (selected, focused) {
           setState(() {
             selectedDate = selected;
             focusedDate = focused;
           });
         },
-        calendarFormat: CalendarFormat.month,
         eventLoader: getMeetingsForDay,
         calendarStyle: const CalendarStyle(
           markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
