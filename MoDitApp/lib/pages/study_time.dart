@@ -48,15 +48,24 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE0E0E0),
+            shape: BoxShape.circle,
+          ),
+          child: Text(name, style: const TextStyle(fontSize: 14)),
+        ),
+        const SizedBox(height: 2),
         Image.asset(
           studying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
           width: 100,
           height: 100,
         ),
-        const SizedBox(height: 6),
-        Text(_formatTime(studyTimes[name] ?? Duration.zero), style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 2),
+        Text(_formatTime(studyTimes[name] ?? Duration.zero), style: const TextStyle(fontSize: 16)),
       ],
     );
   }
@@ -68,24 +77,30 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ⏱️ 타이머 박스
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Text("공부 시간", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
         Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFFF1ECFA),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(_formatTime(elapsedTime), style: const TextStyle(fontSize: 20)),
-                const SizedBox(width: 10),
+                Text(_formatTime(elapsedTime), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500)),
+                const SizedBox(width: 16),
                 IconButton(
+                  iconSize: 32,
                   icon: const Icon(Icons.play_arrow, color: Color(0xFF6C79FF)),
                   onPressed: isStudying ? null : _startStudy,
                 ),
                 IconButton(
+                  iconSize: 32,
                   icon: const Icon(Icons.stop, color: Color(0xFF6C79FF)),
                   onPressed: isStudying ? _stopStudy : null,
                 ),
@@ -94,7 +109,6 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
           ),
         ),
         const SizedBox(height: 24),
-        // 👥 사용자 Grid 박스
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(24),
@@ -105,8 +119,8 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
             child: GridView.count(
               crossAxisCount: 3,
               crossAxisSpacing: 40,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.3,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.9,
               children: members.map((name) => _buildStudent(name)).toList(),
             ),
           ),
