@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'chatting.dart';
 import 'notice.dart';
+import 'meeting_calendar.dart';
+import 'meeting_record.dart';
+import 'study_time.dart';
+import 'taskManageScreen.dart';
+import 'menu.dart';
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
@@ -14,9 +19,13 @@ class GroupMainScreen extends StatefulWidget {
 
 class _GroupMainScreenState extends State<GroupMainScreen> {
   final db = FirebaseDatabase.instance.ref();
-  int _selectedIndex = 4; // 공지사항 기본
+  int _selectedIndex = 0; // 전체 메뉴 인덱스
+  int _homeworkTabIndex = 0; // 과제 탭 내부 인덱스
   String groupName = '';
   List<String> memberNames = [];
+
+  DateTime? _recordDate;
+  bool isRecordingView = false;
 
   final List<String> menuTitles = [
     '메뉴', '공부 시간', '미팅 일정 & 녹음', '과제 관리', '공지사항', '채팅'
@@ -56,6 +65,26 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         memberNames = names;
       });
     }
+  }
+
+  Widget _buildCircleTabButton(int index) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _homeworkTabIndex = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _homeworkTabIndex == index
+              ? const Color(0xFFD3D0EA)
+              : const Color(0xFFFCF7FD),
+        ),
+        child: const SizedBox.shrink(),
+      ),
+    );
   }
 
   @override
@@ -114,7 +143,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                   menuTitles[index],
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: selected ? const Color(0xFF6495ED) : Colors.black.withOpacity(0.3), // 텍스트 색상 변경
+                                    color: selected ? const Color(0xFF6495ED) : Colors.black.withOpacity(0.3),
                                   ),
                                 )
                               ],
@@ -133,9 +162,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 60),
+                    // 상단 바
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15), // 위아래 padding 증가
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(40),
@@ -165,18 +195,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(40),
+
+                    // 과제 탭일 때만 탭 버튼 표시
+                    if (_selectedIndex == 3)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildCircleTabButton(0),
+                            const SizedBox(width: 12),
+                            _buildCircleTabButton(1),
+                          ],
                         ),
-                        child: _buildSelectedContent(),
                       ),
-                    ),
+
+                    const SizedBox(height: 10),
+                    Expanded(child: _buildSelectedContent()),
                   ],
                 ),
               )
@@ -188,19 +223,58 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Widget _buildSelectedContent() {
+    if (_selectedIndex == 0) {
+      return MenuScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+    }
+
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(40),
+            ),
+            child: _getContentForOtherTabs(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _getContentForOtherTabs() {
     switch (_selectedIndex) {
-      case 0:
-        return const Center(child: Text('메뉴 내용'));
       case 1:
-        return const Center(child: Text('공부 시간 내용'));
+        return const StudyTimeWidget();
       case 2:
-        return const Center(child: Text('미팅 일정 & 녹음'));
+        return MeetingCalendarWidget(
+          onRecordDateSelected: (date) {
+            setState(() {
+              _recordDate = date;
+              _selectedIndex = 6;
+              isRecordingView = true;
+            });
+          },
+        );
+
       case 3:
-        return const Center(child: Text('과제 관리'));
+        return TaskManageScreen(
+          tabIndex: _homeworkTabIndex,
+          onTabChanged: (int index) {
+            setState(() => _homeworkTabIndex = index);
+          },
+        );
       case 4:
         return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 5:
         return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+      case 6:
+        return _recordDate == null
+            ? const Center(child: Text('날짜가 선택되지 않았습니다'))
+            : MeetingRecordWidget(selectedDate: _recordDate!);
       default:
         return const SizedBox();
     }
