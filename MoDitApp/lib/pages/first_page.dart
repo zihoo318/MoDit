@@ -4,6 +4,8 @@ import 'friend_add_popup.dart';
 import 'group_create_popup.dart';
 import 'group_main_screen.dart';
 import 'notice.dart';
+import 'flask_test.dart'; //임시 테스트 코드
+
 
 class HomeScreen extends StatefulWidget {
   final String currentUserEmail;
@@ -211,6 +213,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+
+                // ================== flsk api 테스트를 위한 임시 코드 ==================
+                const SizedBox(height: 2), // 여백
+
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TestApiPage()),
+                    );
+                  },
+                  child: const Text("테스트 API 페이지 이동"),
+                ),
+                // ================== flsk api 테스트를 위한 임시 코드 ==================
               ],
             ),
           ),

@@ -30,35 +30,7 @@ class _MenuScreenState extends State<MenuScreen> {
 
   String currentUser = '지후';
   bool isStudying = true; // 예시용. 나중에 Firebase 연동 가능
-  List<Map<String, String>> latestNotices = []; // 최신 공지사항 3개
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLatestNotices();
-  }
-
-  void _loadLatestNotices() async {
-    final db = FirebaseDatabase.instance.ref();
-    final noticeSnap = await db.child('notices').child(widget.groupId).get();
-
-    if (noticeSnap.exists) {
-      final data = Map<String, dynamic>.from(noticeSnap.value as Map);
-
-      final list = data.entries.map((e) {
-        final item = Map<String, dynamic>.from(e.value as Map);
-        return <String, String> {
-          'title': item['title'] ?? '',
-          'body': item['body'] ?? '',
-        };
-      }).toList();
-
-      // 최신 3개 공지사항만 가져오기
-      setState(() {
-        latestNotices = List<Map<String, String>>.from(list.reversed.take(3));
-      });
-    }
-  }
+  int _homeworkTabIndex = 0; // 과제 탭 내부 인덱스
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +155,12 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget getPageByName(String pageName) {
     switch (pageName) {
       case 'task':
-        return TaskManageScreen();
+        return TaskManageScreen(
+          tabIndex: _homeworkTabIndex,
+          onTabChanged: (int index) {
+            setState(() => _homeworkTabIndex = index);
+          },
+        );
       case 'notice':
         return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'study_time':

@@ -18,7 +18,8 @@ class GroupMainScreen extends StatefulWidget {
 
 class _GroupMainScreenState extends State<GroupMainScreen> {
   final db = FirebaseDatabase.instance.ref();
-  int _selectedIndex = 4; // 공지사항 기본
+  int _selectedIndex = 0; // 전체 메뉴 인덱스
+  int _homeworkTabIndex = 0; // 과제 탭 내부 인덱스
   String groupName = '';
   List<String> memberNames = [];
 
@@ -60,6 +61,26 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         memberNames = names;
       });
     }
+  }
+
+  Widget _buildCircleTabButton(int index) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _homeworkTabIndex = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _homeworkTabIndex == index
+              ? const Color(0xFFD3D0EA)
+              : const Color(0xFFFCF7FD),
+        ),
+        child: const SizedBox.shrink(),
+      ),
+    );
   }
 
   @override
@@ -118,7 +139,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                   menuTitles[index],
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: selected ? const Color(0xFF6495ED) : Colors.black.withOpacity(0.3), // 텍스트 색상 변경
+                                    color: selected ? const Color(0xFF6495ED) : Colors.black.withOpacity(0.3),
                                   ),
                                 )
                               ],
@@ -137,9 +158,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 60),
+                    // 상단 바
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15), // 위아래 padding 증가
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(40),
@@ -169,10 +191,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         ],
                       ),
                     ),
+
+                    // 과제 탭일 때만 탭 버튼 표시
+                    if (_selectedIndex == 3)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildCircleTabButton(0),
+                            const SizedBox(width: 12),
+                            _buildCircleTabButton(1),
+                          ],
+                        ),
+                      ),
+
                     const SizedBox(height: 10),
-                    Expanded(
-                      child: _buildSelectedContent(),
-                    ),
+                    Expanded(child: _buildSelectedContent()),
                   ],
                 ),
               )
@@ -184,11 +219,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Widget _buildSelectedContent() {
-    if (_selectedIndex == 0) {  // 메뉴 화면일 경우
+    if (_selectedIndex == 0) {
       return MenuScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
     }
 
-    return Column(  // 나머지 화면들은 기존처럼 Container를 사용
+    return Column(
       children: [
         const SizedBox(height: 10),
         Expanded(
@@ -206,22 +241,25 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     );
   }
 
-// 메뉴 이외의 페이지에 대한 컨텐츠 반환
   Widget _getContentForOtherTabs() {
     switch (_selectedIndex) {
-      case 1: // 공부 시간
+      case 1:
         return const StudyTimeScreen();
-      case 2: // 미팅 일정 & 녹음
+      case 2:
         return const MeetingCalendarScreen();
-      case 3: // 과제 관리
-        return const TaskManageScreen();
-      case 4: // 공지사항
+      case 3:
+        return TaskManageScreen(
+          tabIndex: _homeworkTabIndex,
+          onTabChanged: (int index) {
+            setState(() => _homeworkTabIndex = index);
+          },
+        );
+      case 4:
         return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
-      case 5: // 채팅
+      case 5:
         return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       default:
         return const SizedBox();
     }
   }
-
 }
