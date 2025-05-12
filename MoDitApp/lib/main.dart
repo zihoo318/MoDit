@@ -36,10 +36,7 @@ class MoDitApp extends StatelessWidget {
   debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: GroupMainScreen(
-        groupId: '-OPqe387N6zi4K4UK3IT',
-        currentUserEmail: 'ga@naver.com',
-      ),
+      home: Home()
 
     );
   }
