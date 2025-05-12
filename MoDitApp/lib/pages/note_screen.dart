@@ -1,3 +1,4 @@
+/*
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -332,3 +333,4 @@ class _TextNote {
 
   _TextNote({required this.position}) : controller = TextEditingController();
 }
+ */

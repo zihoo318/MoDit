@@ -1,3 +1,4 @@
+/*
 import 'package:flutter/material.dart';
 
 class NoticeDetailPage extends StatelessWidget {
@@ -52,3 +53,4 @@ class NoticeDetailPage extends StatelessWidget {
     );
   }
 }
+ */
