@@ -14,7 +14,7 @@ class ChattingPage extends StatefulWidget {
 class _ChattingPageState extends State<ChattingPage> {
   final db = FirebaseDatabase.instance.ref();
   late String targetUserEmail;
-  late String targetUserName;
+  String targetUserName = ''; // 초기값 설정
   final TextEditingController messageController = TextEditingController();
   List<Map<String, dynamic>> groupMembers = []; // 그룹 멤버 리스트
   List<Map<String, String>> chatMessages = []; // 채팅 메시지 리스트
@@ -23,6 +23,7 @@ class _ChattingPageState extends State<ChattingPage> {
   void initState() {
     super.initState();
     _loadGroupMembers(); // 그룹 멤버 로드
+    _createChatIfNotExist(); // chat 항목이 없으면 생성
   }
 
   // 그룹 멤버 로딩
@@ -64,6 +65,15 @@ class _ChattingPageState extends State<ChattingPage> {
         })
             .toList();
       });
+    }
+  }
+
+  // chat 항목 생성 (chat 항목이 없으면 생성)
+  void _createChatIfNotExist() async {
+    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
+    if (!chatSnap.exists) {
+      // chat이 없으면 새로 생성
+      await db.child('groupStudies').child(widget.groupId).child('chat').set({});
     }
   }
 
@@ -125,9 +135,31 @@ class _ChattingPageState extends State<ChattingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('채팅'),
-        automaticallyImplyLeading: false, // 뒤로 가기 버튼 제거
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(80), // 앱바 높이 설정
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
+          child: AppBar(
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.grey, // 회색 동그라미
+                  child: Image.asset('assets/images/user_icon2.png', width: 30), // user_icon2.png
+                ),
+                const SizedBox(width: 10),
+                Text(targetUserName.isEmpty ? '' : targetUserName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _sendReminderMessage, // 찌르기 아이콘 클릭 시 알림 전송
+                  child: Image.asset('assets/images/hand_icon.png', width: 30),
+                ),
+              ],
+            ),
+            automaticallyImplyLeading: false, // 뒤로 가기 버튼 제거
+            elevation: 0, // 앱바 그림자 없애기
+            backgroundColor: Color(0xFFB8BDF1).withOpacity(0.3), // 앱바 배경색
+          ),
+        ),
       ),
       body: Row(
         children: [
@@ -135,18 +167,21 @@ class _ChattingPageState extends State<ChattingPage> {
           Container(
             width: 150,
             padding: const EdgeInsets.all(8),
-            color: Colors.grey[200],
+            decoration: BoxDecoration(
+              color: Colors.grey[200], // 배경색 설정
+              borderRadius: BorderRadius.circular(15), // radius 추가
+            ),
             child: ListView.builder(
               itemCount: groupMembers.length,
               itemBuilder: (context, index) {
                 final member = groupMembers[index];
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Colors.grey, // 회색 동그라미
+                    backgroundColor: Color(0xFFD9D9D9), // 회색 동그라미
                     child: Text(
-                      member['name']![0],
-                      style: TextStyle(color: Colors.white),
-                    ), // 이름의 첫 글자 표시
+                      member['name']![0], // 이름의 첫 글자
+                      style: TextStyle(color: Colors.black87),
+                    ),
                   ),
                   title: Text(member['name']!), // 이름 표시
                   onTap: () {
@@ -208,11 +243,6 @@ class _ChattingPageState extends State<ChattingPage> {
                           icon: const Icon(Icons.send),
                           onPressed: _sendMessage,
                         ),
-                      ),
-                      // 찌르기 버튼 (hand_icon.png 사용)
-                      IconButton(
-                        icon: Image.asset('assets/images/hand_icon.png'),
-                        onPressed: _sendReminderMessage,
                       ),
                     ],
                   ),
