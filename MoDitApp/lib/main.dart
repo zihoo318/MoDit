@@ -3,7 +3,6 @@ import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
 import 'pages/logo_screen.dart';
 import 'pages/meeting_calendar.dart';
 import 'pages/meeting_record.dart';
-import 'pages/meeting_schedule.dart';
 import 'pages/notice.dart';
 import 'pages/study_first_page.dart';
 import 'pages/study_time.dart';
@@ -37,7 +36,7 @@ class MoDitApp extends StatelessWidget {
       title: 'MoDitApp',
       theme: ThemeData(),
 
-      home: StudyTimeScreen(), /* ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨*/
+      home: Home(), /* ← study_time.dart의 StudyTimeScreen() 할때만 앞의 const 지우고 실행시켜야됨*/
 
     );
   }
