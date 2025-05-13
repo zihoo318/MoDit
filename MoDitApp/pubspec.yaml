@@ -75,6 +75,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/background_logo.png
+    - assets/images/background.png
     - assets/images/calendar_icon.png
     - assets/images/calendar_icon2.png
     - assets/images/chatting_icon.png
@@ -96,8 +97,23 @@ flutter:
     - assets/images/studytime_icon.png
     - assets/images/studytime_icon2.png
     - assets/images/user_icon2.png
+<<<<<<< HEAD
     - assets/images/background.png
     - assets/images/logo.png
+=======
+    - assets/images/studytime_icon2.png
+    - assets/images/user_icon2.png
+    - assets/images/logo.png
+    - assets/images/hand_icon.png
+    - assets/images/pen.png
+    - assets/images/clicked_pen.png
+    - assets/images/keyboard.png
+    - assets/images/clicked_keyboard.png
+    - assets/images/eraser.png
+    - assets/images/clicked_eraser.png
+    - assets/images/box.png
+    - assets/images/clicked_box.png
+>>>>>>> develop
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

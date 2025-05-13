@@ -206,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 10),
                       ...notes.map((n) => _buildNoteCard(n['title'])).toList(),
                       _buildAddCard(() {}, width: 150, color: Colors.white),
                       const SizedBox(width: 20),
@@ -215,18 +215,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 // ================== flsk api 테스트를 위한 임시 코드 ==================
-                const SizedBox(height: 2), // 여백
-
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TestApiPage()),
-                    );
-                  },
-                  child: const Text("테스트 API 페이지 이동"),
+                const SizedBox(height: 10), // 여백을 충분히 확보하여 아래로 넘치지 않게
+                Expanded( // 버튼을 확장하여 크기 조정
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TestApiPage()),
+                      );
+                    },
+                    child: const Text("테스트 API 페이지 이동"),
+                  ),
                 ),
                 // ================== flsk api 테스트를 위한 임시 코드 ==================
+
               ],
             ),
           ),

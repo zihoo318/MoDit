@@ -20,7 +20,6 @@ class GroupMainScreen extends StatefulWidget {
 class _GroupMainScreenState extends State<GroupMainScreen> {
   final db = FirebaseDatabase.instance.ref();
   int _selectedIndex = 0; // 전체 메뉴 인덱스
-  int _homeworkTabIndex = 0; // 과제 탭 내부 인덱스
   String groupName = '';
   List<String> memberNames = [];
 
