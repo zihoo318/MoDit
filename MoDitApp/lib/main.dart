@@ -36,7 +36,7 @@ class MoDitApp extends StatelessWidget {
   debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
-      home: Home()
+      home: NoteScreen()
 
     );
   }
