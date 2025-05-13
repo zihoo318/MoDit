@@ -1,27 +1,26 @@
-// study_time.dart (최적화: 간격, 크기, 배경 포함)
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-class StudyTimeScreen extends StatefulWidget {
-  const StudyTimeScreen({super.key});
+class StudyTimeWidget extends StatefulWidget {
+  const StudyTimeWidget({super.key});
 
   @override
-  State<StudyTimeScreen> createState() => _StudyTimeScreenState();
+  State<StudyTimeWidget> createState() => _StudyTimeWidgetState();
 }
 
-class _StudyTimeScreenState extends State<StudyTimeScreen> {
+class _StudyTimeWidgetState extends State<StudyTimeWidget> {
   Duration elapsedTime = Duration.zero;
   Timer? timer;
   bool isStudying = false;
   final String currentUser = '윤지';
 
   final Map<String, Duration> studyTimes = {
-    '가을': const Duration(hours: 0, minutes: 0, seconds: 0),
-    '윤지': const Duration(hours: 0, minutes: 0, seconds: 0),
-    '유진': const Duration(hours: 0, minutes: 0, seconds: 0),
-    '지후': const Duration(hours: 0, minutes: 0, seconds: 0),
-    '시연': const Duration(hours: 0, minutes: 0, seconds: 0),
-    '수연': const Duration(hours: 0, minutes: 0, seconds: 0),
+    '가을': const Duration(hours: 0),
+    '윤지': const Duration(hours: 0),
+    '유진': const Duration(hours: 0),
+    '지후': const Duration(hours: 0),
+    '시연': const Duration(hours: 0),
+    '수연': const Duration(hours: 0),
   };
 
   void _startStudy() {
@@ -42,16 +41,6 @@ class _StudyTimeScreenState extends State<StudyTimeScreen> {
   String _formatTime(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     return "${twoDigits(d.inHours)}:${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
-  }
-
-  Widget _buildSidebarItem(IconData icon, String title, {bool active = false}) {
-    return Container(
-      color: active ? const Color(0xFFCAD0FF) : Colors.transparent,
-      child: ListTile(
-        leading: Icon(icon, color: active ? const Color(0xFF6C79FF) : Colors.grey),
-        title: Text(title, style: TextStyle(color: active ? const Color(0xFF6C79FF) : Colors.grey)),
-      ),
-    );
   }
 
   Widget _buildStudent(String name) {
@@ -76,73 +65,53 @@ class _StudyTimeScreenState extends State<StudyTimeScreen> {
   Widget build(BuildContext context) {
     final members = studyTimes.keys.toList();
 
-    return Scaffold(
-      body: Row(
-        children: [
-          // 본문
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFDCDFFD), Color(0xFFF2DAFA)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 타이머 및 시작/정지 버튼
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1ECFA),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_formatTime(elapsedTime), style: const TextStyle(fontSize: 20)),
-                          const SizedBox(width: 10),
-                          IconButton(
-                            icon: const Icon(Icons.play_arrow, color: Color(0xFF6C79FF)),
-                            onPressed: isStudying ? null : _startStudy,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.stop, color: Color(0xFF6C79FF)),
-                            onPressed: isStudying ? _stopStudy : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // 학생들 아이콘과 시간
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: GridView.count(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 40,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 1.3,
-                        shrinkWrap: true,
-                        children: members.map((name) => _buildStudent(name)).toList(),
-                      ),
-                    ),
-                  )
-                ],
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ⏱️ 타이머 박스
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1ECFA),
+              borderRadius: BorderRadius.circular(20),
             ),
-          )
-        ],
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_formatTime(elapsedTime), style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.play_arrow, color: Color(0xFF6C79FF)),
+                  onPressed: isStudying ? null : _startStudy,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.stop, color: Color(0xFF6C79FF)),
+                  onPressed: isStudying ? _stopStudy : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        // 👥 사용자 Grid 박스
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: GridView.count(
+              crossAxisCount: 3,
+              crossAxisSpacing: 40,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.3,
+              children: members.map((name) => _buildStudent(name)).toList(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

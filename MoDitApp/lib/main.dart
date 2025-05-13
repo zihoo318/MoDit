@@ -15,6 +15,7 @@ import 'pages/note_screen.dart';
 import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,15 @@ class MoDitApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(),
+      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'),
+        Locale('en', 'US'),
+      ],
       home: HomeScreen(
       //   groupId: '-OPqe387N6zi4K4UK3IT',
          currentUserEmail: 'ga@naver.com',

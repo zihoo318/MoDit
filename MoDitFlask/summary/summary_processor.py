@@ -3,10 +3,10 @@
 import requests
 import os
 import uuid
-from config import config_env
 from utils.file_handler import upload_to_object_storage
-
+from config import config_env
 import openai
+
 openai.api_key = config_env.OPENAI_API_KEY
 
 def summarize_from_ncp(file_url, group_name):

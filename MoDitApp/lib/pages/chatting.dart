@@ -16,38 +16,34 @@ class _ChattingPageState extends State<ChattingPage> {
   late String targetUserEmail;
   late String targetUserName;
   final TextEditingController messageController = TextEditingController();
-  List<Map<String, String>> groupMembers = [];
-  List<Map<String, String>> chatMessages = [];
+  List<Map<String, dynamic>> groupMembers = []; // 그룹 멤버 리스트
+  List<Map<String, String>> chatMessages = []; // 채팅 메시지 리스트
 
   @override
   void initState() {
     super.initState();
-    _loadGroupMembers();
+    _loadGroupMembers(); // 그룹 멤버 로드
   }
 
   // 그룹 멤버 로딩
   void _loadGroupMembers() async {
     final groupSnap = await db.child('groupStudies').child(widget.groupId).get();
     if (groupSnap.exists) {
-      final data = groupSnap.value as Map; // Firebase에서 가져온 데이터를 Map<String, dynamic>으로 변환
-      final members = Map<String, dynamic>.from(data['members'] ?? {}); // members 객체 추출
+      final data = groupSnap.value as Map;
+      final members = Map<String, dynamic>.from(data['members'] ?? {});
 
-      // setState(() {
-      //   groupMembers = members.entries
-      //       .map((e) => {
-      //     'email': e.key, // 이메일을 사용
-      //     'name': e.value['name'] ?? e.key.replaceAll('_', '.') // name이 없으면 이메일을 사용
-      //   })
-      //       .toList(); // List<Map<String, String>> 형식으로 변환
-      // });
+      setState(() {
+        groupMembers = members.entries
+            .map((e) {
+          return {
+            'email': e.key, // 이메일
+            'name': e.key.split('@')[0], // name을 이메일 앞부분으로 설정 (예시: ga@naver_com -> ga)
+          };
+        })
+            .toList(); // List<Map<String, String>> 형식으로 변환
+      });
     }
-
   }
-
-
-
-
-
 
   // 채팅 메시지 로딩
   void _loadChatMessages() async {
@@ -59,10 +55,12 @@ class _ChattingPageState extends State<ChattingPage> {
             .where((e) =>
         (e.value['senderId'] == widget.currentUserEmail && e.value['receiverId'] == targetUserEmail) ||
             (e.value['senderId'] == targetUserEmail && e.value['receiverId'] == widget.currentUserEmail))
-            .map((e) => {
-          'senderId': e.value['senderId'] as String,
-          'message': e.value['message'] as String,
-          'timestamp': e.value['timestamp'] as String,
+            .map((e) {
+          return {
+            'senderId': e.value['senderId'] as String,
+            'message': e.value['message'] as String,
+            'timestamp': e.value['timestamp'] as String,
+          };
         })
             .toList();
       });
@@ -71,6 +69,10 @@ class _ChattingPageState extends State<ChattingPage> {
 
   // 메시지 전송
   void _sendMessage() async {
+    if (targetUserEmail.isEmpty) {
+      // targetUserEmail이 비어 있으면 메시지 보내지 않도록 처리
+      return;
+    }
     final message = messageController.text.trim();
     if (message.isNotEmpty) {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
@@ -94,7 +96,14 @@ class _ChattingPageState extends State<ChattingPage> {
 
   // 찌르기 아이콘 (알림 메시지 전송)
   void _sendReminderMessage() async {
+    if (targetUserEmail.isEmpty) {
+      // targetUserEmail이 비어 있으면 알림 전송하지 않도록 처리
+      return;
+    }
+
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // 상대방에게 "공부하세요!" 알림 전송
     final chatRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
     await chatRef.set({
       'senderId': widget.currentUserEmail,
@@ -103,12 +112,12 @@ class _ChattingPageState extends State<ChattingPage> {
       'timestamp': timestamp,
     });
 
-    // 상대방을 찔렀습니다 알림
+    // 알림을 보낸 사람에게 "알림을 보냈습니다" 알림 전송
     final reminderRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
     await reminderRef.set({
       'senderId': widget.currentUserEmail,
       'receiverId': widget.currentUserEmail,
-      'message': '상대방을 찔렀습니다!',
+      'message': '알림을 보냈습니다!',
       'timestamp': timestamp,
     });
   }
@@ -118,6 +127,7 @@ class _ChattingPageState extends State<ChattingPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('채팅'),
+        automaticallyImplyLeading: false, // 뒤로 가기 버튼 제거
       ),
       body: Row(
         children: [
@@ -132,9 +142,13 @@ class _ChattingPageState extends State<ChattingPage> {
                 final member = groupMembers[index];
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Color(0xFFD9D9D9), // 회색 동그라미
+                    backgroundColor: Colors.grey, // 회색 동그라미
+                    child: Text(
+                      member['name']![0],
+                      style: TextStyle(color: Colors.white),
+                    ), // 이름의 첫 글자 표시
                   ),
-                  title: Text(member['name']!), // name 표시
+                  title: Text(member['name']!), // 이름 표시
                   onTap: () {
                     setState(() {
                       targetUserEmail = member['email']!;
@@ -162,7 +176,10 @@ class _ChattingPageState extends State<ChattingPage> {
                           alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            color: isSender ? Color(0xFFB8BDF1).withOpacity(0.3) : Colors.grey[200], // B8BDF1 색과 투명도
+                            decoration: BoxDecoration(
+                              color: Color(0xFFB8BDF1).withOpacity(0.3), // 채팅 배경색
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                             child: Text(chat['message']!),
                           ),
                         ),
@@ -181,12 +198,20 @@ class _ChattingPageState extends State<ChattingPage> {
                           decoration: const InputDecoration(hintText: '메시지를 입력하세요'),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.send),
-                        onPressed: _sendMessage,
+                      // 전송 버튼 (색상 ECE6F0으로 설정)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Color(0xFFECE6F0),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.send),
+                          onPressed: _sendMessage,
+                        ),
                       ),
+                      // 찌르기 버튼 (hand_icon.png 사용)
                       IconButton(
-                        icon: const Icon(Icons.thumb_up),
+                        icon: Image.asset('assets/images/hand_icon.png'),
                         onPressed: _sendReminderMessage,
                       ),
                     ],

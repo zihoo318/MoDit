@@ -32,6 +32,13 @@ class _MenuScreenState extends State<MenuScreen> {
   bool isStudying = true; // 예시용. 나중에 Firebase 연동 가능
   int _homeworkTabIndex = 0; // 과제 탭 내부 인덱스
 
+  final db = FirebaseDatabase.instance.ref();
+  String groupName = '';
+  List<String> memberNames = [];
+  DateTime? _recordDate;
+  bool isRecordingView = false;
+
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -155,20 +162,22 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget getPageByName(String pageName) {
     switch (pageName) {
       case 'task':
-        return TaskManageScreen(
-          tabIndex: _homeworkTabIndex,
-          onTabChanged: (int index) {
-            setState(() => _homeworkTabIndex = index);
-          },
-        );
+        return TaskManageScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'notice':
         return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'study_time':
-        return const StudyTimeScreen();
+        return const StudyTimeWidget();
       case 'chatting':
         return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'meeting_calendar':
-        return const MeetingCalendarScreen();
+        return MeetingCalendarWidget(
+          onRecordDateSelected: (date) {
+            setState(() {
+              _recordDate = date;
+              isRecordingView = true;
+            });
+          },
+        );
       default:
         return const Center(child: Text('잘못된 페이지'));
     }
