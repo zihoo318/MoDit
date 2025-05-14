@@ -162,12 +162,7 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget getPageByName(String pageName) {
     switch (pageName) {
       case 'task':
-        return TaskManageScreen(
-          tabIndex: _homeworkTabIndex,
-          onTabChanged: (int index) {
-            setState(() => _homeworkTabIndex = index);
-          },
-        );
+        return TaskManageScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'notice':
         return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'study_time':
