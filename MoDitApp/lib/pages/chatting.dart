@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:fluttertoast/fluttertoast.dart'; // fluttertoast 임포트 추가
 
 class ChattingPage extends StatefulWidget {
   final String groupId;
@@ -46,6 +47,15 @@ class _ChattingPageState extends State<ChattingPage> {
     }
   }
 
+  // chat 항목 생성 (chat 항목이 없으면 생성)
+  void _createChatIfNotExist() async {
+    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
+    if (!chatSnap.exists) {
+      // chat이 없으면 새로 생성
+      await db.child('groupStudies').child(widget.groupId).child('chat').set({});
+    }
+  }
+
   // 채팅 메시지 로딩
   void _loadChatMessages() async {
     final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
@@ -65,15 +75,6 @@ class _ChattingPageState extends State<ChattingPage> {
         })
             .toList();
       });
-    }
-  }
-
-  // chat 항목 생성 (chat 항목이 없으면 생성)
-  void _createChatIfNotExist() async {
-    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
-    if (!chatSnap.exists) {
-      // chat이 없으면 새로 생성
-      await db.child('groupStudies').child(widget.groupId).child('chat').set({});
     }
   }
 
@@ -122,14 +123,24 @@ class _ChattingPageState extends State<ChattingPage> {
       'timestamp': timestamp,
     });
 
-    // 알림을 보낸 사람에게 "알림을 보냈습니다" 알림 전송
+    // 알림을 보낸 사람에게 "상대방을 찔렀습니다" 알림 전송
     final reminderRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
     await reminderRef.set({
       'senderId': widget.currentUserEmail,
       'receiverId': widget.currentUserEmail,
-      'message': '알림을 보냈습니다!',
+      'message': '상대방을 찔렀습니다',
       'timestamp': timestamp,
     });
+
+    // Toast 메시지 보내기 (FCM 대신)
+    Fluttertoast.showToast(
+      msg: "상대방에게 '공부하세요!' 알림을 보냈습니다.",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Color(0xFFECE6F0), // ECE6F0 색상 적용
+      textColor: Colors.black54,
+      fontSize: 16.0,
+    );
   }
 
   @override
@@ -143,25 +154,35 @@ class _ChattingPageState extends State<ChattingPage> {
             title: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: Colors.grey, // 회색 동그라미
+                  backgroundColor: Color(0xFFD9D9D9), // 회색 동그라미
                   child: Image.asset('assets/images/user_icon2.png', width: 30), // user_icon2.png
                 ),
                 const SizedBox(width: 10),
                 Text(targetUserName.isEmpty ? '' : targetUserName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
                 const SizedBox(width: 10),
                 GestureDetector(
-                  onTap: _sendReminderMessage, // 찌르기 아이콘 클릭 시 알림 전송
-                  child: Image.asset('assets/images/hand_icon.png', width: 30),
+                    onTap: _sendReminderMessage, // 찌르기 아이콘 클릭 시 알림 전송
+                    child: Row(
+                      children: [
+                        Image.asset('assets/images/hand_icon.png', width: 30),
+                        const SizedBox(width: 13),
+                        const Text('찌르기') // "찌르기" 텍스트 추가
+                      ],
+                    )
                 ),
               ],
             ),
             automaticallyImplyLeading: false, // 뒤로 가기 버튼 제거
             elevation: 0, // 앱바 그림자 없애기
             backgroundColor: Color(0xFFB8BDF1).withOpacity(0.3), // 앱바 배경색
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(15)), // 앱바 상단에 radius 적용
+              )
           ),
         ),
       ),
       body: Row(
+        mainAxisAlignment: MainAxisAlignment.end,  // 중앙 정렬
         children: [
           // 그룹 멤버 목록
           Container(
@@ -176,14 +197,19 @@ class _ChattingPageState extends State<ChattingPage> {
               itemBuilder: (context, index) {
                 final member = groupMembers[index];
                 return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Color(0xFFD9D9D9), // 회색 동그라미
-                    child: Text(
-                      member['name']![0], // 이름의 첫 글자
-                      style: TextStyle(color: Colors.black87),
-                    ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 0),  // 좌우 여백 없애기
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,  // 중앙 정렬
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Color(0xFFD9D9D9),  // 회색 동그라미
+                        child: Text(
+                          member['name']!,
+                          style: TextStyle(color: Colors.black87),
+                        ),
+                      ),
+                    ],
                   ),
-                  title: Text(member['name']!), // 이름 표시
                   onTap: () {
                     setState(() {
                       targetUserEmail = member['email']!;
@@ -193,7 +219,8 @@ class _ChattingPageState extends State<ChattingPage> {
                   },
                 );
               },
-            ),
+            )
+            ,
           ),
           // 채팅 영역
           Expanded(
