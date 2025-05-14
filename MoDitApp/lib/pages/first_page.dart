@@ -227,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Text("테스트 API 페이지 이동"),
                   ),
                 ),
-// ================== flsk api 테스트를 위한 임시 코드 ==================
+                // ================== flsk api 테스트를 위한 임시 코드 ==================
 
               ],
             ),

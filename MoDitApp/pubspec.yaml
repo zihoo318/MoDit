@@ -30,8 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+      sdk: flutter
   firebase_core: ^2.24.2
-
   firebase_auth: ^4.17.4  # ✅ 이 줄 추가
   firebase_database: ^10.3.7 # ✅ 추가
   cloud_firestore: ^4.5.0
@@ -96,6 +97,10 @@ flutter:
     - assets/images/studytime_icon.png
     - assets/images/studytime_icon2.png
     - assets/images/user_icon2.png
+<<<<<<< HEAD
+    - assets/images/background.png
+    - assets/images/logo.png
+=======
     - assets/images/studytime_icon2.png
     - assets/images/user_icon2.png
     - assets/images/logo.png
@@ -108,6 +113,7 @@ flutter:
     - assets/images/clicked_eraser.png
     - assets/images/box.png
     - assets/images/clicked_box.png
+>>>>>>> develop
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
