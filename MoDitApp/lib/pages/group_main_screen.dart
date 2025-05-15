@@ -189,7 +189,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   Widget _buildSelectedContent() {
     if (_selectedIndex == 0) {
-      return MenuScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+      return MenuScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail, currentUserName: widget.currentUserEmail,);
     }
 
     return Column(
@@ -228,7 +228,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       case 3:
         return TaskManageScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 4:
-        return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+        return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail, currentUserName: widget.currentUserEmail,);
       case 5:
         return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 6:

@@ -11,8 +11,9 @@ import 'card_meeting_calendar.dart'; // MeetingCalendarCard 위젯 임포트
 class MenuScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
+  final String currentUserName;
 
-  const MenuScreen({required this.groupId, required this.currentUserEmail, Key? key}) : super(key: key);
+  const MenuScreen({required this.groupId, required this.currentUserEmail, required this.currentUserName, Key? key}) : super(key: key);
 
   @override
   State<MenuScreen> createState() => _MenuScreenState();
@@ -119,7 +120,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   // 미팅 카드
                   SizedBox(
                     width: cardWidth + 80,
-                    height: screenWidth * 0.4 + 40,
+                    height: screenWidth * 0.4 - 10,
                     child: GestureDetector(
                       onTap: () => _navigateToPage('meeting_calendar'),
                       child: _buildCardContainer(
@@ -282,7 +283,7 @@ class _MenuScreenState extends State<MenuScreen> {
       case 'task':
         return TaskManageScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'notice':
-        return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+        return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail, currentUserName: widget.currentUserName,);
       case 'study_time':
         return const StudyTimeWidget();
       case 'chatting':
@@ -309,7 +310,7 @@ class _MenuScreenState extends State<MenuScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 110,
+        height: 120,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.7),
