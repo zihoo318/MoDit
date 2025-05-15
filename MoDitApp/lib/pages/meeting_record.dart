@@ -27,7 +27,14 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFFF1ECFA),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('녹음을 하시겠습니까?'),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('녹음을 하시겠습니까?', textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            const Icon(Icons.mic, size: 36, color: Color(0xFF9F8DF1)),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
           ElevatedButton(
@@ -41,6 +48,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         ],
       ),
     );
+
   }
 
   void _startRecording() {
@@ -131,32 +139,45 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🔷 상단 날짜 + 마이크 버튼
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1ECFA),
-                borderRadius: BorderRadius.circular(20),
+        // 🔷 상단 텍스트 + 날짜/마이크 중앙 정렬
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("미팅 일정 & 녹음", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
-              child: Text(dateStr, style: const TextStyle(fontSize: 24)),
-            ),
-            IconButton(
-              icon: const Icon(Icons.mic, color: Color(0xFF9F8DF1)),
-              onPressed: _showRecordPrompt,
-            ),
-          ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1ECFA),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(dateStr, style: const TextStyle(fontSize: 24)),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.mic, size: 48, color: Color(0xFF9F8DF1)),
+                    onPressed: _showRecordPrompt,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
 
         // 🔷 녹음 목록
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.4),
+              color: const Color(0xFFB8BDF1).withOpacity(0.3),
               borderRadius: BorderRadius.circular(24),
             ),
             child: ListView.builder(
