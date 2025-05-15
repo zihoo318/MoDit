@@ -8,7 +8,7 @@ import 'note_screen.dart';
 class HomeScreen extends StatefulWidget {
   final String currentUserEmail;
   final String currentUserName;
-  const HomeScreen({required this.currentUserEmail, required this.currentUserName, super.key});
+  const HomeScreen({required this.currentUserEmail, super.key, required String this.currentUserName});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -69,7 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(
             builder: (_) => GroupMainScreen(
               groupId: group['id'],
-              currentUserEmail: widget.currentUserEmail, currentUserName: widget.currentUserName,
+              currentUserEmail: widget.currentUserEmail,
+              currentUserName: widget.currentUserName,
             ),
           ),
         );
@@ -168,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Transform.translate(
-                  offset: const Offset(-55, 0),
+                  offset: const Offset(-20, 0),
                   child: Image.asset('assets/images/logo.png', height: 40),
                 ),
                 GestureDetector(
