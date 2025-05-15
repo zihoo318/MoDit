@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://172.27.176.1:8080";
+  static const String baseUrl = "http://192.168.45.104:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -45,7 +45,7 @@ class Api {
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
 
     request.files.add(await http.MultipartFile.fromPath(
-      'homework',
+      'task',
       file.path,
       contentType: MediaType.parse(mimeType),
       filename: basename(file.path),
