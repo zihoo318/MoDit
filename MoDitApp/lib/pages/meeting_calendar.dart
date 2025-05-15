@@ -1,4 +1,4 @@
-// ✅ 통합 버전: meeting_calendar.dart (사이드바 & 상단바 유지형)
+// ✅ 통합 버전: meeting_calendar.dart (스크롤 + 포맷 전환 버튼 포함)
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -16,13 +16,34 @@ class MeetingCalendarWidget extends StatefulWidget {
 class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   DateTime selectedDate = DateTime.now();
   DateTime focusedDate = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   final List<Map<String, dynamic>> meetings = [
     {
       'date': DateTime(2025, 5, 6),
       'title': '캡스톤 미팅',
       'members': ['가을', '윤지', '유진', '지후']
-    }
+    },
+    {
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
+    {
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
+    {
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
+    {
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
   ];
 
   List<Map<String, dynamic>> getMeetingsForDay(DateTime day) {
@@ -82,19 +103,39 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> meetingsForDay = getMeetingsForDay(selectedDate);
+
     return Column(
       children: [
         _buildHeader(),
         const SizedBox(height: 16),
         _buildCalendar(),
         const SizedBox(height: 16),
-        ...getMeetingsForDay(selectedDate).map((meeting) => GestureDetector(
-          onTap: () => widget.onRecordDateSelected(meeting['date']),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildMeetingCard(meeting),
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFB8BDF1).withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Scrollbar(
+              child: ListView.builder(
+                itemCount: meetingsForDay.length,
+                itemBuilder: (context, index) {
+                  final meeting = meetingsForDay[index];
+                  return GestureDetector(
+                    onTap: () => widget.onRecordDateSelected(meeting['date']),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildMeetingCard(meeting),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
-        )),
+        ),
       ],
     );
   }
@@ -135,13 +176,23 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: focusedDate,
         selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+        calendarFormat: _calendarFormat,
+        onFormatChanged: (format) {
+          setState(() {
+            _calendarFormat = format;
+          });
+        },
+        availableCalendarFormats: const {
+          CalendarFormat.month: '월',
+          CalendarFormat.twoWeeks: '2주',
+          CalendarFormat.week: '주',
+        },
         onDaySelected: (selected, focused) {
           setState(() {
             selectedDate = selected;
             focusedDate = focused;
           });
         },
-        calendarFormat: CalendarFormat.month,
         eventLoader: getMeetingsForDay,
         calendarStyle: const CalendarStyle(
           markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
@@ -151,21 +202,19 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   }
 
   Widget _buildMeetingCard(Map<String, dynamic> meeting) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.6),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(meeting['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(meeting['members'].join(', ')),
-          ],
-        ),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(meeting['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(meeting['members'].join(', ')),
+        ],
       ),
     );
   }

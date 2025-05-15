@@ -10,10 +10,14 @@ import 'popup_task_register.dart';
 class TaskManageScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
+  final int tabIndex;
+  final ValueChanged<int>? onTabChanged;
 
   const TaskManageScreen({
     required this.groupId,
     required this.currentUserEmail,
+    this.tabIndex = 0,
+    this.onTabChanged,
     Key? key,
   }) : super(key: key);
 
