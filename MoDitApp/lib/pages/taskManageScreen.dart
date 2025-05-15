@@ -303,6 +303,25 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     );
   }
 
+  void _showTaskEditDialog(int index) {
+    final task = tasks[index];
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('과제 수정'),
+          content: Text('과제 "${task['title']}" 를 수정하는 창입니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   Widget _buildManageTab() {
     final task = tasks.isNotEmpty ? tasks[selectedTaskIndex] : null;
@@ -315,7 +334,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           Expanded(
             flex: 1,
             child: Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -325,7 +344,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('과제 목록', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+                      const Text('과제 목록', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                       GestureDetector(
                         onTap: _showTaskRegisterDialog,
                         child: Row(
@@ -338,36 +357,72 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 2),
+                  // 정렬된 리스트로 바꿔서 표시
                   Expanded(
                     child: Scrollbar(
-                      child: ListView.builder(
-                        itemCount: tasks.length,
-                        itemBuilder: (context, index) {
-                          final task = tasks[index];
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                selectedTaskIndex = index;
-                              });
+                      child: Builder(
+                        builder: (context) {
+                          final sortedTasks = List<Map<String, dynamic>>.from(tasks)
+                            ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
+
+                          return ListView.builder(
+                            itemCount: sortedTasks.length,
+                            itemBuilder: (context, index) {
+                              final task = sortedTasks[index];
+                              final originalIndex = tasks.indexOf(task); // 정렬 전 index 찾기
+
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedTaskIndex = originalIndex;
+                                  });
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: selectedTaskIndex == originalIndex
+                                        ? const Color(0xFF0D0A64).withOpacity(0.2)
+                                        : const Color(0xFFB8BDF1).withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              task['title'],
+                                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () {
+                                              _showTaskEditDialog(originalIndex); // 수정 팝업 호출
+                                            },
+                                            child: const Text(
+                                              '수정',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF0D0A64),
+                                                decoration: TextDecoration.underline,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text("마감일: ${task['deadline']}", style: const TextStyle(fontSize: 14)),
+                                      Text("소과제 ${task['subTasks'].length}개", style: const TextStyle(fontSize: 14)),
+                                    ],
+                                  ),
+
+                                ),
+                              );
                             },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFB8BDF1).withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(task['title'], style: const TextStyle(fontSize: 18)),
-                                  const SizedBox(height: 4),
-                                  Text("마감일: ${task['deadline']}", style: const TextStyle(fontSize: 14)),
-                                  Text("소과제 ${task['subTasks'].length}개", style: const TextStyle(fontSize: 14)),
-                                ],
-                              ),
-                            ),
                           );
                         },
                       ),
@@ -382,62 +437,82 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           // 오른쪽 상세보기
           Expanded(
             flex: 2,
-            child: SizedBox(
-              height: 500,
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB8BDF1).withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: task == null
-                    ? const Center(child: Text("과제를 선택하세요."))
-                    : SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("${task['title']}",
-                          style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text("마감일: ${task['deadline']}", style: const TextStyle(fontSize: 18)),
-                      const SizedBox(height: 20),
-                      ...List.generate(task['subTasks'].length, (index) {
-                        final sub = task['subTasks'][index];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 35),
+              child: SizedBox( // 고정 높이를 주기 위해 SizedBox 추가
+                height: 500,   // 원하는 고정 높이 설정
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB8BDF1).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: task == null
+                      ? const Center(child: Text("과제를 선택하세요."))
+                      : Scrollbar(
+                    thumbVisibility: true,
+                    radius: const Radius.circular(8),
+                    thickness: 6,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ...List.generate(task['subTasks'].length, (index) {
+                            final sub = task['subTasks'][index];
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    "${sub['subtitle']}",
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        "${index + 1}. ${sub['subtitle']}",
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold, fontSize: 20),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 19),
+                                    TextButton(
+                                      onPressed: () => _pickAndUploadFile(
+                                        task['taskId'],
+                                        sub['subId'],
+                                        widget.currentUserEmail,
+                                        widget.groupId,
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        backgroundColor: Colors.white.withOpacity(0.6),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(24),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+                                      ),
+                                      child: const Text(
+                                        "제출",
+                                        style: TextStyle(
+                                          color: Color(0xFF0D0A64),
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 19),
-                                OutlinedButton(
-                                  onPressed: () => _pickAndUploadFile(
-                                    task['taskId'],
-                                    sub['subId'],
-                                    widget.currentUserEmail,
-                                    widget.groupId,
+                                Text("${sub['description']}",
+                                    style: const TextStyle(fontSize: 19)),
+                                const SizedBox(height: 12),
+                                if (index != task['subTasks'].length - 1) ...[
+                                  const Divider(
+                                    thickness: 1.2,
+                                    color: Colors.grey,
+                                    height: 24,
                                   ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
-                                    foregroundColor: const Color(0xFF0D0A64),
-                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  child: const Text("제출"),
-                                ),
+                                ]
                               ],
-                            ),
-                            Text("상세 설명: ${sub['description']}", style: const TextStyle(fontSize: 19)),
-                            const SizedBox(height: 16),
-                          ],
-                        );
-                      }),
-                    ],
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -451,7 +526,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
 
   Widget _buildConfirmTab() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(2),
       child: Row(
         children: [
           // 왼쪽 과제 + 소과제 + 제출자 목록
@@ -460,8 +535,8 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('과제물 확인', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 12),
+                const Text('과제물 확인', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 3),
                 Expanded(
                   child: Scrollbar(
                     child: ListView.builder(
@@ -474,7 +549,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                         return Container(
                           width: double.infinity,
                           margin: const EdgeInsets.only(bottom: 20),
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE7E5FC),
                             borderRadius: BorderRadius.circular(16),
