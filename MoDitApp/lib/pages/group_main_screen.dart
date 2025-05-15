@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'chatting.dart';
+import 'first_page.dart';
 import 'notice.dart';
 import 'meeting_calendar.dart';
 import 'meeting_record.dart';
 import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'menu.dart';
+import 'home.dart'; // ✅ HomeScreen import 추가
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
-  const GroupMainScreen({required this.groupId, required this.currentUserEmail, super.key});
+  final String currentUserName;
+
+  const GroupMainScreen({
+    required this.groupId,
+    required this.currentUserEmail,
+    required this.currentUserName,
+    super.key,
+  });
 
   @override
   State<GroupMainScreen> createState() => _GroupMainScreenState();
@@ -19,7 +28,8 @@ class GroupMainScreen extends StatefulWidget {
 
 class _GroupMainScreenState extends State<GroupMainScreen> {
   final db = FirebaseDatabase.instance.ref();
-  int _selectedIndex = 0; // 전체 메뉴 인덱스
+  int _selectedIndex = 0;
+  int _homeworkTabIndex = 0;
   String groupName = '';
   List<String> memberNames = [];
 
@@ -66,6 +76,25 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
   }
 
+  Widget _buildCircleTabButton(int index) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _homeworkTabIndex = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _homeworkTabIndex == index
+              ? const Color(0xFFD3D0EA)
+              : const Color(0xFFFCF7FD),
+        ),
+        child: const SizedBox.shrink(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +110,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           ),
           Row(
             children: [
-              // 왼쪽 메뉴바
               Container(
                 width: 250,
                 margin: const EdgeInsets.only(left: 20, top: 40, bottom: 20),
@@ -91,12 +119,12 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 25),
                     Padding(
-                      padding: const EdgeInsets.only(right: 60),
+                      padding: const EdgeInsets.only(right: 110),
                       child: Image.asset('assets/images/logo.png', height: 35),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 50),
                     ...List.generate(menuTitles.length, (index) {
                       final selected = _selectedIndex == index;
                       return Padding(
@@ -122,8 +150,8 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                 Text(
                                   menuTitles[index],
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: selected ? const Color(0xFF6495ED) : Colors.black.withOpacity(0.3),
+                                    fontSize: 18,
+                                    color: selected ? const Color(0xFF6495ED) : Colors.black54,
                                   ),
                                 )
                               ],
@@ -136,13 +164,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 ),
               ),
               const SizedBox(width: 20),
-
-              // 오른쪽 메인 영역
               Expanded(
                 child: Column(
                   children: [
                     const SizedBox(height: 60),
-                    // 상단 바
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
                       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
@@ -153,21 +178,22 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(groupName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                          Text(groupName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                           Row(
                             children: [
                               ...memberNames.map((name) => Container(
                                 margin: const EdgeInsets.symmetric(horizontal: 6),
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFD9D9D9),
+                                  color: Color(0xFFD9D9D9), // ✅ 변경된 색상
                                   shape: BoxShape.circle,
                                 ),
-                                child: Text(name, style: const TextStyle(fontSize: 15)),
+                                child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
                               )),
                               const SizedBox(width: 8),
                               const CircleAvatar(
                                 radius: 16,
+                                backgroundColor: Colors.white, // 배경을 흰색으로 깔아줌
                                 backgroundImage: AssetImage('assets/images/user_icon2.png'),
                               )
                             ],
@@ -175,13 +201,57 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         ],
                       ),
                     ),
+                    if (_selectedIndex == 3)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildCircleTabButton(0),
+                            const SizedBox(width: 12),
+                            _buildCircleTabButton(1),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     Expanded(child: _buildSelectedContent()),
                   ],
                 ),
               )
             ],
-          )
+          ),
+          // ✅ 왼쪽 하단 뒤로가기 버튼 추가
+          Positioned(
+            bottom: 35,
+            left: 30,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomeScreen(
+                      currentUserEmail: widget.currentUserEmail,
+                      currentUserName: widget.currentUserName,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.purpleAccent.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.arrow_back, color: Colors.white),
+                    SizedBox(width: 1),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -189,7 +259,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   Widget _buildSelectedContent() {
     if (_selectedIndex == 0) {
-      return MenuScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail, currentUserName: widget.currentUserEmail,);
+      return MenuScreen(
+        groupId: widget.groupId,
+        currentUserEmail: widget.currentUserEmail,
+        currentUserName: widget.currentUserName,
+      );
     }
 
     return Column(
@@ -224,13 +298,26 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             });
           },
         );
-
       case 3:
-        return TaskManageScreen(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+        return TaskManageScreen(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
+          tabIndex: _homeworkTabIndex,
+          onTabChanged: (int index) {
+            setState(() => _homeworkTabIndex = index);
+          },
+        );
       case 4:
-        return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail, currentUserName: widget.currentUserEmail,);
+        return NoticePage(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
+          currentUserName: widget.currentUserName,
+        );
       case 5:
-        return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+        return ChattingPage(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
+        );
       case 6:
         return _recordDate == null
             ? const Center(child: Text('날짜가 선택되지 않았습니다'))
