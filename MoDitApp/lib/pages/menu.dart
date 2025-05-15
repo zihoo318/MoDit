@@ -11,8 +11,14 @@ import 'card_meeting_calendar.dart'; // MeetingCalendarCard 위젯 임포트
 class MenuScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
+  final String currentUserName; // ✅ 추가
 
-  const MenuScreen({required this.groupId, required this.currentUserEmail, Key? key}) : super(key: key);
+  const MenuScreen({
+    required this.groupId,
+    required this.currentUserEmail,
+    required this.currentUserName,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<MenuScreen> createState() => _MenuScreenState();
@@ -38,7 +44,6 @@ class _MenuScreenState extends State<MenuScreen> {
   DateTime? _recordDate;
   bool isRecordingView = false;
 
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -62,7 +67,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   children: [
                     // 공부 시간 카드
                     SizedBox(
-                      width: screenWidth * 0.33, // 비율로 크기 조정
+                      width: screenWidth * 0.33,
                       child: GestureDetector(
                         onTap: () => _navigateToPage('study_time'),
                         child: Container(
@@ -90,7 +95,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     const SizedBox(width: 20),
                     // 미팅 일정 & 녹음 카드
                     SizedBox(
-                      width: screenWidth * 0.33, // 비율로 크기 조정
+                      width: screenWidth * 0.33,
                       child: GestureDetector(
                         onTap: () => _navigateToPage('meeting_calendar'),
                         child: Container(
@@ -104,7 +109,7 @@ class _MenuScreenState extends State<MenuScreen> {
                             children: const [
                               Text('미팅 일정 & 녹음', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               SizedBox(height: 10),
-                              MeetingCalendarCard(), // 캘린더 카드 추가
+                              MeetingCalendarCard(),
                             ],
                           ),
                         ),
@@ -169,11 +174,18 @@ class _MenuScreenState extends State<MenuScreen> {
           },
         );
       case 'notice':
-        return NoticePage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+        return NoticePage(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
+          currentUserName: widget.currentUserName, // ✅ 전달
+        );
       case 'study_time':
         return const StudyTimeWidget();
       case 'chatting':
-        return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
+        return ChattingPage(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
+        );
       case 'meeting_calendar':
         return MeetingCalendarWidget(
           onRecordDateSelected: (date) {
