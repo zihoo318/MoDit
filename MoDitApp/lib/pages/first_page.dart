@@ -6,10 +6,15 @@ import 'group_main_screen.dart';
 import 'notice.dart';
 import 'flask_test.dart'; //임시 테스트 코드
 
-
 class HomeScreen extends StatefulWidget {
   final String currentUserEmail;
-  const HomeScreen({required this.currentUserEmail, super.key});
+  final String currentUserName; // ✅ 추가
+
+  const HomeScreen({
+    required this.currentUserEmail,
+    required this.currentUserName,
+    super.key,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -66,11 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showFriendAddPopup() {
     showDialog(
       context: context,
-      builder: (context) => FriendAddPopup(currentUserEmail: widget.currentUserEmail), // ✅ 전달
+      builder: (context) => FriendAddPopup(currentUserEmail: widget.currentUserEmail),
     );
   }
-
-
 
   _showGroupCreatePopup() {
     showDialog(
@@ -78,7 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => GroupCreatePopup(currentUserEmail: widget.currentUserEmail),
     ).then((_) => loadGroupStudies());
   }
-
 
   Widget _buildGroupStudyCard(Map<String, dynamic> group) {
     return GestureDetector(
@@ -89,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (_) => GroupMainScreen(
               groupId: group['id'],
               currentUserEmail: widget.currentUserEmail,
+              currentUserName: widget.currentUserName, // ✅ 전달
             ),
           ),
         );
@@ -149,7 +152,6 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(top: 100, left: 40, right: 40, bottom: 40),
             child: Column(
               children: [
-                // 상단바 박스
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
@@ -177,8 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 60),
-
-                // 그룹스터디 박스
                 Container(
                   height: 220,
                   width: double.infinity,
@@ -200,8 +200,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 60),
-
-                // 노트 카드 (배경 없이, 개별 카드 흰색)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -213,10 +211,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-
-                // ================== flsk api 테스트를 위한 임시 코드 ==================
-                const SizedBox(height: 10), // 여백을 충분히 확보하여 아래로 넘치지 않게
-                Expanded( // 버튼을 확장하여 크기 조정
+                const SizedBox(height: 10),
+                Expanded(
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.push(
@@ -227,8 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Text("테스트 API 페이지 이동"),
                   ),
                 ),
-// ================== flsk api 테스트를 위한 임시 코드 ==================
-
               ],
             ),
           ),

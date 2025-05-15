@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'first_page.dart';
 import 'home.dart';           // 뒤로가기 버튼용 홈
-import 'first_page.dart';   // 로그인 성공 시 이동할 홈 화면
+import 'home.dart';   // 로그인 성공 시 이동할 홈 화면
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,10 +22,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (userSnapshot.exists) {
       final data = userSnapshot.value as Map;
       if (data['password'] == password.text) {
+        final String name = data['name'] ?? '이름없음'; // ✅ 이름 가져오기
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => HomeScreen(currentUserEmail: email.text),
+            builder: (_) => HomeScreen(
+              currentUserEmail: email.text,
+              currentUserName: name, // ✅ 이름 전달
+            ),
           ),
         );
       } else {
@@ -52,7 +57,6 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: Alignment.topLeft,
             ),
           ),
-          // 왼쪽 아래 뒤로가기
           Positioned(
             left: 30,
             bottom: 30,
@@ -64,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // 로그인 카드
           Center(
             child: Container(
               width: 650,
