@@ -1,31 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:moditapp/pages/group_main_screen.dart';
+import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
+import 'pages/logo_screen.dart';
+import 'pages/meeting_calendar.dart';
+import 'pages/meeting_record.dart';
+import 'pages/notice.dart';
+import 'pages/study_first_page.dart';
+import 'pages/study_time.dart';
+import 'package:moditapp/pages/chatting.dart';
+import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
+import 'pages/login.dart'; // 👈 login.dart 임포트 추가
+import 'pages/note_screen.dart';
+import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
-  //firebase 초기화(로그인, 회원가입 기능)
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MyApp());
+
+  runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
 }
 
-class MyApp extends StatelessWidget {
+class MoDitApp extends StatelessWidget {
+  const MoDitApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Multi-Page App',
+      debugShowCheckedModeBanner: false,
+      title: 'MoDitApp',
       theme: ThemeData(
-        //fontFamily: 'dohyeon', // 전체 폰트 지정
-        //primarySwatch: Colors.blue,
+        fontFamily: 'nanum_round', // 전체 폰트 지정
       ),
-      themeMode: ThemeMode.system,
-      initialRoute: '/home',
-      routes: {
-        //'/': (context) => temp_startPage(),
-      },
+      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'),
+        Locale('en', 'US'),
+      ],
+      home: HomeScreen(
+      //   groupId: '-OPqe387N6zi4K4UK3IT',
+         currentUserEmail: 'ga@naver.com',
+       ),
     );
+    //home: NoteScreen());
   }
 }
