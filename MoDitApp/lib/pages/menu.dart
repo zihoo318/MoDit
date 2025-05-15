@@ -41,7 +41,6 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
     final cardWidth = screenWidth * 0.30;
 
     return Scaffold(
@@ -57,78 +56,61 @@ class _MenuScreenState extends State<MenuScreen> {
           Padding(
             padding: EdgeInsets.all(screenWidth * 0.03),
             child: SingleChildScrollView(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Wrap(
+                spacing: 20,
+                runSpacing: 20,
                 children: [
-                  // 공부시간 카드 + 버튼 세 개를 하나의 Column으로 묶기
+                  // 공부 시간 카드
                   SizedBox(
                     width: cardWidth + 45,
-                    height: screenHeight*0.4,
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _navigateToPage('study_time'),
-                          child: _buildCardContainer(
-                            title: '공부 시간',
-                            child: StudyTimeCard(
-                              studyTimes: studyTimes,
-                              currentUser: currentUser,
-                              isStudying: isStudying,
-                            ),
-                          ),
+                    child: GestureDetector(
+                      onTap: () => _navigateToPage('study_time'),
+                      child: _buildCardContainer(
+                        title: '공부 시간',
+                        child: StudyTimeCard(
+                          studyTimes: studyTimes,
+                          currentUser: currentUser,
+                          isStudying: isStudying,
                         ),
-                        const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: _buildCard(
-                                  title: '과제 관리',
-                                  icon: 'homework_icon',
-                                  onTap: () => _navigateToPage('task'),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: _buildCard(
-                                  title: '공지사항',
-                                  icon: 'notice_icon',
-                                  onTap: () => _navigateToPage('notice'),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: _buildCard(
-                                  title: '채팅',
-                                  icon: 'chatting_icon',
-                                  onTap: () => _navigateToPage('chatting'),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-
-                  const SizedBox(width: 20), // 카드 사이 간격
-
-                  // 미팅 카드
+                  // 미팅 일정 & 녹음 카드
                   SizedBox(
                     width: cardWidth + 80,
-                    height: screenWidth * 0.4 + 10,
                     child: GestureDetector(
                       onTap: () => _navigateToPage('meeting_calendar'),
                       child: _buildCardContainer(
                         title: '미팅 일정 & 녹음',
                         child: const MeetingCalendarCard(),
                       ),
+                    ),
+                  ),
+                  // 과제 관리 카드
+                  SizedBox(
+                    width: cardWidth * 0.32,
+                    child: _buildCard(
+                      title: '과제 관리',
+                      icon: 'homework_icon',
+                      onTap: () => _navigateToPage('task'),
+                    ),
+                  ),
+                  // 공지사항 카드
+                  SizedBox(
+                    width: cardWidth * 0.32,
+                    child: _buildCard(
+                      title: '공지사항',
+                      icon: 'notice_icon',
+                      onTap: () => _navigateToPage('notice'),
+                    ),
+                  ),
+                  // 채팅 카드
+                  SizedBox(
+                    width: cardWidth * 0.32,
+                    child: _buildCard(
+                      title: '채팅',
+                      icon: 'chatting_icon',
+                      onTap: () => _navigateToPage('chatting'),
                     ),
                   ),
                 ],

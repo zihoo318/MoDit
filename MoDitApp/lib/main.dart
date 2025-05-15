@@ -8,8 +8,6 @@ import 'pages/notice.dart';
 import 'pages/study_first_page.dart';
 import 'pages/study_time.dart';
 import 'package:moditapp/pages/chatting.dart';
-import 'package:moditapp/pages/homeworkManager.dart';
-import 'package:moditapp/pages/homework.dart';
 import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
 import 'pages/login.dart'; // 👈 login.dart 임포트 추가
@@ -17,6 +15,7 @@ import 'pages/note_screen.dart';
 import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,11 +32,25 @@ class MoDitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-  debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
-      theme: ThemeData(),
-      home: NoteScreen()
-
+      theme: ThemeData(
+        fontFamily: 'nanum_round', // 전체 폰트 지정
+      ),
+      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'),
+        Locale('en', 'US'),
+      ],
+      home: HomeScreen(
+      //   groupId: '-OPqe387N6zi4K4UK3IT',
+         currentUserEmail: 'ga@naver.com',
+       ),
     );
+    //home: NoteScreen());
   }
 }

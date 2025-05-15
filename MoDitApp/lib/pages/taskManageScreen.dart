@@ -325,7 +325,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('과제 목록', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+                      const Text('과제 목록', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
                       GestureDetector(
                         onTap: _showTaskRegisterDialog,
                         child: Row(
@@ -338,7 +338,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: Scrollbar(
                       child: ListView.builder(
@@ -361,7 +361,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(task['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text(task['title'], style: const TextStyle(fontSize: 18)),
                                   const SizedBox(height: 4),
                                   Text("마감일: ${task['deadline']}", style: const TextStyle(fontSize: 14)),
                                   Text("소과제 ${task['subTasks'].length}개", style: const TextStyle(fontSize: 14)),
