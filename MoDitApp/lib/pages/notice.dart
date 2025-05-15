@@ -1,18 +1,26 @@
+// notice_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'notice_view_popup.dart';
 
 class NoticePage extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
-  const NoticePage({required this.groupId, required this.currentUserEmail, super.key});
+  final String currentUserName; // ✅ 이름 추가
+
+  const NoticePage({
+    required this.groupId,
+    required this.currentUserEmail,
+    required this.currentUserName,
+    super.key,
+  });
 
   @override
   State<NoticePage> createState() => _NoticePageState();
 }
 
 class _NoticePageState extends State<NoticePage> {
-  String groupName = '';
-  List<Map<String, String>> notices = [];
+  List<Map<String, dynamic>> notices = [];
   final db = FirebaseDatabase.instance.ref();
   int currentPage = 1;
   final int itemsPerPage = 5;
@@ -24,20 +32,31 @@ class _NoticePageState extends State<NoticePage> {
   }
 
   void loadNotices() async {
-    final noticeSnap = await db.child('notices').child(widget.groupId).get();
+    final noticeSnap = await db.child('groupStudies').child(widget.groupId).child('notices').get();
     if (noticeSnap.exists) {
       final data = Map<String, dynamic>.from(noticeSnap.value as Map);
 
       final list = data.entries.map((e) {
         final item = Map<String, dynamic>.from(e.value as Map);
-        return <String, String>{
+        return <String, dynamic>{
+          'id': e.key,
           'title': item['title'] ?? '',
           'body': item['body'] ?? '',
+          'name': item['name'] ?? '',
+          'createdAt': item['createdAt'] ?? 0,
+          'pinned': item['pinned'] ?? false,
         };
       }).toList();
 
+      list.sort((a, b) {
+        if (a['pinned'] != b['pinned']) {
+          return (b['pinned'] ? 1 : 0) - (a['pinned'] ? 1 : 0);
+        }
+        return (b['createdAt'] as int).compareTo(a['createdAt'] as int);
+      });
+
       setState(() {
-        notices = List<Map<String, String>>.from(list.reversed);
+        notices = list;
       });
     }
   }
@@ -66,11 +85,13 @@ class _NoticePageState extends State<NoticePage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
           TextButton(
             onPressed: () async {
-              final newRef = db.child('notices').child(widget.groupId).push();
+              final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
               await newRef.set({
                 'title': titleController.text,
                 'body': bodyController.text,
+                'name': widget.currentUserName, // ✅ 이름 저장
                 'createdAt': DateTime.now().millisecondsSinceEpoch,
+                'pinned': false,
               });
               Navigator.pop(context);
               loadNotices();
@@ -82,7 +103,12 @@ class _NoticePageState extends State<NoticePage> {
     );
   }
 
-  List<Map<String, String>> get pagedNotices {
+  String _formatDate(int timestamp) {
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+  }
+
+  List<Map<String, dynamic>> get pagedNotices {
     final start = (currentPage - 1) * itemsPerPage;
     final end = (start + itemsPerPage > notices.length) ? notices.length : start + itemsPerPage;
     return notices.sublist(start, end);
@@ -93,83 +119,88 @@ class _NoticePageState extends State<NoticePage> {
     final totalPages = (notices.length / itemsPerPage).ceil();
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 상단바 부분 제거됨
-
-                const SizedBox(height: 0),
-
-                // 공지사항 제목 + 등록
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('공지사항', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-                    GestureDetector(
-                      onTap: _showNoticeDialog,
-                      child: Row(
-                        children: [
-                          const Text('공지사항 등록', style: TextStyle(fontSize: 14)),
-                          const SizedBox(width: 4),
-                          Image.asset('assets/images/plus_icon2.png', width: 20),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 40),
-
-                // 공지사항 리스트
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFB8BDF1).withOpacity(0.3), // 공지사항 배경색
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.all(24),
-                    child: ListView.separated(
-                      itemCount: pagedNotices.length,
-                      separatorBuilder: (_, __) => const Divider(),
-                      itemBuilder: (_, i) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(pagedNotices[i]['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text(pagedNotices[i]['body'] ?? ''),
-                        ],
-                      ),
-                    ),
+                const Text('공지사항', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                GestureDetector(
+                  onTap: _showNoticeDialog,
+                  child: Row(
+                    children: [
+                      const Text('공지사항 등록', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 4),
+                      Image.asset('assets/images/plus_icon2.png', width: 20),
+                    ],
                   ),
+                )
+              ],
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB8BDF1).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(30),
                 ),
-                const SizedBox(height: 10),
-
-                // 페이지네이션
-                if (totalPages > 1)
-                  Center(
-                    child: Wrap(
-                      spacing: 8,
-                      children: List.generate(
-                        totalPages,
-                            (index) => GestureDetector(
-                          onTap: () => setState(() => currentPage = index + 1),
-                          child: Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              fontWeight: currentPage == index + 1 ? FontWeight.bold : FontWeight.normal,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
+                padding: const EdgeInsets.all(24),
+                child: ListView.separated(
+                  itemCount: pagedNotices.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (_, i) {
+                    final notice = pagedNotices[i];
+                    return ListTile(
+                      title: Text(notice['title']),
+                      subtitle: Text('${notice['name']}  |  ${_formatDate(notice['createdAt'])}'),
+                      trailing: IconButton(
+                        icon: Icon(
+                          notice['pinned'] ? Icons.star : Icons.star_border,
+                          color: notice['pinned'] ? Colors.amber : null,
+                        ),
+                        onPressed: () async {
+                          await db.child('groupStudies').child(widget.groupId).child('notices').child(notice['id'])
+                              .update({'pinned': !(notice['pinned'] ?? false)});
+                          loadNotices();
+                        },
+                      ),
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (_) => NoticeViewPopup(
+                          title: notice['title'],
+                          body: notice['body'],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (totalPages > 1)
+              Center(
+                child: Wrap(
+                  spacing: 8,
+                  children: List.generate(
+                    totalPages,
+                        (index) => GestureDetector(
+                      onTap: () => setState(() => currentPage = index + 1),
+                      child: Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          fontWeight: currentPage == index + 1 ? FontWeight.bold : FontWeight.normal,
+                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
                   ),
-              ],
-            ),
-          ),
-        ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://172.27.176.1:8080";
+  static const String baseUrl = "http://192.168.45.104:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -36,5 +36,37 @@ class Api {
       return null;
     }
   }
+
+  // 과제 업로드 api (flask에서 ncp object stroage에 업로드)
+  Future<Map<String, dynamic>?> uploadTaskFile(File file, String groupId, String userEmail, String taskTitle, String subTaskTitle) async {
+    final uri = Uri.parse('$baseUrl/Task/upload');
+    final request = http.MultipartRequest('POST', uri);
+
+    final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+
+    request.files.add(await http.MultipartFile.fromPath(
+      'task',
+      file.path,
+      contentType: MediaType.parse(mimeType),
+      filename: basename(file.path),
+    ));
+
+    // 필드에 필요한 정보 추가
+    request.fields['groupId'] = groupId;
+    request.fields['userEmail'] = userEmail;
+    request.fields['taskTitle'] = taskTitle;
+    request.fields['subTaskTitle'] = subTaskTitle;
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      print('과제 업로드 오류: ${response.statusCode}');
+      return null;
+    }
+  }
+
 
 }
