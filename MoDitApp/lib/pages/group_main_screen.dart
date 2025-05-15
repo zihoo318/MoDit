@@ -126,12 +126,17 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                     ),
                     const SizedBox(height: 50),
                     ...List.generate(menuTitles.length, (index) {
-                      final selected = _selectedIndex == index;
+                      final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
+                      final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: GestureDetector(
                           onTap: () {
                             setState(() => _selectedIndex = index);
+                            setState(() {
+                               _selectedIndex = index;
+                               isRecordingView = false;
+                            });
                           },
                           child: Container(
                             decoration: BoxDecoration(
