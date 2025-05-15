@@ -38,10 +38,10 @@ class _MenuScreenState extends State<MenuScreen> {
   DateTime? _recordDate;
   bool isRecordingView = false;
 
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth * 0.30;
 
     return Scaffold(
       body: Stack(
@@ -54,101 +54,92 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.all(screenWidth * 0.05),
-            child: Column(
-              children: [
-                // 첫 번째 행: 공부 시간 카드 + 미팅 카드
-                Row(
-                  children: [
-                    // 공부 시간 카드
-                    SizedBox(
-                      width: screenWidth * 0.33, // 비율로 크기 조정
-                      child: GestureDetector(
-                        onTap: () => _navigateToPage('study_time'),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('공부 시간', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 12),
-                              StudyTimeCard(
-                                studyTimes: studyTimes,
-                                currentUser: currentUser,
-                                isStudying: isStudying,
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ),
+            padding: EdgeInsets.all(screenWidth * 0.03),
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 20,
+                runSpacing: 20,
+                children: [
+                  // 공부 시간 카드
+                  SizedBox(
+                    width: cardWidth + 45,
+                    child: GestureDetector(
+                      onTap: () => _navigateToPage('study_time'),
+                      child: _buildCardContainer(
+                        title: '공부 시간',
+                        child: StudyTimeCard(
+                          studyTimes: studyTimes,
+                          currentUser: currentUser,
+                          isStudying: isStudying,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    // 미팅 일정 & 녹음 카드
-                    SizedBox(
-                      width: screenWidth * 0.33, // 비율로 크기 조정
-                      child: GestureDetector(
-                        onTap: () => _navigateToPage('meeting_calendar'),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
-                              Text('미팅 일정 & 녹음', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              SizedBox(height: 10),
-                              MeetingCalendarCard(), // 캘린더 카드 추가
-                            ],
-                          ),
-                        ),
+                  ),
+                  // 미팅 일정 & 녹음 카드
+                  SizedBox(
+                    width: cardWidth + 80,
+                    child: GestureDetector(
+                      onTap: () => _navigateToPage('meeting_calendar'),
+                      child: _buildCardContainer(
+                        title: '미팅 일정 & 녹음',
+                        child: const MeetingCalendarCard(),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // 두 번째 행: 과제, 공지, 채팅 카드
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: _buildCard(
-                        title: '과제 관리',
-                        icon: 'homework_icon',
-                        onTap: () => _navigateToPage('task'),
-                      ),
+                  ),
+                  // 과제 관리 카드
+                  SizedBox(
+                    width: cardWidth * 0.32,
+                    child: _buildCard(
+                      title: '과제 관리',
+                      icon: 'homework_icon',
+                      onTap: () => _navigateToPage('task'),
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildCard(
-                        title: '공지사항',
-                        icon: 'notice_icon',
-                        onTap: () => _navigateToPage('notice'),
-                      ),
+                  ),
+                  // 공지사항 카드
+                  SizedBox(
+                    width: cardWidth * 0.32,
+                    child: _buildCard(
+                      title: '공지사항',
+                      icon: 'notice_icon',
+                      onTap: () => _navigateToPage('notice'),
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildCard(
-                        title: '채팅',
-                        icon: 'chatting_icon',
-                        onTap: () => _navigateToPage('chatting'),
-                      ),
+                  ),
+                  // 채팅 카드
+                  SizedBox(
+                    width: cardWidth * 0.32,
+                    child: _buildCard(
+                      title: '채팅',
+                      icon: 'chatting_icon',
+                      onTap: () => _navigateToPage('chatting'),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildCardContainer({required String title, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
 
   void _navigateToPage(String pageName) {
     Navigator.push(

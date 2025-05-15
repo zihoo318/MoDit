@@ -2,9 +2,10 @@
 
 from werkzeug.utils import secure_filename
 from utils.file_handler import save_temp_file, upload_to_object_storage, delete_file
+import re
 
 def handle_task_upload(file, group_id, user_email, task_title, subtask_title):
-    filename = secure_filename(file.filename)
+    filename = custom_filename(file.filename)
 
     # 임시 파일로 저장
     temp_path = save_temp_file(file, filename)
@@ -23,3 +24,9 @@ def handle_task_upload(file, group_id, user_email, task_title, subtask_title):
     finally:
         # 업로드 후 로컬 파일 삭제
         delete_file(temp_path)
+
+
+def custom_filename(filename):
+    # 한글/영어/숫자/공백/점만 허용 (공백은 _로)
+    return re.sub(r'[^\w가-힣_.]', '_', filename)
+
