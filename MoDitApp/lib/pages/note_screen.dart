@@ -185,7 +185,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
-    final uri = Uri.parse('http://192.168.219.111:8080/ocr/upload');
+    final uri = Uri.parse('http://172.20.10.8:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes(
           'image', imageBytes, filename: 'note.jpg'));
@@ -648,20 +648,33 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                               ),
                             )),
 
+
+
                             // ✅ 텍스트 외부 클릭 시 선택 해제용
                             Positioned.fill(
-                              child: GestureDetector(
+                              child: Listener(
                                 behavior: HitTestBehavior.translucent,
-                                onTap: () {
-                                  bool anyNoteSelected = textNotes.any((note) => note.isSelected);
-                                  setState(() {
-                                    for (var note in textNotes) {
-                                      note.isSelected = false;
-                                      note.focusNode.unfocus();
+                                onPointerDown: (details) {
+                                  final tap = details.localPosition;
+                                  bool tappedInsideNote = false;
+
+                                  for (var note in textNotes) {
+                                    final rect = Rect.fromLTWH(
+                                      note.position.dx,
+                                      note.position.dy,
+                                      note.size.width,
+                                      note.size.height,
+                                    );
+                                    if (rect.contains(tap)) {
+                                      tappedInsideNote = true;
+                                      break;
                                     }
-                                  });
-                                  if (isTextMode && anyNoteSelected) {
-                                    // 선택 해제만 하고 새 텍스트 생성은 _handleTapUp에서 처리
+                                  }
+
+                                  if (!tappedInsideNote) {
+                                    setState(() {
+                                      for (var n in textNotes) n.isSelected = false;
+                                    });
                                   }
                                 },
                               ),
@@ -793,47 +806,37 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     if (!isDrawingMode && isTextMode) {
       final tappedPosition = details.localPosition;
 
-      // Check if the tap is inside any existing note
-      bool tappedInsideNote = false;
-      for (var note in textNotes) {
-        final rect = Rect.fromLTWH(
-          note.position.dx,
-          note.position.dy,
-          note.size.width,
-          note.size.height,
-        );
-        if (rect.contains(tappedPosition)) {
-          tappedInsideNote = true;
-          break;
-        }
-      }
+      late _TextNote newNote;
 
-      // Only create a new note if the tap is outside all notes
-      if (!tappedInsideNote) {
-        late _TextNote newNote;
-        newNote = _TextNote(
-          position: tappedPosition,
-          fontSize: fontSize,
-          color: selectedColor,
-          onFocusLost: () {
-            setState(() {
-              newNote.isSelected = false;
-            });
-          },
-        );
+      newNote = _TextNote(
+        position: tappedPosition,
+        fontSize: fontSize,
+        color: selectedColor,
+        onFocusLost: () {
+          setState(() {
+            newNote.isSelected = false; // 선택 해제
+          });
+        },
+      );
 
-        setState(() {
-          for (var n in textNotes) n.isSelected = false;
-          newNote.isSelected = true;
-          textNotes.add(newNote);
-        });
+      setState(() {
+        for (var n in textNotes) n.isSelected = false;
+        newNote.isSelected = true;
+        textNotes.add(newNote);
+      });
 
-        Future.delayed(const Duration(milliseconds: 50), () {
-          newNote.focusNode.requestFocus();
-        });
-      }
+      Future.delayed(const Duration(milliseconds: 50), () {
+        newNote.focusNode.requestFocus();
+      });
     }
   }
+
+
+
+
+
+
+
 
 }
 
