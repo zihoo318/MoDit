@@ -30,20 +30,20 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
       'members': ['윤지', '지후']
     },
     {
-          'date': DateTime(2025, 5, 13),
-          'title': '기획 회의',
-          'members': ['윤지', '지후']
-        },
-        {
-              'date': DateTime(2025, 5, 13),
-              'title': '기획 회의',
-              'members': ['윤지', '지후']
-            },
-            {
-                  'date': DateTime(2025, 5, 13),
-                  'title': '기획 회의',
-                  'members': ['윤지', '지후']
-                },
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
+    {
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
+    {
+      'date': DateTime(2025, 5, 13),
+      'title': '기획 회의',
+      'members': ['윤지', '지후']
+    },
   ];
 
   List<Map<String, dynamic>> getMeetingsForDay(DateTime day) {

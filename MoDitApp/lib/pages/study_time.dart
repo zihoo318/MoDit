@@ -152,6 +152,10 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
               child: Wrap(
                 spacing: 100,
                 runSpacing: 45,
+/* 유진언니 화면에 맞춘거
+                spacing: 180,
+                runSpacing: 100,
+*/
                 alignment: WrapAlignment.center,
                 children: members.map(_buildStudent).toList(),
               ),
