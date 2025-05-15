@@ -34,7 +34,9 @@ class MoDitApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
-      theme: ThemeData(),
+      theme: ThemeData(
+        fontFamily: 'nanum_round', // 전체 폰트 지정
+      ),
       localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -49,5 +51,6 @@ class MoDitApp extends StatelessWidget {
          currentUserEmail: 'ga@naver.com',
        ),
     );
+    //home: NoteScreen());
   }
 }

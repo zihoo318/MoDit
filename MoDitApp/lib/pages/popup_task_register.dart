@@ -1,12 +1,16 @@
 // taskManageScreen에서 쓰는 팝업창 코드
 import 'dart:ui';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 class TaskRegisterPopup extends StatelessWidget {
   final String groupId;
+  final Function(String title, String deadline, List<Map<String, String>> subTasks) onTaskRegistered;
 
-  const TaskRegisterPopup({super.key, required this.groupId});
+  const TaskRegisterPopup({
+    super.key,
+    required this.groupId,
+    required this.onTaskRegistered,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +28,10 @@ class TaskRegisterPopup extends StatelessWidget {
               borderRadius: BorderRadius.circular(30),
               border: Border.all(color: Colors.white.withOpacity(0.2)),
             ),
-            child: TaskDialogContent(groupId: groupId),
+            child: TaskDialogContent(
+              groupId: groupId,
+              onTaskRegistered: onTaskRegistered,
+            ),
           ),
         ),
       ),
@@ -34,18 +41,22 @@ class TaskRegisterPopup extends StatelessWidget {
 
 class TaskDialogContent extends StatefulWidget {
   final String groupId;
+  final Function(String title, String deadline, List<Map<String, String>> subTasks) onTaskRegistered;
 
-  const TaskDialogContent({super.key, required this.groupId});
+  const TaskDialogContent({
+    super.key,
+    required this.groupId,
+    required this.onTaskRegistered,
+  });
 
   @override
   State<TaskDialogContent> createState() => _TaskDialogContentState();
 }
 
 class _TaskDialogContentState extends State<TaskDialogContent> {
-  final db = FirebaseDatabase.instance.ref();
   String title = "";
   String deadline = "";
-  int selectedIndex = 0; // 선택된 소과제 인덱스
+  int selectedIndex = 0;
   List<Map<String, String>> subTasks = [{"subtitle": "", "description": ""}];
 
 
@@ -113,14 +124,10 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
                                   decoration: BoxDecoration(
                                     color: Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: isSelected
-                                        ? Border.all(color: const Color(0xFF0D0A64), width: 1.5)
-                                        : null,
+                                    border: isSelected ? Border.all(color: const Color(0xFF0D0A64), width: 1.5) : null,
                                   ),
                                   child: Text(
-                                    subTasks[index]['subtitle']!.isEmpty
-                                        ? "소과제 ${index + 1}"
-                                        : subTasks[index]['subtitle']!,
+                                    subTasks[index]['subtitle']!.isEmpty ? "소과제 ${index + 1}" : subTasks[index]['subtitle']!,
                                     style: TextStyle(
                                       color: isSelected ? const Color(0xFF0D0A64) : Colors.black87,
                                     ),
@@ -163,10 +170,8 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
                   ],
                 ),
               ),
-
               const SizedBox(width: 24),
-
-              // 오른쪽 영역: 선택된 소과제 입력
+              // 오른쪽 소과제 입력
               Expanded(
                 flex: 1,
                 child: Column(
@@ -206,23 +211,8 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
                 child: const Text("취소"),
               ),
               OutlinedButton(
-                onPressed: () async {
-                  final Map<String, dynamic> subTaskMap = {
-                    for (int i = 0; i < subTasks.length; i++)
-                      "$i": {
-                        'subtitle': subTasks[i]['subtitle'],
-                        'description': subTasks[i]['description'],
-                      }
-                  };
-
-                  final newTaskRef = db.child('tasks').child(widget.groupId).push();
-                  await newTaskRef.set({
-                    'title': title,
-                    'deadline': deadline,
-                    'groupId': widget.groupId,
-                    'subTasks': subTaskMap,
-                  });
-
+                onPressed: () {
+                  widget.onTaskRegistered(title, deadline, subTasks);
                   Navigator.pop(context);
                 },
                 style: OutlinedButton.styleFrom(
@@ -238,6 +228,5 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
         ],
       ),
     );
-
   }
 }

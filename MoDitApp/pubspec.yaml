@@ -97,10 +97,6 @@ flutter:
     - assets/images/studytime_icon.png
     - assets/images/studytime_icon2.png
     - assets/images/user_icon2.png
-<<<<<<< HEAD
-    - assets/images/background.png
-    - assets/images/logo.png
-=======
     - assets/images/studytime_icon2.png
     - assets/images/user_icon2.png
     - assets/images/logo.png
@@ -113,7 +109,6 @@ flutter:
     - assets/images/clicked_eraser.png
     - assets/images/box.png
     - assets/images/clicked_box.png
->>>>>>> develop
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -130,17 +125,42 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
+  fonts:
+     - family: kakao
+       fonts:
+         - asset: assets/fonts/KakaoSmallSans-Regular.ttf
+           weight: 300
+         - asset: assets/fonts/KakaoSmallSans-Bold.ttf
+     - family: paperlogy
+       fonts:
+         - asset: assets/fonts/Paperlogy-4Regular.ttf
+           weight: 300
+         - asset: assets/fonts/Paperlogy-7Bold.ttf
+           weight: 600
+     - family: nanum_neo
+       fonts:
+         - asset: assets/fonts/NanumSquareNeo-bRg.ttf
+           weight: 300
+         - asset: assets/fonts/NanumSquareNeo-cBd.ttf
+           weight: 600
+     - family: nanum_round
+       fonts:
+         - asset: assets/fonts/NanumSquareRoundR.ttf
+           weight: 300
+         - asset: assets/fonts/NanumSquareRoundB.ttf
+           weight: 600
+     - family: scdream
+       fonts:
+         - asset: assets/fonts/SCDream4.otf
+           weight: 300
+         - asset: assets/fonts/SCDream6.otf
+           weight: 600
+     - family: mango
+       fonts:
+         - asset: assets/fonts/MangoDdobak-R(ttf).ttf
+           weight: 300
+         - asset: assets/fonts/MangoDdobak-B(ttf).ttf
+           weight: 600
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
