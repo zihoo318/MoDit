@@ -1,50 +1,56 @@
-// ✅ 통합 버전: meeting_calendar.dart (스크롤 + 포맷 전환 버튼 포함)
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'meeting_record.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class MeetingCalendarWidget extends StatefulWidget {
+  final String groupId;
   final void Function(DateTime) onRecordDateSelected;
-  const MeetingCalendarWidget({super.key, required this.onRecordDateSelected});
+
+  const MeetingCalendarWidget({
+    super.key,
+    required this.groupId,
+    required this.onRecordDateSelected,
+  });
 
   @override
   State<MeetingCalendarWidget> createState() => _MeetingCalendarWidgetState();
 }
 
 class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
+  final db = FirebaseDatabase.instance.ref();
   DateTime selectedDate = DateTime.now();
   DateTime focusedDate = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  List<Map<String, dynamic>> meetings = [];
 
-  final List<Map<String, dynamic>> meetings = [
-    {
-      'date': DateTime(2025, 5, 6),
-      'title': '캡스톤 미팅',
-      'members': ['가을', '윤지', '유진', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadMeetings(); // ✅ Firebase에서 미팅 데이터 불러오기
+  }
+
+  Future<void> _loadMeetings() async {
+    final snapshot =
+        await db.child('groupStudies/${widget.groupId}/meeting').get();
+
+    if (snapshot.exists) {
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+
+      final List<Map<String, dynamic>> loadedMeetings = [];
+      for (final entry in data.entries) {
+        final value = Map<String, dynamic>.from(entry.value);
+        final date = DateTime.tryParse(value['date'] ?? '');
+        if (date != null) {
+          loadedMeetings.add({...value, 'date': date});
+        }
+      }
+
+      setState(() {
+        meetings = loadedMeetings;
+      });
+    }
+  }
 
   List<Map<String, dynamic>> getMeetingsForDay(DateTime day) {
     return meetings.where((m) => isSameDay(m['date'], day)).toList();
@@ -57,7 +63,6 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-
     if (pickedDate == null) return;
 
     final participantsController = TextEditingController();
@@ -74,21 +79,42 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
           children: [
             Text(DateFormat('yyyy.MM.dd').format(pickedDate)),
             const SizedBox(height: 8),
-            TextField(controller: participantsController, decoration: const InputDecoration(hintText: '참여자 (쉼표로 구분)')),
-            TextField(controller: locationController, decoration: const InputDecoration(hintText: '장소')),
-            TextField(controller: topicController, decoration: const InputDecoration(hintText: '미팅 주제')),
+            TextField(
+                controller: participantsController,
+                decoration:
+                    const InputDecoration(hintText: '참여자 (쉼표로 구분)')),
+            TextField(
+                controller: locationController,
+                decoration: const InputDecoration(hintText: '장소')),
+            TextField(
+                controller: topicController,
+                decoration: const InputDecoration(hintText: '미팅 주제')),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("취소")),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final newMeeting = {
+                'date': DateFormat('yyyy-MM-dd').format(pickedDate),
+                'title': topicController.text,
+                'members': participantsController.text
+                    .split(',')
+                    .map((e) => e.trim())
+                    .toList(),
+                'location': locationController.text,
+                'createdAt': ServerValue.timestamp,
+              };
+
+              final meetingRef = db
+                  .child('groupStudies/${widget.groupId}/meeting')
+                  .push();
+              await meetingRef.set(newMeeting);
+
               setState(() {
-                meetings.add({
-                  'date': pickedDate,
-                  'title': topicController.text,
-                  'members': participantsController.text.split(',').map((e) => e.trim()).toList(),
-                });
+                meetings.add({...newMeeting, 'date': pickedDate});
                 selectedDate = pickedDate;
                 focusedDate = pickedDate;
               });
@@ -103,7 +129,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> meetingsForDay = getMeetingsForDay(selectedDate);
+    final meetingsForDay = getMeetingsForDay(selectedDate);
 
     return Column(
       children: [
@@ -125,7 +151,8 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                 itemBuilder: (context, index) {
                   final meeting = meetingsForDay[index];
                   return GestureDetector(
-                    onTap: () => widget.onRecordDateSelected(meeting['date']),
+                    onTap: () =>
+                        widget.onRecordDateSelected(meeting['date']),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _buildMeetingCard(meeting),
@@ -144,16 +171,19 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text("미팅 일정 & 녹음", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text("미팅 일정 & 녹음",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         Row(
           children: [
-            Text(DateFormat('yyyy.MM').format(focusedDate), style: const TextStyle(fontSize: 16)),
+            Text(DateFormat('yyyy.MM').format(focusedDate),
+                style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 16),
             GestureDetector(
               onTap: showAddMeetingDialog,
               child: Row(
                 children: const [
-                  Text("미팅 일정 추가", style: TextStyle(fontSize: 16, color: Color(0xFF6C79FF))),
+                  Text("미팅 일정 추가",
+                      style: TextStyle(fontSize: 16, color: Color(0xFF6C79FF))),
                   SizedBox(width: 6),
                   Icon(Icons.add_circle, color: Color(0xFF6C79FF))
                 ],
@@ -177,25 +207,20 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         focusedDay: focusedDate,
         selectedDayPredicate: (day) => isSameDay(selectedDate, day),
         calendarFormat: _calendarFormat,
-        onFormatChanged: (format) {
-          setState(() {
-            _calendarFormat = format;
-          });
-        },
+        onFormatChanged: (format) => setState(() => _calendarFormat = format),
         availableCalendarFormats: const {
           CalendarFormat.month: '월',
           CalendarFormat.twoWeeks: '2주',
           CalendarFormat.week: '주',
         },
-        onDaySelected: (selected, focused) {
-          setState(() {
-            selectedDate = selected;
-            focusedDate = focused;
-          });
-        },
+        onDaySelected: (selected, focused) => setState(() {
+          selectedDate = selected;
+          focusedDate = focused;
+        }),
         eventLoader: getMeetingsForDay,
         calendarStyle: const CalendarStyle(
-          markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+          markerDecoration:
+              BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
         ),
       ),
     );
@@ -212,8 +237,12 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(meeting['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(meeting['title'],
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           Text(meeting['members'].join(', ')),
+          if (meeting['location'] != null)
+            Text("장소: ${meeting['location']}"),
         ],
       ),
     );

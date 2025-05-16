@@ -290,6 +290,7 @@ class _MenuScreenState extends State<MenuScreen> {
         return ChattingPage(groupId: widget.groupId, currentUserEmail: widget.currentUserEmail);
       case 'meeting_calendar':
         return MeetingCalendarWidget(
+          groupId: widget.groupId, // ✅ 필수 파라미터 추가
           onRecordDateSelected: (date) {
             setState(() {
               _recordDate = date;
