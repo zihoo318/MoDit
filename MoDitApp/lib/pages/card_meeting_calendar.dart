@@ -12,6 +12,7 @@ class MeetingCalendarCard extends StatefulWidget {
 class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
   DateTime selectedDate = DateTime.now();
   DateTime focusedDate = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.month;
   final db = FirebaseDatabase.instance.ref();
   final Map<DateTime, List<String>> eventMap = {}; // 날짜별 미팅 제목 목록
 
@@ -55,24 +56,41 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
         color: Colors.white.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: TableCalendar(
-        firstDay: DateTime.utc(2020, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
-        focusedDay: focusedDate,
-        selectedDayPredicate: (day) => isSameDay(selectedDate, day),
-        calendarFormat: CalendarFormat.month,
-        onDaySelected: (selected, focused) {
-          setState(() {
-            selectedDate = selected;
-            focusedDate = focused;
-          });
-        },
-        eventLoader: (day) {
-          return eventMap[DateTime(day.year, day.month, day.day)] ?? [];
-        },
-        calendarStyle: const CalendarStyle(
-          markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-        ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: focusedDate,
+            selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+            calendarFormat: _calendarFormat,
+            onFormatChanged: (format) {
+              setState(() => _calendarFormat = format);
+            },
+            onDaySelected: (selected, focused) {
+              setState(() {
+                selectedDate = selected;
+                focusedDate = focused;
+              });
+            },
+            eventLoader: (day) {
+              return eventMap[DateTime(day.year, day.month, day.day)] ?? [];
+            },
+            calendarStyle: const CalendarStyle(
+              markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+            ),
+            headerStyle: HeaderStyle(
+              formatButtonVisible: true,
+              formatButtonShowsNext: false,
+              formatButtonTextStyle: const TextStyle(fontSize: 14),
+              formatButtonDecoration: BoxDecoration(
+                border: Border.all(color: Colors.black26),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
