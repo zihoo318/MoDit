@@ -126,12 +126,17 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                     ),
                     const SizedBox(height: 50),
                     ...List.generate(menuTitles.length, (index) {
-                      final selected = _selectedIndex == index;
+                      final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
+                      final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: GestureDetector(
                           onTap: () {
                             setState(() => _selectedIndex = index);
+                            setState(() {
+                               _selectedIndex = index;
+                               isRecordingView = false;
+                            });
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -287,7 +292,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   Widget _getContentForOtherTabs() {
     switch (_selectedIndex) {
       case 1:
-        return const StudyTimeWidget();
+        return StudyTimeWidget(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
+          currentUserName: widget.currentUserName,
+        );
       case 2:
         return MeetingCalendarWidget(
           onRecordDateSelected: (date) {
@@ -300,6 +309,8 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         );
       case 3:
         return TaskManageScreen(
+          groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
           tabIndex: _homeworkTabIndex,
           onTabChanged: (int index) {
             setState(() => _homeworkTabIndex = index);

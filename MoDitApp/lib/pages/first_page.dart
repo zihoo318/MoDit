@@ -3,18 +3,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'friend_add_popup.dart';
 import 'group_create_popup.dart';
 import 'group_main_screen.dart';
-import 'notice.dart';
-import 'flask_test.dart'; //임시 테스트 코드
+import 'note_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentUserEmail;
-  final String currentUserName; // ✅ 추가
-
-  const HomeScreen({
-    required this.currentUserEmail,
-    required this.currentUserName,
-    super.key,
-  });
+  final String currentUserName;
+  const HomeScreen({required this.currentUserEmail, super.key, required String this.currentUserName});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -23,13 +17,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final db = FirebaseDatabase.instance.ref();
   List<Map<String, dynamic>> groupStudies = [];
-  List<Map<String, dynamic>> notes = [];
 
   @override
   void initState() {
     super.initState();
     loadGroupStudies();
-    loadNotes();
   }
 
   void loadGroupStudies() async {
@@ -55,19 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void loadNotes() async {
-    final snapshot = await db.child('notes').get();
-    if (snapshot.exists) {
-      final data = Map<String, dynamic>.from(snapshot.value as Map);
-      setState(() {
-        notes = data.entries.map((e) => {
-          'id': e.key,
-          'title': e.value['title'] ?? '노트',
-        }).toList();
-      });
-    }
-  }
-
   void _showFriendAddPopup() {
     showDialog(
       context: context,
@@ -75,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  _showGroupCreatePopup() {
+  void _showGroupCreatePopup() {
     showDialog(
       context: context,
       builder: (context) => GroupCreatePopup(currentUserEmail: widget.currentUserEmail),
@@ -91,50 +70,82 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (_) => GroupMainScreen(
               groupId: group['id'],
               currentUserEmail: widget.currentUserEmail,
-              currentUserName: widget.currentUserName, // ✅ 전달
+              currentUserName: widget.currentUserName,
             ),
           ),
         );
       },
       child: Container(
-        width: 193,
-        height: 177,
+        width: 120,
+        height: 50,
         margin: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFB8BDF1).withOpacity(0.3),
-          borderRadius: BorderRadius.circular(60),
+          color: const Color(0xFFE1E6FB),
+          borderRadius: BorderRadius.circular(30),
         ),
-        child: Center(child: Text(group['name'], style: const TextStyle(fontSize: 16))),
+        child: Center(
+          child: Text(group['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        ),
       ),
     );
   }
 
-  Widget _buildNoteCard(String title) {
-    return Container(
-      width: 150,
-      height: 177,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(60),
+  // 하드코딩 노트카드
+  Widget _buildNoteCardWithImage(String imagePath, String title) {
+    return AspectRatio(
+      aspectRatio: 14 / 9,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Expanded(
+              child: Image.asset(imagePath, fit: BoxFit.cover),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: Text(title, style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
+            ),
+          ],
+        ),
       ),
-      child: Center(child: Text(title, style: const TextStyle(fontSize: 14))),
     );
   }
 
-  Widget _buildAddCard(VoidCallback onTap, {double width = 193, Color? color}) {
-    return Container(
-      width: width,
-      height: 177,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: color ?? const Color(0xFFB8BDF1).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(60),
+  Widget _buildNoteAddCard(VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AspectRatio(
+        aspectRatio: 14 / 9,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Center(
+            child: Icon(Icons.add, size: 30, color: Colors.grey),
+          ),
+        ),
       ),
-      child: Center(
-        child: GestureDetector(
-          onTap: onTap,
-          child: Image.asset('assets/images/plus_icon.png', width: 40),
+    );
+  }
+
+  Widget _buildGroupStudyAddCard(VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F2F6),
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Icon(Icons.add, size: 20, color: Colors.grey),
         ),
       ),
     );
@@ -146,83 +157,83 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/background_logo.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
+            child: Image.asset('assets/images/background.png', fit: BoxFit.cover),
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 100, left: 40, right: 40, bottom: 40),
-            child: Column(
+
+          // 상단바
+          Positioned(
+            top: 40,
+            left: 30,
+            right: 40,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
+                Transform.translate(
+                  offset: const Offset(-20, 0),
+                  child: Image.asset('assets/images/logo.png', height: 40),
+                ),
+                GestureDetector(
+                  onTap: _showFriendAddPopup,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      GestureDetector(
-                        onTap: _showFriendAddPopup,
-                        child: Row(
-                          children: [
-                            const Text('친구 추가', style: TextStyle(fontSize: 18)),
-                            const SizedBox(width: 4),
-                            Image.asset('assets/images/plus_icon2.png', width: 30),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ClipOval(
-                        child: Image.asset('assets/images/user_icon2.png', width: 50),
-                      )
+                      const Text('친구 추가', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 4),
+                      Image.asset('assets/images/plus_icon2.png', width: 24),
                     ],
                   ),
                 ),
-                const SizedBox(height: 60),
-                Container(
-                  height: 220,
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(60),
-                  ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 20),
-                        ...groupStudies.map((g) => _buildGroupStudyCard(g)).toList(),
-                        _buildAddCard(_showGroupCreatePopup),
-                        const SizedBox(width: 20),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 60),
-                SingleChildScrollView(
+              ],
+            ),
+          ),
+
+          // 그룹 스터디 (가로 스크롤)
+          Positioned(
+            top: 100,
+            left: 30,
+            right: 30,
+            child: Container(
+              height: 80,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: Center(
+                child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      const SizedBox(width: 10),
-                      ...notes.map((n) => _buildNoteCard(n['title'])).toList(),
-                      _buildAddCard(() {}, width: 150, color: Colors.white),
-                      const SizedBox(width: 20),
+                      ...groupStudies.map((g) => _buildGroupStudyCard(g)).toList(),
+                      _buildGroupStudyAddCard(_showGroupCreatePopup),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const TestApiPage()),
-                      );
-                    },
-                    child: const Text("테스트 API 페이지 이동"),
-                  ),
-                ),
+              ),
+            ),
+          ),
+
+          // 노트카드 (하드코딩 + 추가 버튼)
+          Positioned.fill(
+            top: 200,
+            left: 30,
+            right: 30,
+            bottom: 30,
+            child: GridView.count(
+              crossAxisCount: 4,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              padding: const EdgeInsets.all(20),
+              childAspectRatio: 14 / 9,
+              children: [
+                _buildNoteAddCard(() {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => NoteScreen()),
+                  );
+                }),
+                _buildNoteCardWithImage('assets/images/test_note1.jpg', '명사 정리'),
+                _buildNoteCardWithImage('assets/images/test_note2.jpg', '형용사/명사'),
+                _buildNoteCardWithImage('assets/images/test_note3.jpg', '부사/품사 구별'),
               ],
             ),
           ),
