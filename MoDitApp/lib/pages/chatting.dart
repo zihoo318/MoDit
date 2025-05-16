@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
 class ChattingPage extends StatefulWidget {
   final String groupId;
@@ -115,13 +114,15 @@ class _ChattingPageState extends State<ChattingPage> {
       'timestamp': timestamp,
     });
 
-    Fluttertoast.showToast(
-      msg: "상대방에게 '공부하세요!' 알림을 보냈습니다.",
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.BOTTOM,
-      backgroundColor: Color(0xFFECE6F0),
-      textColor: Colors.black54,
-      fontSize: 16.0,
+    // ✅ Flutter 기본 Snackbar로 대체
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("상대방에게 '공부하세요!' 알림을 보냈습니다."),
+        backgroundColor: Color(0xFFECE6F0),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
