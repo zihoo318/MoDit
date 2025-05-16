@@ -1,3 +1,6 @@
+// -----------------------------
+// group_main_screen.dart
+// -----------------------------
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'chatting.dart';
@@ -8,7 +11,7 @@ import 'meeting_record.dart';
 import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'menu.dart';
-import 'home.dart'; // ✅ HomeScreen import 추가
+import 'home.dart';
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
@@ -87,9 +90,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         height: 20,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _homeworkTabIndex == index
-              ? const Color(0xFFD3D0EA)
-              : const Color(0xFFFCF7FD),
+          color: _homeworkTabIndex == index ? const Color(0xFFD3D0EA) : const Color(0xFFFCF7FD),
         ),
         child: const SizedBox.shrink(),
       ),
@@ -132,10 +133,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: GestureDetector(
                           onTap: () {
-                            setState(() => _selectedIndex = index);
                             setState(() {
-                               _selectedIndex = index;
-                               isRecordingView = false;
+                              _selectedIndex = index;
+                              isRecordingView = false;
                             });
                           },
                           child: Container(
@@ -190,7 +190,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                 margin: const EdgeInsets.symmetric(horizontal: 6),
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFD9D9D9), // ✅ 변경된 색상
+                                  color: Color(0xFFD9D9D9),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
@@ -198,7 +198,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               const SizedBox(width: 8),
                               const CircleAvatar(
                                 radius: 16,
-                                backgroundColor: Colors.white, // 배경을 흰색으로 깔아줌
+                                backgroundColor: Colors.white,
                                 backgroundImage: AssetImage('assets/images/user_icon2.png'),
                               )
                             ],
@@ -225,38 +225,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               )
             ],
           ),
-          // ✅ 왼쪽 하단 뒤로가기 버튼 추가
-          Positioned(
-            bottom: 35,
-            left: 30,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HomeScreen(
-                      currentUserEmail: widget.currentUserEmail,
-                      currentUserName: widget.currentUserName,
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.purpleAccent.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.arrow_back, color: Colors.white),
-                    SizedBox(width: 1),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -268,9 +236,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         groupId: widget.groupId,
         currentUserEmail: widget.currentUserEmail,
         currentUserName: widget.currentUserName,
+        onNavigateToTab: (int index) {
+          setState(() => _selectedIndex = index);
+        },
       );
     }
-
     return Column(
       children: [
         const SizedBox(height: 10),
