@@ -295,6 +295,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         return const StudyTimeWidget();
       case 2:
         return MeetingCalendarWidget(
+          groupId: widget.groupId, // ✅ 추가
           onRecordDateSelected: (date) {
             setState(() {
               _recordDate = date;
