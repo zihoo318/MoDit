@@ -8,7 +8,7 @@ import 'meeting_record.dart';
 import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'menu.dart';
-import 'home.dart'; // ✅ HomeScreen import 추가
+import 'home.dart';
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
@@ -34,6 +34,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   List<String> memberNames = [];
 
   DateTime? _recordDate;
+  String? _meetingId;
   bool isRecordingView = false;
 
   final List<String> menuTitles = [
@@ -78,20 +79,15 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   Widget _buildCircleTabButton(int index) {
     return GestureDetector(
-      onTap: () {
-        setState(() => _homeworkTabIndex = index);
-      },
+      onTap: () => setState(() => _homeworkTabIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         width: 20,
         height: 20,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _homeworkTabIndex == index
-              ? const Color(0xFFD3D0EA)
-              : const Color(0xFFFCF7FD),
+          color: _homeworkTabIndex == index ? const Color(0xFFD3D0EA) : const Color(0xFFFCF7FD),
         ),
-        child: const SizedBox.shrink(),
       ),
     );
   }
@@ -102,162 +98,170 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/background.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.topLeft,
-            ),
+            child: Image.asset('assets/images/background.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
           ),
           Row(
             children: [
-              Container(
-                width: 250,
-                margin: const EdgeInsets.only(left: 20, top: 40, bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(40),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 25),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 110),
-                      child: Image.asset('assets/images/logo.png', height: 35),
-                    ),
-                    const SizedBox(height: 50),
-                    ...List.generate(menuTitles.length, (index) {
-                      final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
-                      final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() => _selectedIndex = index);
-                            setState(() {
-                               _selectedIndex = index;
-                               isRecordingView = false;
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: selected ? const Color(0xFFB8BDF1).withOpacity(0.3) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Image.asset(
-                                    'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
-                                    width: 22,
-                                  ),
-                                ),
-                                Text(
-                                  menuTitles[index],
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: selected ? const Color(0xFF6495ED) : Colors.black54,
-                                  ),
-                                )
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
+              _buildSidebar(),
               const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 60),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(groupName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          Row(
-                            children: [
-                              ...memberNames.map((name) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFD9D9D9), // ✅ 변경된 색상
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
-                              )),
-                              const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Colors.white, // 배경을 흰색으로 깔아줌
-                                backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                              )
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_selectedIndex == 3)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildCircleTabButton(0),
-                            const SizedBox(width: 12),
-                            _buildCircleTabButton(1),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 10),
-                    Expanded(child: _buildSelectedContent()),
-                  ],
-                ),
-              )
+              Expanded(child: _buildMainContent()),
             ],
           ),
-          // ✅ 왼쪽 하단 뒤로가기 버튼 추가
-          Positioned(
-            bottom: 35,
-            left: 30,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HomeScreen(
-                      currentUserEmail: widget.currentUserEmail,
-                      currentUserName: widget.currentUserName,
-                    ),
+          _buildBackButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: 250,
+      margin: const EdgeInsets.only(left: 20, top: 40, bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 25),
+          Padding(
+            padding: const EdgeInsets.only(right: 110),
+            child: Image.asset('assets/images/logo.png', height: 35),
+          ),
+          const SizedBox(height: 50),
+          ...List.generate(menuTitles.length, (index) {
+            final isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
+            final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedIndex = index;
+                    isRecordingView = false;
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: selected ? const Color(0xFFB8BDF1).withOpacity(0.3) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.purpleAccent.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.arrow_back, color: Colors.white),
-                    SizedBox(width: 1),
-                  ],
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
+                          width: 22,
+                        ),
+                      ),
+                      Text(
+                        menuTitles[index],
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: selected ? const Color(0xFF6495ED) : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return Column(
+      children: [
+        const SizedBox(height: 60),
+        _buildTopBar(),
+        if (_selectedIndex == 3)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildCircleTabButton(0),
+                const SizedBox(width: 12),
+                _buildCircleTabButton(1),
+              ],
             ),
           ),
+        const SizedBox(height: 10),
+        Expanded(child: _buildSelectedContent()),
+      ],
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(groupName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              ...memberNames.map((name) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD9D9D9),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
+              )),
+              const SizedBox(width: 8),
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.white,
+                backgroundImage: AssetImage('assets/images/user_icon2.png'),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBackButton() {
+    return Positioned(
+      bottom: 35,
+      left: 30,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                currentUserEmail: widget.currentUserEmail,
+                currentUserName: widget.currentUserName,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.purpleAccent.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.arrow_back, color: Colors.white),
+              SizedBox(width: 1),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -295,10 +299,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         return const StudyTimeWidget();
       case 2:
         return MeetingCalendarWidget(
-          groupId: widget.groupId, // ✅ 추가
-          onRecordDateSelected: (date) {
+          groupId: widget.groupId,
+          onRecordDateSelected: (date, meetingId) {
             setState(() {
               _recordDate = date;
+              _meetingId = meetingId;
               _selectedIndex = 6;
               isRecordingView = true;
             });
@@ -309,7 +314,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           groupId: widget.groupId,
           currentUserEmail: widget.currentUserEmail,
           tabIndex: _homeworkTabIndex,
-          onTabChanged: (int index) {
+          onTabChanged: (index) {
             setState(() => _homeworkTabIndex = index);
           },
         );
@@ -325,9 +330,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           currentUserEmail: widget.currentUserEmail,
         );
       case 6:
-        return _recordDate == null
+        return (_recordDate == null || _meetingId == null)
             ? const Center(child: Text('날짜가 선택되지 않았습니다'))
-            : MeetingRecordWidget(selectedDate: _recordDate!);
+            : MeetingRecordWidget(
+                selectedDate: _recordDate!,
+                groupId: widget.groupId,
+                meetingId: _meetingId!,
+              );
       default:
         return const SizedBox();
     }

@@ -5,7 +5,7 @@ import 'package:firebase_database/firebase_database.dart';
 
 class MeetingCalendarWidget extends StatefulWidget {
   final String groupId;
-  final void Function(DateTime) onRecordDateSelected;
+  final void Function(DateTime, String) onRecordDateSelected;
 
   const MeetingCalendarWidget({
     super.key,
@@ -31,23 +31,22 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   }
 
   Future<void> _loadMeetings() async {
-    final snapshot =
-        await db.child('groupStudies/${widget.groupId}/meeting').get();
+    final snapshot = await db.child('groupStudies/${widget.groupId}/meeting').get();
 
     if (snapshot.exists) {
       final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final List<Map<String, dynamic>> loaded = [];
 
-      final List<Map<String, dynamic>> loadedMeetings = [];
       for (final entry in data.entries) {
         final value = Map<String, dynamic>.from(entry.value);
         final date = DateTime.tryParse(value['date'] ?? '');
         if (date != null) {
-          loadedMeetings.add({...value, 'date': date, 'id': entry.key});
+          loaded.add({...value, 'date': date, 'id': entry.key});
         }
       }
 
       setState(() {
-        meetings = loadedMeetings;
+        meetings = loaded;
       });
     }
   }
@@ -80,7 +79,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   void _showEditDialog(Map<String, dynamic> meeting) {
     final titleController = TextEditingController(text: meeting['title']);
     final locationController = TextEditingController(text: meeting['location']);
-    final membersController = TextEditingController(text: (meeting['members'] as List<dynamic>).join(', '));
+    final membersController = TextEditingController(text: (meeting['members'] as List).join(', '));
     DateTime pickedDate = meeting['date'];
 
     showDialog(
@@ -140,7 +139,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   }
 
   void showAddMeetingDialog() async {
-    DateTime? pickedDate = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
@@ -221,7 +220,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                 itemBuilder: (context, index) {
                   final meeting = meetingsForDay[index];
                   return GestureDetector(
-                    onTap: () => widget.onRecordDateSelected(meeting['date']),
+                    onTap: () => widget.onRecordDateSelected(meeting['date'], meeting['id']),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _buildMeetingCard(meeting),
@@ -251,7 +250,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                 children: const [
                   Text("미팅 일정 추가", style: TextStyle(fontSize: 16, color: Color(0xFF6C79FF))),
                   SizedBox(width: 6),
-                  Icon(Icons.add_circle, color: Color(0xFF6C79FF))
+                  Icon(Icons.add_circle, color: Color(0xFF6C79FF)),
                 ],
               ),
             ),
@@ -302,18 +301,17 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 📌 텍스트 정보 (title, members, location)
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(meeting['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 Text((meeting['members'] as List<dynamic>).join(', ')),
-                if (meeting['location'] != null) Text("장소: ${meeting['location']}"),
+                if (meeting['location'] != null)
+                  Text("장소: ${meeting['location']}"),
               ],
             ),
           ),
-          // 📌 우측 점 3개 메뉴
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
