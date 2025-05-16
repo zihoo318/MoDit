@@ -12,11 +12,13 @@ class MenuScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
+  final void Function(int)? onNavigateToTab; // ✅ 추가
 
   const MenuScreen({
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
+    this.onNavigateToTab, // ✅ 추가
     Key? key,
   }) : super(key: key);
 
@@ -52,20 +54,8 @@ class _MenuScreenState extends State<MenuScreen> {
                     height: screenHeight * 0.80 + 21,
                     child: Column(
                       children: [
-                        // ✅ 공부 시간 카드 클릭 시 StudyTimeWidget으로 이동
                         InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => StudyTimeWidget(
-                                  groupId: widget.groupId,
-                                  currentUserEmail: widget.currentUserEmail,
-                                  currentUserName: widget.currentUserName,
-                                ),
-                              ),
-                            );
-                          },
+                          onTap: () => widget.onNavigateToTab?.call(1),
                           child: _buildCardContainer(
                             title: '공부 시간',
                             child: StudyTimeCard(
@@ -78,7 +68,10 @@ class _MenuScreenState extends State<MenuScreen> {
                         const SizedBox(height: 12),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: _buildHomeworkCard(),
+                          child: InkWell(
+                            onTap: () => widget.onNavigateToTab?.call(3),
+                            child: _buildHomeworkCard(),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -89,16 +82,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 child: _buildCard(
                                   title: '공지사항',
                                   icon: 'notice_icon',
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => NoticePage(
-                                        groupId: widget.groupId,
-                                        currentUserEmail: widget.currentUserEmail,
-                                        currentUserName: widget.currentUserName,
-                                      ),
-                                    ),
-                                  ),
+                                  onTap: () => widget.onNavigateToTab?.call(4),
                                 ),
                               ),
                             ),
@@ -108,15 +92,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 child: _buildCard(
                                   title: '채팅',
                                   icon: 'chatting_icon',
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ChattingPage(
-                                        groupId: widget.groupId,
-                                        currentUserEmail: widget.currentUserEmail,
-                                      ),
-                                    ),
-                                  ),
+                                  onTap: () => widget.onNavigateToTab?.call(5),
                                 ),
                               ),
                             ),
@@ -130,12 +106,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     width: cardWidth + 80,
                     height: screenWidth * 0.4 - 10,
                     child: GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MeetingCalendarWidget(onRecordDateSelected: (_) {}),
-                        ),
-                      ),
+                      onTap: () => widget.onNavigateToTab?.call(2),
                       child: _buildCardContainer(
                         title: '미팅 일정 & 녹음',
                         child: const MeetingCalendarCard(),
