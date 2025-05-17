@@ -1,19 +1,22 @@
-// taskManageScreen에서 쓰는 팝업창 코드
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-
-// 팝업 전체(반투명 배경 + blur + 창)를 감싸는 래퍼 역할
-// TaskDialogContent를 내부에 보여줌
-// 팝업 창의 껍데기 UI
-class TaskRegisterPopup extends StatelessWidget {
+class TaskEditPopup extends StatelessWidget {
   final String groupId;
-  final Function(String title, String deadline, List<Map<String, String>> subTasks) onTaskRegistered;
+  final String initialTitle;
+  final String initialDeadline;
+  final List<Map<String, String>> initialSubTasks;
+  final void Function(String newTitle, String newDeadline, List<Map<String, String>> updatedSubTasks) onTaskUpdated;
+  final VoidCallback onTaskDeleted;
 
-  const TaskRegisterPopup({
+  const TaskEditPopup({
     super.key,
     required this.groupId,
-    required this.onTaskRegistered,
+    required this.initialTitle,
+    required this.initialDeadline,
+    required this.initialSubTasks,
+    required this.onTaskUpdated,
+    required this.onTaskDeleted,
   });
 
   @override
@@ -26,17 +29,20 @@ class TaskRegisterPopup extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700), // 가로 제한
+            constraints: const BoxConstraints(maxWidth: 700),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.85), // 밝은 흰 배경
+                color: Colors.white.withOpacity(0.85),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: Colors.white.withOpacity(0.3)),
               ),
-              child: TaskDialogContent(
-                groupId: groupId,
-                onTaskRegistered: onTaskRegistered,
+              child: TaskEditDialogContent(
+                initialTitle: initialTitle,
+                initialDeadline: initialDeadline,
+                initialSubTasks: initialSubTasks,
+                onTaskUpdated: onTaskUpdated,
+                onTaskDeleted: onTaskDeleted,
               ),
             ),
           ),
@@ -46,29 +52,39 @@ class TaskRegisterPopup extends StatelessWidget {
   }
 }
 
+class TaskEditDialogContent extends StatefulWidget {
+  final String initialTitle;
+  final String initialDeadline;
+  final List<Map<String, String>> initialSubTasks;
+  final void Function(String, String, List<Map<String, String>>) onTaskUpdated;
+  final VoidCallback onTaskDeleted;
 
-// 실제 과제 입력 UI(제목, 마감일, 소과제 추가)
-// 팝업 내부의 실제 폼 입력 화면
-class TaskDialogContent extends StatefulWidget {
-  final String groupId;
-  final Function(String title, String deadline, List<Map<String, String>> subTasks) onTaskRegistered;
-
-  const TaskDialogContent({
+  const TaskEditDialogContent({
     super.key,
-    required this.groupId,
-    required this.onTaskRegistered,
+    required this.initialTitle,
+    required this.initialDeadline,
+    required this.initialSubTasks,
+    required this.onTaskUpdated,
+    required this.onTaskDeleted,
   });
 
   @override
-  State<TaskDialogContent> createState() => _TaskDialogContentState();
+  State<TaskEditDialogContent> createState() => _TaskEditDialogContentState();
 }
 
-class _TaskDialogContentState extends State<TaskDialogContent> {
-  String title = "";
-  String deadline = "";
+class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
+  late String title;
+  late String deadline;
   int selectedIndex = 0;
-  List<Map<String, String>> subTasks = [{"subtitle": "", "description": ""}];
+  late List<Map<String, String>> subTasks;
 
+  @override
+  void initState() {
+    super.initState();
+    title = widget.initialTitle;
+    deadline = widget.initialDeadline;
+    subTasks = List<Map<String, String>>.from(widget.initialSubTasks);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,12 +92,12 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text("📝 과제 등록", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text("✏️ 과제 수정", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 왼쪽 영역: 과제 제목, 마감일, 소과제 목록 + 추가 버튼
+              // 왼쪽: 제목, 마감일, 소과제 목록
               Expanded(
                 flex: 1,
                 child: Column(
@@ -90,6 +106,7 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
                     TextField(
                       decoration: const InputDecoration(labelText: "과제 제목"),
                       onChanged: (v) => title = v,
+                      controller: TextEditingController(text: title),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -98,7 +115,7 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
                       onTap: () async {
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: DateTime.now(),
+                          initialDate: DateTime.tryParse(deadline) ?? DateTime.now(),
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2100),
                           locale: const Locale("ko", "KR"),
@@ -181,7 +198,8 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
                 ),
               ),
               const SizedBox(width: 24),
-              // 오른쪽 소과제 입력
+
+              // 오른쪽: 소과제 입력
               Expanded(
                 flex: 1,
                 child: Column(
@@ -207,31 +225,51 @@ class _TaskDialogContentState extends State<TaskDialogContent> {
             ],
           ),
           const SizedBox(height: 24),
+
+          // 하단 버튼 영역
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
-                  foregroundColor: Color(0xFF0D0A64),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text("취소"),
-              ),
-              OutlinedButton(
+              TextButton(
                 onPressed: () {
-                  widget.onTaskRegistered(title, deadline, subTasks);
+                  widget.onTaskDeleted();
                   Navigator.pop(context);
                 },
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
-                  foregroundColor: const Color(0xFF0D0A64),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: const [
+                    Icon(Icons.delete_forever, color: Colors.redAccent, size: 17),
+                    SizedBox(width: 2),
+                    Text("전체 삭제", style: TextStyle(color: Colors.redAccent)),
+                  ],
                 ),
-                child: const Text("등록"),
+              ),
+              Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                      foregroundColor: const Color(0xFF0D0A64),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text("취소"),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () {
+                      widget.onTaskUpdated(title, deadline, subTasks);
+                      Navigator.pop(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                      foregroundColor: const Color(0xFF0D0A64),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text("수정"),
+                  ),
+                ],
               ),
             ],
           )

@@ -12,13 +12,13 @@ class MenuScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
-  final void Function(int)? onNavigateToTab; // ✅ 추가
+  final void Function(int)? onNavigateToTab;
 
   const MenuScreen({
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
-    this.onNavigateToTab, // ✅ 추가
+    this.onNavigateToTab,
     Key? key,
   }) : super(key: key);
 
@@ -27,6 +27,57 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
+  Map<String, String>? upcomingTask;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUpcomingTask();
+  }
+
+  Future<void> _loadUpcomingTask() async {
+    final task = await getUpcomingUnsubmittedTask(widget.groupId, widget.currentUserEmail);
+    setState(() {
+      upcomingTask = task;
+    });
+  }
+
+  Future<Map<String, String>?> getUpcomingUnsubmittedTask(String groupId, String currentUserEmail) async {
+    final db = FirebaseDatabase.instance.ref();
+    final snapshot = await db.child('tasks').child(groupId).get();
+    if (!snapshot.exists) return null;
+
+    final today = DateTime.now();
+    Map<String, String>? earliest;
+
+    final tasks = Map<String, dynamic>.from(snapshot.value as Map);
+    for (final task in tasks.values) {
+      final taskData = Map<String, dynamic>.from(task);
+      final title = taskData['title'];
+      final deadlineStr = taskData['deadline'];
+      final deadline = DateTime.tryParse(deadlineStr ?? '');
+      if (deadline == null || deadline.isBefore(today)) continue;
+
+      final subTasks = Map<String, dynamic>.from(taskData['subTasks'] ?? {});
+      for (final sub in subTasks.values) {
+        final subData = Map<String, dynamic>.from(sub);
+        final subtitle = subData['subtitle'];
+        final submissions = Map<String, dynamic>.from(subData['submissions'] ?? {});
+        if (!submissions.containsKey(currentUserEmail)) {
+          if (earliest == null || deadline.isBefore(DateTime.parse(earliest['deadline']!))) {
+            earliest = {
+              'title': title,
+              'subtitle': subtitle,
+              'deadline': deadline.toIso8601String(),
+            };
+          }
+        }
+      }
+    }
+
+    return earliest;
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -58,6 +109,8 @@ class _MenuScreenState extends State<MenuScreen> {
                           onTap: () => widget.onNavigateToTab?.call(1),
                           child: _buildCardContainer(
                             title: '공부 시간',
+                            icon: 'study_icon',
+                            iconSize: 26,
                             child: StudyTimeCard(
                               groupId: widget.groupId,
                               currentUserEmail: widget.currentUserEmail,
@@ -70,7 +123,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: InkWell(
                             onTap: () => widget.onNavigateToTab?.call(3),
-                            child: _buildHomeworkCard(),
+                            child: _buildTaskCard(),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -78,22 +131,24 @@ class _MenuScreenState extends State<MenuScreen> {
                           children: [
                             Expanded(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 1),
                                 child: _buildCard(
                                   title: '공지사항',
                                   icon: 'notice_icon',
+                                  iconSize: 52,
                                   onTap: () => widget.onNavigateToTab?.call(4),
-                                ),
+                                )
                               ),
                             ),
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: _buildCard(
-                                  title: '채팅',
-                                  icon: 'chatting_icon',
-                                  onTap: () => widget.onNavigateToTab?.call(5),
-                                ),
+                                  child: _buildCard(
+                                    title: '채팅',
+                                    icon: 'chatting_icon',
+                                    iconSize: 40,
+                                    onTap: () => widget.onNavigateToTab?.call(5),
+                                  )
                               ),
                             ),
                           ],
@@ -109,6 +164,8 @@ class _MenuScreenState extends State<MenuScreen> {
                       onTap: () => widget.onNavigateToTab?.call(2),
                       child: _buildCardContainer(
                         title: '미팅 일정 & 녹음',
+                        icon: 'calendar_icon',
+                        iconSize: 29,
                         child: const MeetingCalendarCard(),
                       ),
                     ),
@@ -122,7 +179,12 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _buildCardContainer({required String title, required Widget child}) {
+  Widget _buildCardContainer({
+    required String title,
+    required String icon,
+    required Widget child,
+    required double iconSize,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -132,7 +194,13 @@ class _MenuScreenState extends State<MenuScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Image.asset('assets/images/$icon.png', width: iconSize), // iconSize 사용
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
           const SizedBox(height: 12),
           child,
         ],
@@ -140,7 +208,13 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _buildCard({required String title, required String icon, required VoidCallback onTap}) {
+
+  Widget _buildCard({
+    required String title,
+    required String icon,
+    required double iconSize,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -153,7 +227,7 @@ class _MenuScreenState extends State<MenuScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/images/$icon.png', width: 40),
+            Image.asset('assets/images/$icon.png', width: iconSize),
             const SizedBox(height: 10),
             Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ],
@@ -162,7 +236,22 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _buildHomeworkCard() {
+
+  Widget _buildTaskCard() {
+    String? title = upcomingTask?['title'];
+    String? subtitle = upcomingTask?['subtitle'];
+    String? deadlineStr = upcomingTask?['deadline'];
+
+    String dDayText = '';
+    if (deadlineStr != null) {
+      final deadline = DateTime.tryParse(deadlineStr);
+      if (deadline != null) {
+        final today = DateTime.now();
+        final difference = deadline.difference(today).inDays;
+        dDayText = 'D-${difference >= 0 ? difference : 0}';
+      }
+    }
+
     return Container(
       width: MediaQuery.of(context).size.width * 0.30 + 47,
       height: 105,
@@ -182,7 +271,31 @@ class _MenuScreenState extends State<MenuScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          const Text('조별 발표 준비', style: TextStyle(fontSize: 14)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  (title == null || subtitle == null)
+                      ? '제출하지 않은 과제가 없습니다.'
+                      : '$title  -  $subtitle',
+                  style: const TextStyle(fontSize: 15),
+                ),
+              ),
+              if (dDayText.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E5F7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    dDayText,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
