@@ -1,5 +1,3 @@
-// 팝업창에서 외내부 파일 선택
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -39,6 +37,11 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   String? selectedUser;
   String? selectedFileType;
   String? selectedFileUrl;
+  bool _isSubmitOptionsVisible = false; // for 내외부 파일 선택 버튼
+  int? _submitOptionIndex; // 어떤 소과제의 옵션인지 추적 //for 내외부 파일 선택 버튼
+  final LayerLink _layerLink = LayerLink(); //for 내외부 파일 선택 버튼의 토글
+  OverlayEntry? _submitOverlay; //for 내외부 파일 선택 버튼의 토글
+
 
   final List<Map<String, dynamic>> tasks = [];
   Map<String, Map<String, List<String>>> submissions = {};
@@ -576,53 +579,105 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
                                       child: Text(
                                         "${index + 1}. ${sub['subtitle']}",
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold, fontSize: 20),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 19),
-                                    TextButton(
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (_) => SubmitChoicePopup(
-                                            onInternalNoteSelected: () { // 내부 노트 선택
-                                              // TODO: 내부 노트 제출 로직 추가
-                                              print("내부 노트 선택됨");
-                                              // 예시: Navigator.push(context, MaterialPageRoute(builder: (_) => NoteSubmitScreen()));
-                                            },
-                                            onExternalFileSelected: () async {
-                                              await _pickAndUploadExternalFile( // 외부 파일 선택
-                                                task['taskId'],
-                                                sub['subId'],
-                                                widget.currentUserEmail,
-                                                widget.groupId,
-                                              );
-                                            },
+                                    CompositedTransformTarget(
+                                      link: _layerLink,
+                                      child: TextButton(
+                                        onPressed: () {
+                                          if (_submitOverlay != null) {
+                                            _submitOverlay!.remove();
+                                            _submitOverlay = null;
+                                          } else {
+                                            final overlay = Overlay.of(context);
+                                            _submitOverlay = OverlayEntry(
+                                              builder: (context) => Positioned(
+                                                width: 200,
+                                                child: CompositedTransformFollower(
+                                                  link: _layerLink,
+                                                  showWhenUnlinked: false,
+                                                  offset: const Offset(3, 1),
+                                                  followerAnchor: Alignment.topRight,
+                                                  targetAnchor: Alignment.bottomRight,
+                                                  child: Material(
+                                                    elevation: 0,
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: Color(0xFFF9F9FD),
+                                                        //border: Border.all(color: const Color(0xFF0D0A64), width: 1.2),
+                                                        borderRadius: BorderRadius.circular(12),
+                                                      ),
+                                                      child: Column(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          InkWell(
+                                                            onTap: () {
+                                                              print('내부 노트 선택');
+                                                              _submitOverlay?.remove();
+                                                              _submitOverlay = null;
+                                                            },
+                                                            child: Padding(
+                                                              padding: const EdgeInsets.all(12),
+                                                              child: Text("📓 내부 노트 파일 제출",
+                                                                  style: TextStyle(color: Color(0xFF0D0A64))),
+                                                            ),
+                                                          ),
+                                                          Container(height: 1, color: Color(0xFF0D0A64)),
+                                                          InkWell(
+                                                            onTap: () async {
+                                                              await _pickAndUploadExternalFile(
+                                                                task['taskId'],
+                                                                sub['subId'],
+                                                                widget.currentUserEmail,
+                                                                widget.groupId,
+                                                              );
+                                                              _submitOverlay?.remove();
+                                                              _submitOverlay = null;
+                                                            },
+                                                            child: Padding(
+                                                              padding: const EdgeInsets.all(12),
+                                                              child: Text("📁 외부 파일 선택",
+                                                                  style: TextStyle(color: Color(0xFF0D0A64))),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                            overlay.insert(_submitOverlay!);
+                                          }
+                                        },
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: Colors.white.withOpacity(0.6),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(24),
                                           ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        backgroundColor: Colors.white.withOpacity(0.6),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
                                         ),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
-                                      ),
-                                      child: const Text(
-                                        "제출",
-                                        style: TextStyle(
-                                          color: Color(0xFF0D0A64),
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
+                                        child: const Text(
+                                          "제출",
+                                          style: TextStyle(
+                                            color: Color(0xFF0D0A64),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
-                                    )
-
+                                    ),
                                   ],
                                 ),
                                 Text("${sub['description']}",
