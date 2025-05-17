@@ -1,8 +1,11 @@
+// 팝업창에서 외내부 파일 선택
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:moditapp/pages/popup_submit_choice.dart';
 import 'package:moditapp/pages/popup_task_edit.dart';
 
 import 'flask_api.dart';
@@ -49,6 +52,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   }
 
   Future<void> loadTasks() async {
+    print("현재 widget.groupId : ${widget.groupId}");
     final snapshot = await db.child('tasks').child(widget.groupId).get();
 
     if (!snapshot.exists) return;
@@ -360,7 +364,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         .replaceAll('/', '_');
   }
 
-  Future<void> _pickAndUploadFile(
+  Future<void> _pickAndUploadExternalFile(
       String taskId,
       String subId,
       String userEmail,
@@ -582,12 +586,26 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                     ),
                                     const SizedBox(width: 19),
                                     TextButton(
-                                      onPressed: () => _pickAndUploadFile(
-                                        task['taskId'],
-                                        sub['subId'],
-                                        widget.currentUserEmail,
-                                        widget.groupId,
-                                      ),
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => SubmitChoicePopup(
+                                            onInternalNoteSelected: () { // 내부 노트 선택
+                                              // TODO: 내부 노트 제출 로직 추가
+                                              print("내부 노트 선택됨");
+                                              // 예시: Navigator.push(context, MaterialPageRoute(builder: (_) => NoteSubmitScreen()));
+                                            },
+                                            onExternalFileSelected: () async {
+                                              await _pickAndUploadExternalFile( // 외부 파일 선택
+                                                task['taskId'],
+                                                sub['subId'],
+                                                widget.currentUserEmail,
+                                                widget.groupId,
+                                              );
+                                            },
+                                          ),
+                                        );
+                                      },
                                       style: TextButton.styleFrom(
                                         backgroundColor: Colors.white.withOpacity(0.6),
                                         shape: RoundedRectangleBorder(
@@ -603,7 +621,8 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                           fontSize: 14,
                                         ),
                                       ),
-                                    ),
+                                    )
+
                                   ],
                                 ),
                                 Text("${sub['description']}",

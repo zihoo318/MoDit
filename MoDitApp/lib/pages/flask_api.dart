@@ -10,7 +10,7 @@ class Api {
   // 공통 API URL 설정
   static const String baseUrl = "http://192.168.45.20:8080";
 
-  Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
+  Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupId) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
     final request = http.MultipartRequest('POST', uri);
 
@@ -23,16 +23,19 @@ class Api {
       filename: basename(audioFile.path),
     ));
 
-    // 그룹 이름 추가
-    request.fields['groupName'] = groupName;
+    request.fields['groupId'] = groupId;
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
+    print("================= print 시작 =====================");
     if (response.statusCode == 200) {
+      print('✅ 업로드 성공');
+      print('📄 결과 본문: ${response.body}');
       return jsonDecode(response.body);
     } else {
-      print('오류 발생: ${response.statusCode}');
+      print('오류 상태 코드: ${response.statusCode}');
+      print('응답 본문: ${response.body}');
       return null;
     }
   }
@@ -114,4 +117,31 @@ class Api {
       print("❌ 삭제 실패: ${response.statusCode} ${response.body}");
     }
   }
+
+  // 요약 생성 요청 API
+  Future<Map<String, dynamic>?> requestSummary(String fileUrl, String groupName) async {
+    final uri = Uri.parse('$baseUrl/summary/generate');
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'fileUrl': fileUrl,
+        'groupName': groupName,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      print('요약 요청 성공');
+      print('요약 URL: ${result['summary_url']}');
+      print('요약 미리보기: ${result['summary_preview']}');
+      return result;
+    } else {
+      print('요약 요청 실패: ${response.statusCode}');
+      print('본문: ${response.body}');
+      return null;
+    }
+  }
+
 }
