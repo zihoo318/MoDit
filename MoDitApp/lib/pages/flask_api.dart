@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://192.168.45.104:8080";
+  static const String baseUrl = "http://192.168.219.105:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -70,7 +70,7 @@ class Api {
 
   // 노트 업로드 api (flask에서 ncp object stroage에 업로드) -> 파베에 url 업로드는 dart에서 해야됨(반환값 확인하기)
   Future<Map<String, dynamic>?> uploadNoteFile(File file, String userEmail, String noteTitle) async {
-    final uri = Uri.parse('$baseUrl/Note/upload');
+    final uri = Uri.parse('$baseUrl/note/upload');
     final request = http.MultipartRequest('POST', uri);
 
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
@@ -96,5 +96,22 @@ class Api {
     }
   }
 
+  // 노트 파일 삭제 요청 (Object Storage에서 삭제)
+  Future<void> deleteNoteFile(String userEmail, String noteTitle) async {
+    final uri = Uri.parse('$baseUrl/delete_note');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': userEmail,
+        'title': noteTitle,
+      }),
+    );
 
+    if (response.statusCode == 200) {
+      print("🗑️ 오브젝트 스토리지 노트 삭제 성공");
+    } else {
+      print("❌ 삭제 실패: ${response.statusCode} ${response.body}");
+    }
+  }
 }

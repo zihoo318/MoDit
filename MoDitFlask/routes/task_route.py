@@ -5,7 +5,7 @@ from task.task_processor import handle_task_upload
 
 task_bp = Blueprint("task_bp", __name__, url_prefix='/task')
 
-@task_bp.route("/Task/upload", methods=["POST"])
+@task_bp.route("/upload", methods=["POST"])
 def upload_task():
     if 'task' not in request.files:
         return jsonify({"error": "No file part"}), 400
