@@ -79,24 +79,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
   }
 
-  Widget _buildCircleTabButton(int index) {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _homeworkTabIndex = index);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: _homeworkTabIndex == index ? const Color(0xFFD3D0EA) : const Color(0xFFFCF7FD),
-        ),
-        child: const SizedBox.shrink(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,18 +188,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         ],
                       ),
                     ),
-                    if (_selectedIndex == 3)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildCircleTabButton(0),
-                            const SizedBox(width: 12),
-                            _buildCircleTabButton(1),
-                          ],
-                        ),
-                      ),
                     const SizedBox(height: 10),
                     Expanded(child: _buildSelectedContent()),
                   ],

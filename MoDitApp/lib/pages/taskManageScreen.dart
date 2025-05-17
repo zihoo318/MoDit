@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:moditapp/pages/popup_task_edit.dart';
 
 import 'flask_api.dart';
 import 'popup_task_register.dart';
@@ -53,10 +54,10 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     if (!snapshot.exists) return;
 
     final data = snapshot.value;
-    print("🔥 snapshot.value: $data");
+    print("snapshot.value: $data");
 
     if (data is! Map) {
-      print("🚨 snapshot.value가 Map이 아님: ${data.runtimeType}");
+      print("snapshot.value가 Map이 아님: ${data.runtimeType}");
       return;
     }
 
@@ -103,6 +104,16 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     setState(() {
       tasks.clear();
       tasks.addAll(loadedTasks);
+
+      if (tasks.isNotEmpty) {
+        // 마감일 기준 정렬된 리스트 생성
+        final sortedTasks = List<Map<String, dynamic>>.from(tasks)
+          ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
+
+        // 정렬된 첫 번째 task의 원래 인덱스를 찾아 설정
+        final firstSorted = sortedTasks.first;
+        selectedTaskIndex = tasks.indexOf(firstSorted);
+      }
     });
   }
 
@@ -196,8 +207,11 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
 
     if (snapshot.exists) {
       final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final nameSnapshot = await db.child('user').child(sanitizeKey(user)).child('name').get();
+      final userName = nameSnapshot.exists ? nameSnapshot.value as String : user;
+
       setState(() {
-        selectedUser = user;
+        selectedUser = userName;
         selectedTaskTitle = taskTitle;
         selectedSubTaskTitle = subTaskTitle;
         selectedFileUrl = data['fileUrl'];
@@ -208,7 +222,119 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     }
   }
 
+  //과제 전체(task 및 그 내부의 소과제 및 제출 데이터 포함)를 삭제
+  Future<void> deleteTask(String taskId) async {
+    await db.child('tasks').child(widget.groupId).child(taskId).remove();
+  }
 
+  // 새로운 소과제 추가 시 파베 저장 함수
+  void _addSubTask(List<Map<String, String>> subTasks) {
+    setState(() {
+      subTasks.add({
+        'subtitle': '',
+        'description': '',
+      });
+    });
+  }
+
+  // 원래 있던 소과제 수정 시 변경 내용 파베에 업로드 함수
+  Future<void> updateTask(
+      String taskId,
+      String newTitle,
+      String newDeadline,
+      List<Map<String, String>> updatedSubTasks,
+      ) async {
+
+    //같은 subTask 순서(index)에 대해 subtitle과 description은 갱신
+    // 기존 subId와 그에 포함된 submissions은 유지
+    // 새로 추가된 subTask는 새 subId 생성
+    // 삭제된 subTask는 제거
+
+    final taskRef = db.child('tasks').child(widget.groupId).child(taskId);
+    final subTasksRef = taskRef.child('subTasks');
+
+    // 현재 subTask들과 그 ID, submissions 불러오기
+    final snapshot = await subTasksRef.get();
+    final Map<String, dynamic> existingSubTaskData =
+    snapshot.exists ? Map<String, dynamic>.from(snapshot.value as Map) : {};
+
+    final newSubTaskMap = <String, Map<String, dynamic>>{};
+    final existingSubTaskIds = existingSubTaskData.keys.toList();
+
+    for (int i = 0; i < updatedSubTasks.length; i++) {
+      final sub = updatedSubTasks[i];
+
+      if (i < existingSubTaskIds.length) {
+        // 기존 subId 유지 + submissions 유지
+        final oldSubId = existingSubTaskIds[i];
+        final oldSub = Map<String, dynamic>.from(existingSubTaskData[oldSubId]);
+        final existingSubmissions =
+            oldSub['submissions'] ?? {}; // 없으면 빈 맵
+
+        newSubTaskMap[oldSubId] = {
+          'subtitle': sub['subtitle'] ?? '',
+          'description': sub['description'] ?? '',
+          'submissions': existingSubmissions,
+        };
+      } else {
+        // 새로 추가된 소과제 → 새 subId 발급
+        final newSubId = subTasksRef.push().key!;
+        newSubTaskMap[newSubId] = {
+          'subtitle': sub['subtitle'] ?? '',
+          'description': sub['description'] ?? '',
+          'submissions': {},
+        };
+      }
+    }
+
+    // 전체 task 덮어쓰기 (기존 subTask 중 삭제된 것도 반영)
+    final updatedTask = {
+      'title': newTitle,
+      'deadline': newDeadline,
+      'subTasks': newSubTaskMap,
+    };
+
+    await taskRef.set(updatedTask);
+  }
+
+  // 과제 수정 팝업창 호출 및 파베에 수정사항 반영
+  void _showTaskEditDialog(int index) async {
+    final task = tasks[index];
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => TaskEditPopup(
+        groupId: widget.groupId,
+        initialTitle: task['title'],
+        initialDeadline: task['deadline'],
+        initialSubTasks: (task['subTasks'] as List)
+            .map<Map<String, String>>((sub) => {
+          'subtitle': sub['subtitle'] ?? '',
+          'description': sub['description'] ?? '',
+        })
+            .toList(),
+        onTaskUpdated: (newTitle, newDeadline, updatedSubTasks) async {
+          await updateTask(task['taskId'], newTitle, newDeadline, updatedSubTasks);
+          await loadTasks();
+          await loadSubmissions();
+          Navigator.pop(context, true); // 팝업 닫을 때 true 반환
+        },
+        onTaskDeleted: () async {
+          await deleteTask(task['taskId']);
+          await loadTasks();
+          await loadSubmissions();
+          Navigator.pop(context, true); // 팝업 닫을 때 true 반환
+        },
+      ),
+    );
+
+    // 팝업 닫힌 후 갱신
+    if (result == true) {
+      setState(() {});
+    }
+  }
+
+  // 과제 등록 팝업 호출
   void _showTaskRegisterDialog() {
     showDialog(
       context: context,
@@ -282,8 +408,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     }
   }
 
-
-
   Widget _buildCircleTabButton(int index) {
     return GestureDetector(
       onTap: () {
@@ -304,25 +428,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
               : const Color(0xFFD3D0EA),
         ),
       ),
-    );
-  }
-
-  void _showTaskEditDialog(int index) {
-    final task = tasks[index];
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('과제 수정'),
-          content: Text('과제 "${task['title']}" 를 수정하는 창입니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('닫기'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -527,7 +632,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     );
   }
 
-
   Widget _buildConfirmTab() {
     return Padding(
       padding: const EdgeInsets.all(2),
@@ -539,91 +643,116 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('과제물 확인', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 3),
+                const Text('과제물 확인', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
                 Expanded(
                   child: Scrollbar(
-                    child: ListView.builder(
-                      itemCount: tasks.length,
-                      itemBuilder: (context, taskIndex) {
-                        final task = tasks[taskIndex];
-                        final taskTitle = task['title'];
-                        final subTasks = task['subTasks'] as List<Map<String, dynamic>>;
+                    child: Builder(
+                      builder: (context) {
+                        final sortedTasks = List<Map<String, dynamic>>.from(tasks)
+                          ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
 
-                        return Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 20),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE7E5FC),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(taskTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 12),
-                              ...subTasks.map((subTask) {
-                                final subTitle = subTask['subtitle']!;
-                                final submitUsers = submissions[taskTitle]?[subTitle] ?? [];
+                        return ListView.builder(
+                          itemCount: sortedTasks.length,
+                          itemBuilder: (context, taskIndex) {
+                            final task = sortedTasks[taskIndex];
+                            final taskTitle = task['title'];
+                            final subTasks = task['subTasks'] as List<Map<String, dynamic>>;
 
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(subTitle,
-                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                                      const SizedBox(height: 8),
-                                      submitUsers.isEmpty
-                                          ? const Text("제출자 없음", style: TextStyle(color: Colors.grey))
-                                          : Wrap(
-                                        spacing: 8,
-                                        runSpacing: 4,
-                                        children: submitUsers.map((userEmail) {
-                                          final sanitizedEmail = sanitizeKey(userEmail);
+                            return Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE7E5FC),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(taskTitle,
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 12),
+                                  ...subTasks.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final subTask = entry.value;
+                                    final subTitle = subTask['subtitle'] ?? '';
+                                    final submitUsers = submissions[taskTitle]?[subTitle] ?? [];
 
-                                          return FutureBuilder<DataSnapshot>(
-                                            future: db.child('user').child(sanitizedEmail).get(),
-                                            builder: (context, snapshot) {
-                                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                                return const SizedBox(
-                                                  width: 80,
-                                                  height: 40,
-                                                  child: CircularProgressIndicator(),
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text("  ${index + 1}. $subTitle",
+                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                          const SizedBox(height: 8),
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 11),
+                                            child: submitUsers.isEmpty
+                                                ? const Text("제출자 없음", style: TextStyle(color: Colors.grey))
+                                                : Wrap(
+                                              spacing: 8,
+                                              runSpacing: 4,
+                                              children: submitUsers.map((userEmail) {
+                                                final sanitizedEmail = sanitizeKey(userEmail);
+                                                return FutureBuilder<DataSnapshot>(
+                                                  future: db.child('user').child(sanitizedEmail).get(),
+                                                  builder: (context, snapshot) {
+                                                    if (snapshot.connectionState ==
+                                                        ConnectionState.waiting) {
+                                                      return const SizedBox(
+                                                        width: 80,
+                                                        height: 40,
+                                                        child: CircularProgressIndicator(),
+                                                      );
+                                                    } else if (snapshot.hasError ||
+                                                        !snapshot.hasData ||
+                                                        !snapshot.data!.exists) {
+                                                      return const SizedBox(
+                                                        width: 80,
+                                                        height: 40,
+                                                        child: Text("이름 오류"),
+                                                      );
+                                                    }
+
+                                                    final userData = Map<String, dynamic>.from(
+                                                        snapshot.data!.value as Map);
+                                                    final userName = userData['name'] ?? userEmail;
+
+                                                    return OutlinedButton(
+                                                      onPressed: () => loadSubmissionFile(
+                                                          userEmail, taskTitle, subTitle),
+                                                      style: OutlinedButton.styleFrom(
+                                                        side: const BorderSide(
+                                                            color: Color(0xFF0D0A64), width: 1.2),
+                                                        foregroundColor: const Color(0xFF0D0A64),
+                                                        padding: const EdgeInsets.symmetric(
+                                                            horizontal: 8, vertical: 1),
+                                                        visualDensity: const VisualDensity(
+                                                            horizontal: 0, vertical: -2),
+                                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                        shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(8)),
+                                                      ),
+                                                      child: Text(
+                                                        userName,
+                                                        style: const TextStyle(fontSize: 13),
+                                                      ),
+                                                    );
+                                                  },
                                                 );
-                                              } else if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-                                                return const SizedBox(
-                                                  width: 80,
-                                                  height: 40,
-                                                  child: Text("이름 오류"),
-                                                );
-                                              }
-
-                                              final userData = Map<String, dynamic>.from(snapshot.data!.value as Map);
-                                              final userName = userData['name'] ?? userEmail;
-
-                                              return OutlinedButton(
-                                                onPressed: () => loadSubmissionFile(userEmail, taskTitle, subTitle),
-                                                style: OutlinedButton.styleFrom(
-                                                  side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
-                                                  foregroundColor: const Color(0xFF0D0A64),
-                                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                ),
-                                                child: Text(userName),
-                                              );
-                                            },
-                                          );
-                                        }).toList(),
-
+                                              }).toList(),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ],
-                          ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
@@ -632,6 +761,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
               ],
             ),
           ),
+
           const SizedBox(width: 16),
 
           // 오른쪽 상세내용 상자
@@ -650,45 +780,52 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                     : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(selectedUser!,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(selectedUser!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-                    Text("$selectedTaskTitle - $selectedSubTaskTitle",
-                        style: const TextStyle(fontSize: 18)),
+                    Text("$selectedTaskTitle - $selectedSubTaskTitle", style: const TextStyle(fontSize: 18)),
                     const SizedBox(height: 12),
                     Expanded(
-                      child: SizedBox(
-                        height: 300,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade400),
-                          ),
-                          child: InteractiveViewer(
-                            panEnabled: true,
-                            minScale: 0.5,
-                            maxScale: 3.0,
-                            child: selectedFileType == 'image'
-                                ? Image.network(selectedFileUrl!, fit: BoxFit.contain)
-                                : FutureBuilder<String>(
-                              future: _loadTextFromUrl(selectedFileUrl!),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Center(child: CircularProgressIndicator());
-                                } else if (snapshot.hasError) {
-                                  return const Center(child: Text("오류 발생"));
-                                } else {
-                                  return Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(snapshot.data ?? "",
-                                        style: const TextStyle(fontSize: 16)),
-                                  );
-                                }
-                              },
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final boxWidth = constraints.maxWidth;
+                          final boxHeight = constraints.maxHeight;
+
+                          return Center(
+                            child: SizedBox(
+                              width: boxWidth,
+                              height: boxHeight,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade400),
+                                ),
+                                child: InteractiveViewer(
+                                  panEnabled: true,
+                                  minScale: 0.5,
+                                  maxScale: 3.0,
+                                  child: selectedFileType == 'image'
+                                      ? Image.network(selectedFileUrl!, fit: BoxFit.contain)
+                                      : FutureBuilder<String>(
+                                    future: _loadTextFromUrl(selectedFileUrl!),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator());
+                                      } else if (snapshot.hasError) {
+                                        return const Center(child: Text("오류 발생"));
+                                      } else {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Text(snapshot.data ?? "", style: const TextStyle(fontSize: 16)),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],
