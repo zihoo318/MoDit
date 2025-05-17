@@ -5,7 +5,10 @@ from routes.ocr_route import ocr_bp
 from routes.summary_route import summary_bp
 from routes.task_route import task_bp
 from routes.note_route import note_bp
+<<<<<<< HEAD
 
+=======
+>>>>>>> develop
 from flask_cors import CORS
 
 app = Flask(__name__)

@@ -36,6 +36,7 @@ def upload_to_object_storage(local_path, key):
         content_type = "audio/mp4"
     elif key.endswith(".jpg"):
         content_type = "image/jpeg"
+    print(f"DEBUG: bucket={config_env.NCLOUD_BUCKET_NAME}, key={key}")
 
     s3.upload_file(
         local_path,
@@ -49,3 +50,46 @@ def upload_to_object_storage(local_path, key):
 
     return f"{config_env.NCLOUD_ENDPOINT}/{config_env.NCLOUD_BUCKET_NAME}/{key}"
 
+def delete_note_from_object_storage(user_email, note_title):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=config_env.NCLOUD_ACCESS_KEY,
+        aws_secret_access_key=config_env.NCLOUD_SECRET_KEY,
+        endpoint_url=config_env.NCLOUD_ENDPOINT
+    )
+
+    prefix = f"note/{user_email}/{note_title}/"
+    response = s3.list_objects_v2(
+        Bucket=config_env.NCLOUD_BUCKET_NAME,
+        Prefix=prefix
+    )
+
+    # 객체가 없을 경우
+    if 'Contents' not in response:
+        print(f"DEBUG: No objects found under {prefix}")
+        return
+
+    for obj in response['Contents']:
+        print(f"DEBUG: Deleting {obj['Key']}")
+        s3.delete_object(
+            Bucket=config_env.NCLOUD_BUCKET_NAME,
+            Key=obj['Key']
+        )
+
+def delete_all_files_in_prefix(prefix):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=config_env.NCLOUD_ACCESS_KEY,
+        aws_secret_access_key=config_env.NCLOUD_SECRET_KEY,
+        endpoint_url=config_env.NCLOUD_ENDPOINT
+    )
+
+    response = s3.list_objects_v2(Bucket=config_env.NCLOUD_BUCKET_NAME, Prefix=prefix)
+
+    if 'Contents' in response:
+        objects = [{'Key': obj['Key']} for obj in response['Contents']]
+        s3.delete_objects(
+            Bucket=config_env.NCLOUD_BUCKET_NAME,
+            Delete={'Objects': objects}
+        )
+        print(f"🧹 {len(objects)}개 파일 삭제됨: {prefix}")
