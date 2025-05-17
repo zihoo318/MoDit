@@ -5,6 +5,7 @@ import 'taskManageScreen.dart';
 import 'notice.dart';
 import 'chatting.dart';
 import 'meeting_calendar.dart';
+import 'meeting_record.dart';
 import 'card_study_time.dart';
 import 'card_meeting_calendar.dart';
 
