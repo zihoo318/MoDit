@@ -1,43 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 
-class StudyTimeCard extends StatelessWidget {
-  final Map<String, Duration> studyTimes;
-  final String currentUser;
-  final bool isStudying;
+class StudyTimeCard extends StatefulWidget {
+  final String groupId;
+  final String currentUserEmail;
+  final String currentUserName;
 
   const StudyTimeCard({
     super.key,
-    required this.studyTimes,
-    required this.currentUser,
-    required this.isStudying,
+    required this.groupId,
+    required this.currentUserEmail,
+    required this.currentUserName,
   });
 
-  String _formatTime(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    return "${twoDigits(d.inHours)}:${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
+  @override
+  State<StudyTimeCard> createState() => _StudyTimeCardState();
+}
+
+class _StudyTimeCardState extends State<StudyTimeCard> {
+  final db = FirebaseDatabase.instance.ref();
+  Map<String, int> studySeconds = {}; // 초 단위
+  Map<String, String> memberNames = {}; // 이메일 → 이름 매핑
+  Set<String> currentlyStudying = {}; // 공부 중인 사람
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMembers();
+    _listenToStudyTimes();
   }
 
-  Widget _buildStudent(String name) {
-    bool studying = name == currentUser && isStudying;
+  void _loadMembers() async {
+    final snap = await db.child('groupStudies').child(widget.groupId).child('members').get();
+    if (snap.exists) {
+      final members = Map<String, dynamic>.from(snap.value as Map);
+      for (var email in members.keys) {
+        final userSnap = await db.child('user').child(email).get();
+        if (userSnap.exists) {
+          final data = Map<String, dynamic>.from(userSnap.value as Map);
+          memberNames[email] = data['name'] ?? email.split('@')[0];
+        }
+      }
+      setState(() {});
+    }
+  }
+
+  void _listenToStudyTimes() {
+    db.child('groupStudies').child(widget.groupId).child('studyTimes').onValue.listen((event) {
+      if (event.snapshot.exists) {
+        final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+        setState(() {
+          studySeconds = {};
+          currentlyStudying.clear();
+          data.forEach((emailKey, value) {
+            studySeconds[emailKey] = value['elapsed'] ?? 0;
+            if (value['isStudying'] == true) {
+              currentlyStudying.add(emailKey);
+            }
+          });
+        });
+      }
+    });
+  }
+
+  String _formatTime(int seconds) {
+    final hours = (seconds ~/ 3600).toString().padLeft(2, '0');
+    final minutes = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return "$hours:$minutes:$secs";
+  }
+
+  Widget _buildStudent(String emailKey) {
+    final name = memberNames[emailKey] ?? emailKey.split('@')[0];
+    final seconds = studySeconds[emailKey] ?? 0;
+    final isStudying = currentlyStudying.contains(emailKey);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(name, style: const TextStyle(fontSize: 14)),
         const SizedBox(height: 6),
         Image.asset(
-          studying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
+          isStudying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
           width: 35,
           height: 35,
         ),
         const SizedBox(height: 7),
-        Text(_formatTime(studyTimes[name] ?? Duration.zero), style: const TextStyle(fontSize: 12)),
+        Text(
+          _formatTime(seconds),
+          style: const TextStyle(fontSize: 12),
+        ),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final members = studyTimes.keys.toList();
+    final members = memberNames.keys.toList();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -45,15 +104,16 @@ class StudyTimeCard extends StatelessWidget {
         color: Colors.white.withOpacity(0.4),
         borderRadius: BorderRadius.circular(16),
       ),
-      width: MediaQuery.of(context).size.width * 0.42, // 부모 컨테이너의 가로 길이 설정
+      width: MediaQuery.of(context).size.width * 0.42,
+      height: 190, // 예시: 세로 높이 고정
       child: GridView.count(
-        physics: const NeverScrollableScrollPhysics(), // 카드 안에서는 스크롤 비활성화
-        crossAxisCount: 3, // 한 줄에 3개의 아이템
-        crossAxisSpacing:12, // 가로 방향 간격
-        mainAxisSpacing: 17, // 세로 방향 간격
-        childAspectRatio: 1.3, // 아이템의 가로:세로 비율
-        shrinkWrap: true, // 자식 크기만큼만 크기 조정
-        children: members.map((name) => _buildStudent(name)).toList(),
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 17,
+        childAspectRatio: 1.3,
+        shrinkWrap: true,
+        children: members.map(_buildStudent).toList(),
       ),
     );
   }
