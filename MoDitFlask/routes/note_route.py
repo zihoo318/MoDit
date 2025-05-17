@@ -3,7 +3,7 @@ from note.note_processor import handle_note_upload
 
 note_bp = Blueprint("note_route", __name__, url_prefix='/note')
 
-@note_bp.route("/Note/upload", methods=["POST"])
+@note_bp.route("/upload", methods=["POST"])
 def upload_note():
     if 'note' not in request.files:
         return jsonify({"error": "No file part"}), 400

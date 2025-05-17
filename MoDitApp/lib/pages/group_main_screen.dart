@@ -37,6 +37,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   List<String> memberNames = [];
 
   DateTime? _recordDate;
+  String? _meetingId;
   bool isRecordingView = false;
 
   final List<String> menuTitles = [
@@ -79,17 +80,14 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/background.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.topLeft,
-            ),
+            child: Image.asset('assets/images/background.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
           ),
           Row(
             children: [
@@ -200,6 +198,40 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     );
   }
 
+  Widget _buildBackButton() {
+    return Positioned(
+      bottom: 35,
+      left: 30,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                currentUserEmail: widget.currentUserEmail,
+                currentUserName: widget.currentUserName,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.purpleAccent.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.arrow_back, color: Colors.white),
+              SizedBox(width: 1),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSelectedContent() {
     if (_selectedIndex == 0) {
       return MenuScreen(
@@ -239,9 +271,11 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         );
       case 2:
         return MeetingCalendarWidget(
-          onRecordDateSelected: (date) {
+          groupId: widget.groupId,
+          onRecordDateSelected: (date, meetingId) {
             setState(() {
               _recordDate = date;
+              _meetingId = meetingId;
               _selectedIndex = 6;
               isRecordingView = true;
             });
@@ -252,7 +286,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           groupId: widget.groupId,
           currentUserEmail: widget.currentUserEmail,
           tabIndex: _homeworkTabIndex,
-          onTabChanged: (int index) {
+          onTabChanged: (index) {
             setState(() => _homeworkTabIndex = index);
           },
         );
@@ -268,9 +302,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           currentUserEmail: widget.currentUserEmail,
         );
       case 6:
-        return _recordDate == null
+        return (_recordDate == null || _meetingId == null)
             ? const Center(child: Text('날짜가 선택되지 않았습니다'))
-            : MeetingRecordWidget(selectedDate: _recordDate!);
+            : MeetingRecordWidget(
+                selectedDate: _recordDate!,
+                groupId: widget.groupId,
+                meetingId: _meetingId!,
+              );
       default:
         return const SizedBox();
     }

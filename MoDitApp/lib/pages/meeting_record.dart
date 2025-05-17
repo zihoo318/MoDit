@@ -1,24 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MeetingRecordWidget extends StatefulWidget {
   final DateTime selectedDate;
-  const MeetingRecordWidget({super.key, required this.selectedDate});
+  final String groupId;
+  final String meetingId;
+
+  const MeetingRecordWidget({
+    super.key,
+    required this.selectedDate,
+    required this.groupId,
+    required this.meetingId,
+  });
 
   @override
   State<MeetingRecordWidget> createState() => _MeetingRecordWidgetState();
 }
 
 class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
+  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
+  final FlutterSoundPlayer _player = FlutterSoundPlayer();
+  final TextEditingController _nameController = TextEditingController();
+  final db = FirebaseDatabase.instance.ref();
+
   List<Map<String, dynamic>> recordings = [];
   bool isRecording = false;
   Duration recordDuration = Duration.zero;
-  late final TextEditingController _nameController;
+  String? recordedFilePath;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
+    _player.openPlayer();
+    _loadRecordings();
+  }
+
+  @override
+  void dispose() {
+    _player.closePlayer();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadRecordings() async {
+    final snapshot = await db
+        .child('groupStudies/${widget.groupId}/recordings/${widget.meetingId}')
+        .get();
+
+    if (snapshot.exists) {
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      setState(() {
+        recordings = data.entries.map((entry) {
+          final value = Map<String, dynamic>.from(entry.value);
+          return {
+            'name': value['name'] ?? '이름 없음',
+            'timestamp': DateTime.tryParse(value['timestamp'] ?? '') ?? DateTime.now(),
+            'url': value['url'] ?? '',
+          };
+        }).toList();
+      });
+    }
   }
 
   void _showRecordPrompt() {
@@ -27,12 +74,12 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFFF1ECFA),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Column(
+        title: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('녹음을 하시겠습니까?', textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            const Icon(Icons.mic, size: 36, color: Color(0xFF9F8DF1)),
+            Text('녹음을 하시겠습니까?', textAlign: TextAlign.center),
+            SizedBox(height: 12),
+            Icon(Icons.mic, size: 36, color: Color(0xFF9F8DF1)),
           ],
         ),
         actions: [
@@ -48,10 +95,19 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         ],
       ),
     );
-
   }
 
-  void _startRecording() {
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) return;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final filePath = '${dir.path}/record_${DateTime.now().millisecondsSinceEpoch}.aac';
+    recordedFilePath = filePath;
+
+    await _recorder.openRecorder();
+    await _recorder.startRecorder(toFile: filePath, codec: Codec.aacADTS);
+
     setState(() {
       isRecording = true;
       recordDuration = Duration.zero;
@@ -109,13 +165,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                recordings.add({
-                  'name': _nameController.text,
-                  'timestamp': DateTime.now(),
-                });
-                _nameController.clear();
-              });
+              _stopRecordingAndSave();
               Navigator.pop(context);
             },
             child: const Text('저장'),
@@ -123,6 +173,40 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         ],
       ),
     );
+  }
+
+  Future<void> _stopRecordingAndSave() async {
+    await _recorder.stopRecorder();
+    await _recorder.closeRecorder();
+    setState(() => isRecording = false);
+
+    if (recordedFilePath == null) return;
+
+    final file = File(recordedFilePath!);
+    if (!file.existsSync()) return;
+
+    final name = _nameController.text.trim().isEmpty
+        ? 'record_${DateTime.now().millisecondsSinceEpoch}'
+        : _nameController.text.trim();
+
+    final fakeUrl = 'file://${file.path}';
+
+    final newRef = db.child('groupStudies/${widget.groupId}/recordings/${widget.meetingId}').push();
+    await newRef.set({
+      'name': name,
+      'timestamp': DateTime.now().toIso8601String(),
+      'url': fakeUrl,
+    });
+
+    setState(() {
+      recordings.add({
+        'name': name,
+        'timestamp': DateTime.now(),
+        'url': fakeUrl,
+      });
+    });
+
+    _nameController.clear();
   }
 
   String _formatDuration(Duration duration) {
@@ -139,7 +223,6 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🔷 상단 텍스트 + 날짜/마이크 중앙 정렬
         Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: Column(
@@ -171,8 +254,6 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
             ],
           ),
         ),
-
-        // 🔷 녹음 목록
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(24),
@@ -187,9 +268,12 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                 return Card(
                   child: ListTile(
                     leading: const Icon(Icons.mic),
-                    title: Text(r['name'] ?? '이름 없음'),
+                    title: Text(r['name']),
                     subtitle: Text(DateFormat('yyyy.MM.dd HH:mm:ss').format(r['timestamp'])),
-                    trailing: const Icon(Icons.download),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.play_arrow),
+                      onPressed: () => launchUrl(Uri.parse(r['url'])),
+                    ),
                   ),
                 );
               },
