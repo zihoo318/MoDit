@@ -1146,6 +1146,7 @@ class _TextNote {
 
   }
 }
+<<<<<<< HEAD
 
 class _ImageNote {
   Offset position;
@@ -1160,3 +1161,5 @@ class _ImageNote {
     this.isSelected = false,
   });
 }
+=======
+>>>>>>> develop
