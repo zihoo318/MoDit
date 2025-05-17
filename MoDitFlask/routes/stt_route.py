@@ -12,14 +12,27 @@ def upload_voice_file():
     if 'voice' not in request.files:
         return jsonify({'error': 'No voice file provided'}), 400
 
-    group_name = request.form.get('groupName')
+    group_name = request.form.get('groupId')
     if not group_name:
-        return jsonify({'error': 'No groupName provided'}), 400
+        return jsonify({'error': 'No groupId provided'}), 400
 
     file = request.files['voice']
     filename_base = str(uuid.uuid4())
     temp_filename = f"{filename_base}.m4a"
     temp_path = save_temp_file(file, temp_filename)
+
+    print("[DEBUG] 요청 수신됨")
+    print("FILES:", request.files)
+    print("FORM:", request.form)
+
+    ##
+    if 'voice' not in request.files:
+        return jsonify({'error': 'No voice file provided'}), 400
+
+    group_name = request.form.get('groupId') 
+    if not group_name:
+        return jsonify({'error': 'No groupId provided'}), 400
+    ##
 
     try:
         result = process_stt(temp_path, filename_base, group_name)  # group_name 전달
