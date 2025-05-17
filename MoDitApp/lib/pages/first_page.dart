@@ -228,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildNoteAddCard(() {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => NoteScreen()),
+                    MaterialPageRoute(builder: (_) => NoteScreen(currentUserEmail: widget.currentUserEmail)),
                   );
                 }),
                 _buildNoteCardWithImage('assets/images/test_note1.jpg', '명사 정리'),

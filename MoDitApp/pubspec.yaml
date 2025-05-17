@@ -45,6 +45,7 @@ dependencies:
   mime: ^1.0.4
   http_parser: ^4.0.2
   file_selector: ^1.0.3
+  image_picker: ^1.0.4
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -107,6 +108,8 @@ flutter:
     - assets/images/clicked_keyboard.png
     - assets/images/eraser.png
     - assets/images/clicked_eraser.png
+    - assets/images/image.png
+    - assets/images/clicked_image.png
     - assets/images/box.png
     - assets/images/clicked_box.png
     - assets/images/back_button.png
