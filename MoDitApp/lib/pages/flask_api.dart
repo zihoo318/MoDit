@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://192.168.45.104:8080";
+  static const String baseUrl = "http://192.168.45.20:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupName) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -39,7 +39,7 @@ class Api {
 
   // 과제 업로드 api (flask에서 ncp object stroage에 업로드)
   Future<Map<String, dynamic>?> uploadTaskFile(File file, String groupId, String userEmail, String taskTitle, String subTaskTitle) async {
-    final uri = Uri.parse('$baseUrl/Task/upload');
+    final uri = Uri.parse('$baseUrl/task/upload');
     final request = http.MultipartRequest('POST', uri);
 
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
@@ -70,7 +70,7 @@ class Api {
 
   // 노트 업로드 api (flask에서 ncp object stroage에 업로드) -> 파베에 url 업로드는 dart에서 해야됨(반환값 확인하기)
   Future<Map<String, dynamic>?> uploadNoteFile(File file, String userEmail, String noteTitle) async {
-    final uri = Uri.parse('$baseUrl/Note/upload');
+    final uri = Uri.parse('$baseUrl/note/upload');
     final request = http.MultipartRequest('POST', uri);
 
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';

@@ -29,11 +29,11 @@ android {
         applicationId = "com.example.moditapp"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        minSdkVersion(23) // 이 부분을 함수 형태로 수정
+        //minSdkVersion(23) // 이 부분을 함수 형태로 수정
     }
 
     buildTypes {
