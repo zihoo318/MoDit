@@ -1,63 +1,150 @@
-// ✅ 통합 버전: meeting_calendar.dart (스크롤 + 포맷 전환 버튼 포함)
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'meeting_record.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class MeetingCalendarWidget extends StatefulWidget {
-  final void Function(DateTime) onRecordDateSelected;
-  const MeetingCalendarWidget({super.key, required this.onRecordDateSelected});
+  final String groupId;
+  final void Function(DateTime, String) onRecordDateSelected;
+
+  const MeetingCalendarWidget({
+    super.key,
+    required this.groupId,
+    required this.onRecordDateSelected,
+  });
 
   @override
   State<MeetingCalendarWidget> createState() => _MeetingCalendarWidgetState();
 }
 
 class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
+  final db = FirebaseDatabase.instance.ref();
   DateTime selectedDate = DateTime.now();
   DateTime focusedDate = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  List<Map<String, dynamic>> meetings = [];
 
-  final List<Map<String, dynamic>> meetings = [
-    {
-      'date': DateTime(2025, 5, 6),
-      'title': '캡스톤 미팅',
-      'members': ['가을', '윤지', '유진', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-    {
-      'date': DateTime(2025, 5, 13),
-      'title': '기획 회의',
-      'members': ['윤지', '지후']
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadMeetings();
+  }
+
+  Future<void> _loadMeetings() async {
+    final snapshot = await db.child('groupStudies/${widget.groupId}/meeting').get();
+
+    if (snapshot.exists) {
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final List<Map<String, dynamic>> loaded = [];
+
+      for (final entry in data.entries) {
+        final value = Map<String, dynamic>.from(entry.value);
+        final date = DateTime.tryParse(value['date'] ?? '');
+        if (date != null) {
+          loaded.add({...value, 'date': date, 'id': entry.key});
+        }
+      }
+
+      setState(() {
+        meetings = loaded;
+      });
+    }
+  }
 
   List<Map<String, dynamic>> getMeetingsForDay(DateTime day) {
     return meetings.where((m) => isSameDay(m['date'], day)).toList();
   }
 
+  void _confirmDelete(Map<String, dynamic> meeting) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("삭제 확인"),
+        content: const Text("이 미팅을 삭제하시겠습니까?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
+          ElevatedButton(
+            onPressed: () async {
+              await db.child('groupStudies/${widget.groupId}/meeting/${meeting['id']}').remove();
+              setState(() => meetings.removeWhere((m) => m['id'] == meeting['id']));
+              Navigator.pop(context);
+            },
+            child: const Text("삭제"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> meeting) {
+    final titleController = TextEditingController(text: meeting['title']);
+    final locationController = TextEditingController(text: meeting['location']);
+    final membersController = TextEditingController(text: (meeting['members'] as List).join(', '));
+    DateTime pickedDate = meeting['date'];
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('미팅 일정 수정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
+              onPressed: () async {
+                final newDate = await showDatePicker(
+                  context: context,
+                  initialDate: pickedDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (newDate != null) {
+                  setState(() => pickedDate = newDate);
+                }
+              },
+              child: Text(DateFormat('yyyy.MM.dd').format(pickedDate)),
+            ),
+            TextField(controller: titleController, decoration: const InputDecoration(hintText: '미팅 주제')),
+            TextField(controller: locationController, decoration: const InputDecoration(hintText: '장소')),
+            TextField(controller: membersController, decoration: const InputDecoration(hintText: '참여자 (쉼표로 구분)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => _confirmDelete(meeting), child: const Text("삭제", style: TextStyle(color: Colors.red))),
+          ElevatedButton(
+            onPressed: () async {
+              final updated = {
+                'title': titleController.text,
+                'location': locationController.text,
+                'members': membersController.text.split(',').map((e) => e.trim()).toList(),
+                'date': DateFormat('yyyy-MM-dd').format(pickedDate),
+              };
+
+              await db.child('groupStudies/${widget.groupId}/meeting/${meeting['id']}').update(updated);
+
+              setState(() {
+                final index = meetings.indexWhere((m) => m['id'] == meeting['id']);
+                if (index != -1) {
+                  meetings[index] = {...updated, 'date': pickedDate, 'id': meeting['id']};
+                }
+              });
+
+              Navigator.pop(context);
+            },
+            child: const Text("수정"),
+          ),
+        ],
+      ),
+    );
+  }
+
   void showAddMeetingDialog() async {
-    DateTime? pickedDate = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-
     if (pickedDate == null) return;
 
     final participantsController = TextEditingController();
@@ -82,16 +169,24 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final newMeeting = {
+                'date': DateFormat('yyyy-MM-dd').format(pickedDate),
+                'title': topicController.text,
+                'members': participantsController.text.split(',').map((e) => e.trim()).toList(),
+                'location': locationController.text,
+                'createdAt': ServerValue.timestamp,
+              };
+
+              final ref = db.child('groupStudies/${widget.groupId}/meeting').push();
+              await ref.set(newMeeting);
+
               setState(() {
-                meetings.add({
-                  'date': pickedDate,
-                  'title': topicController.text,
-                  'members': participantsController.text.split(',').map((e) => e.trim()).toList(),
-                });
+                meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
                 selectedDate = pickedDate;
                 focusedDate = pickedDate;
               });
+
               Navigator.pop(context);
             },
             child: const Text("등록"),
@@ -103,7 +198,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> meetingsForDay = getMeetingsForDay(selectedDate);
+    final meetingsForDay = getMeetingsForDay(selectedDate);
 
     return Column(
       children: [
@@ -125,7 +220,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                 itemBuilder: (context, index) {
                   final meeting = meetingsForDay[index];
                   return GestureDetector(
-                    onTap: () => widget.onRecordDateSelected(meeting['date']),
+                    onTap: () => widget.onRecordDateSelected(meeting['date'], meeting['id']),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _buildMeetingCard(meeting),
@@ -155,7 +250,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                 children: const [
                   Text("미팅 일정 추가", style: TextStyle(fontSize: 16, color: Color(0xFF6C79FF))),
                   SizedBox(width: 6),
-                  Icon(Icons.add_circle, color: Color(0xFF6C79FF))
+                  Icon(Icons.add_circle, color: Color(0xFF6C79FF)),
                 ],
               ),
             ),
@@ -177,22 +272,16 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         focusedDay: focusedDate,
         selectedDayPredicate: (day) => isSameDay(selectedDate, day),
         calendarFormat: _calendarFormat,
-        onFormatChanged: (format) {
-          setState(() {
-            _calendarFormat = format;
-          });
-        },
+        onFormatChanged: (format) => setState(() => _calendarFormat = format),
         availableCalendarFormats: const {
           CalendarFormat.month: '월',
           CalendarFormat.twoWeeks: '2주',
           CalendarFormat.week: '주',
         },
-        onDaySelected: (selected, focused) {
-          setState(() {
-            selectedDate = selected;
-            focusedDate = focused;
-          });
-        },
+        onDaySelected: (selected, focused) => setState(() {
+          selectedDate = selected;
+          focusedDate = focused;
+        }),
         eventLoader: getMeetingsForDay,
         calendarStyle: const CalendarStyle(
           markerDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
@@ -209,11 +298,34 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
         color: Colors.white.withOpacity(0.6),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(meeting['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(meeting['members'].join(', ')),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(meeting['title'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text((meeting['members'] as List<dynamic>).join(', ')),
+                if (meeting['location'] != null)
+                  Text("장소: ${meeting['location']}"),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'edit') {
+                _showEditDialog(meeting);
+              } else if (value == 'delete') {
+                _confirmDelete(meeting);
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'edit', child: Text('수정')),
+              PopupMenuItem(value: 'delete', child: Text('삭제')),
+            ],
+          ),
         ],
       ),
     );
