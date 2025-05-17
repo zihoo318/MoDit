@@ -17,11 +17,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final db = FirebaseDatabase.instance.ref();
   List<Map<String, dynamic>> groupStudies = [];
+  List<Map<String, dynamic>> userNotes = [];
 
   @override
   void initState() {
     super.initState();
     loadGroupStudies();
+    loadUserNotes();  //노트 불러오기
   }
 
   void loadGroupStudies() async {
@@ -59,6 +61,25 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => GroupCreatePopup(currentUserEmail: widget.currentUserEmail),
     ).then((_) => loadGroupStudies());
+  }
+
+  void loadUserNotes() async {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    final snapshot = await db.child('notes').child(userKey).get();
+    if (snapshot.exists) {
+      final notesMap = Map<String, dynamic>.from(snapshot.value as Map);
+      final loadedNotes = notesMap.entries.map((entry) {
+        final noteData = Map<String, dynamic>.from(entry.value);
+        return {
+          'title': noteData['title'] ?? '제목 없음',
+          'imageUrl': noteData['imageUrl'] ?? '',
+        };
+      }).toList();
+
+      setState(() {
+        userNotes = loadedNotes;
+      });
+    }
   }
 
   Widget _buildGroupStudyCard(Map<String, dynamic> group) {
@@ -151,6 +172,36 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildNoteCardFromFirebase(String imageUrl, String title) {
+    return AspectRatio(
+      aspectRatio: 14 / 9,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Expanded(
+              child: Image.network(
+                '$imageUrl?t=${DateTime.now().millisecondsSinceEpoch}', // ✅ 캐시 무력화
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                const Center(child: Icon(Icons.broken_image)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: Text(title, style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -228,12 +279,43 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildNoteAddCard(() {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => NoteScreen(currentUserEmail: widget.currentUserEmail)),
-                  );
+                    MaterialPageRoute(
+                      builder: (_) => NoteScreen(currentUserEmail: widget.currentUserEmail),
+                    ),
+                  ).then((value) {
+                    if (value == true) loadUserNotes(); // ✅ 저장되었을 경우에만 갱신
+                  });
                 }),
-                _buildNoteCardWithImage('assets/images/test_note1.jpg', '명사 정리'),
-                _buildNoteCardWithImage('assets/images/test_note2.jpg', '형용사/명사'),
-                _buildNoteCardWithImage('assets/images/test_note3.jpg', '부사/품사 구별'),
+
+                ...userNotes.map((note) =>
+                    GestureDetector(
+                      onTap: () async {
+                        final userKey = widget.currentUserEmail.replaceAll('.', '_');
+                        final snap = await db.child('notes').child(userKey)
+                            .orderByChild('title').equalTo(note['title'])
+                            .limitToFirst(1).get();
+                        final existingSnap = snap.children.first;
+                        final existingNote = existingSnap.value as Map;
+
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NoteScreen(
+                              currentUserEmail: widget.currentUserEmail,
+                              existingNoteData: {
+                                ...existingNote,
+                                'noteId': existingSnap.key,
+                                'title': note['title'],
+                              },
+                            ),
+                          ),
+                        );
+
+                        if (result == true) loadUserNotes(); // ✅ 저장되었을 경우만 다시 로드
+                      },
+                      child: _buildNoteCardFromFirebase(note['imageUrl'], note['title']),
+                    )
+                ),
               ],
             ),
           ),

@@ -9,13 +9,18 @@ import 'package:image/image.dart' as img;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'flask_api.dart';
+import 'package:firebase_database/firebase_database.dart';
+
 
 
 class NoteScreen extends StatefulWidget {
   final String currentUserEmail;
-
-  const NoteScreen({required this.currentUserEmail, Key? key}) : super(key: key);
-
+  final Map<String, dynamic>? existingNoteData;
+  const NoteScreen({
+    required this.currentUserEmail,
+    this.existingNoteData,
+    Key? key,
+  }) : super(key: key);
   @override
   _NoteScreenState createState() => _NoteScreenState();
 }
@@ -60,12 +65,64 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   TextEditingController _noteTitleController = TextEditingController();
   bool _isEditingTitle = false; // 사용자가 텍스트 수정할 때 사용
 
+  bool isSaving = false;
+
   @override
   void initState() {
     super.initState();
     _ticker = createTicker((_) {
       if (mounted) setState(() {});
     })..start(); // 매 프레임마다 재렌더링 요청
+
+    if (widget.existingNoteData != null)
+      print('💡 기존 노트 데이터: ${widget.existingNoteData}');
+
+    if (widget.existingNoteData != null) {
+      _noteTitleController.text = widget.existingNoteData!['title'] ?? '';
+
+      final data = widget.existingNoteData!['data'];
+      if (data != null) {
+        // ✅ null-safe 처리 추가
+        final strokesData = data['strokes'] as List?;
+        final textsData = data['texts'] as List?;
+        final imagesData = data['images'] as List?;
+
+        // 🔁 strokes 복원
+        if (strokesData != null) {
+          strokes = strokesData.map((s) {
+            final points = (s['points'] as List)
+                .map((p) => Offset(p['x'] * 1.0, p['y'] * 1.0))
+                .toList();
+            final color = Color(int.parse(s['color'].substring(1), radix: 16));
+            return Stroke(points: points, color: color, strokeWidth: s['width'] * 1.0);
+          }).toList();
+        }
+
+        // 🔁 textNotes 복원
+        if (textsData != null) {
+          textNotes = textsData.map<_TextNote>((t) {
+            return _TextNote(
+              position: Offset(t['x'] * 1.0, t['y'] * 1.0),
+              fontSize: t['fontSize'] * 1.0,
+              color: Color(int.parse(t['color'].substring(1), radix: 16)),
+              initialText: t['text'],
+              size: Size(t['width'] * 1.0, t['height'] * 1.0),
+            );
+          }).toList();
+        }
+
+        // 🔁 imageNotes 복원
+        if (imagesData != null) {
+          imageNotes = imagesData.map<_ImageNote>((i) {
+            return _ImageNote(
+              position: Offset(i['x'] * 1.0, i['y'] * 1.0),
+              file: File(i['filePath']),
+              size: Size(i['width'] * 1.0, i['height'] * 1.0),
+            );
+          }).toList();
+        }
+      }
+    }
   }
 
   @override
@@ -228,7 +285,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
-    final uri = Uri.parse('http://192.168.219.109:8080/ocr/upload');
+    final uri = Uri.parse('http://192.168.219.105:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes(
           'image', imageBytes, filename: 'note.jpg'));
@@ -262,6 +319,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _captureAndUploadNote() async {
+    String title = '';
+    String fileUrl = '';
+
     try {
       final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
@@ -272,27 +332,153 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       final file = await File('${tempDir.path}/note_capture_${DateTime.now().millisecondsSinceEpoch}.png').create();
       await file.writeAsBytes(pngBytes);
 
-      final title = _noteTitleController.text.isEmpty ? '무제 노트' : _noteTitleController.text;
-
-      // Flask API 요청
-      final api = Api();
-      final response = await api.uploadTaskFile(
-        file,
-        'note', // groupId 역할, 실제 프로젝트에 맞게 수정 가능
-        widget.currentUserEmail, // userEmail 전달
-        title, // 노트 제목
-        '', // subTaskTitle은 필요 없다면 빈 문자열
-      );
-
-      if (response != null) {
-        print('✅ 노트 저장 성공: ${response['url']}');
-      } else {
-        print('❌ 노트 저장 실패');
+      title = _noteTitleController.text.trim();
+      if (title.isEmpty || title == '노트 이름 설정') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("노트 제목을 먼저 설정해주세요"),
+            backgroundColor: Colors.black87,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
       }
+
+      final db = FirebaseDatabase.instance.ref();
+      final userKey = widget.currentUserEmail.replaceAll('.', '_');
+      final api = Api();
+
+      final isExistingNote = widget.existingNoteData != null && widget.existingNoteData!['noteId'] != null;
+      final originalTitle = widget.existingNoteData?['title'];
+      final isTitleChanged = title != originalTitle;
+
+      // 새 제목이면 중복 검사 후 갱신
+      if (isTitleChanged) {
+        title = await getUniqueNoteTitle(title, widget.currentUserEmail);
+        _noteTitleController.text = title;
+      }
+
+      // 이미지 업로드
+      final result = await api.uploadNoteFile(file, widget.currentUserEmail, title);
+      if (result != null && result['file_url'] != null) {
+        fileUrl = result['file_url'];
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("노트가 저장되었습니다"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("노트 업로드 실패"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // JSON 데이터 준비
+      final strokeJson = strokes.map((s) => {
+        'points': s.points.whereType<Offset>().map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+        'color': '#${s.color.value.toRadixString(16).padLeft(8, '0')}',
+        'width': s.strokeWidth,
+      }).toList();
+
+      final textJson = textNotes.map((t) => {
+        'x': t.position.dx,
+        'y': t.position.dy,
+        'text': t.controller.text,
+        'fontSize': t.fontSize,
+        'color': '#${t.color.value.toRadixString(16).padLeft(8, '0')}',
+        'width': t.size.width,
+        'height': t.size.height,
+      }).toList();
+
+      final imageJson = imageNotes.map((i) => {
+        'x': i.position.dx,
+        'y': i.position.dy,
+        'filePath': i.file.path,
+        'width': i.size.width,
+        'height': i.size.height,
+      }).toList();
+
+      // 기존 노트 삭제 조건
+      if (isExistingNote && isTitleChanged) {
+        final oldNoteId = widget.existingNoteData!['noteId'];
+        if (oldNoteId != null) {
+          await db.child('notes').child(userKey).child(oldNoteId).remove();
+          await api.deleteNoteFile(widget.currentUserEmail, originalTitle ?? '');
+        }
+      }
+
+      // 새 노트 저장
+      String noteId;
+      if (isExistingNote && !isTitleChanged) {
+        // 덮어쓰기
+        noteId = widget.existingNoteData!['noteId'];
+      } else {
+        // 새로 push
+        noteId = db.child('notes').child(userKey).push().key!;
+      }
+
+      await db.child('notes').child(userKey).child(noteId).set({
+        'title': title,
+        'imageUrl': fileUrl,
+        'timestamp': DateTime.now().toIso8601String(),
+        'data': {
+          'strokes': strokeJson,
+          'texts': textJson,
+          'images': imageJson,
+        }
+      });
+
+
     } catch (e) {
-      print('❌ 오류 발생: $e');
+      print("❌ 노트 저장 중 오류 발생: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("오류 발생: $e"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
+
+
+  // 제목이 중복되면 자동으로 (1), (2) ... 붙여주는 함수
+  Future<String> getUniqueNoteTitle(String baseTitle, String userEmail) async {
+    final db = FirebaseDatabase.instance.ref();
+    final userKey = userEmail.replaceAll('.', '_');
+
+    final snapshot = await db.child('notes').child(userKey).get();
+    if (!snapshot.exists) return baseTitle;
+
+    final existingTitles = <String>{};
+    final notesMap = Map<String, dynamic>.from(snapshot.value as Map);
+    for (var note in notesMap.values) {
+      if (note is Map && note['title'] is String) {
+        existingTitles.add(note['title']);
+      }
+    }
+
+    // 중복 검사
+    if (!existingTitles.contains(baseTitle)) return baseTitle;
+
+    int counter = 1;
+    String newTitle;
+    do {
+      newTitle = '$baseTitle ($counter)';
+      counter++;
+    } while (existingTitles.contains(newTitle));
+
+    return newTitle;
+  }
+
+
 
 
   Widget _buildDraggableNote(_TextNote note) {
@@ -580,11 +766,15 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                             children: [
                               //뒤로가기 버튼 누르면 노트 저장
                               GestureDetector(
+                                // NoteScreen.dart 파일의 뒤로가기 버튼 onTap 수정
                                 onTap: () async {
+                                  if (isSaving) return;
+                                  isSaving = true;
+
                                   final title = _noteTitleController.text.trim();
 
                                   if (title.isEmpty || title == '노트 이름 설정') {
-                                    // 경고 다이얼로그 표시
+                                    isSaving = false;
                                     showDialog(
                                       context: context,
                                       builder: (context) => AlertDialog(
@@ -601,11 +791,13 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                     return;
                                   }
 
-                                  // 정상적인 경우 캡처 및 저장 후 뒤로가기
                                   await _captureAndUploadNote();
-                                  Navigator.pop(context);
-                                },
 
+                                  if (!mounted) return;
+                                  isSaving = false;
+
+                                  Navigator.pop(context, true); // ✅ 변경된 부분
+                                },
                                 child: Image.asset('assets/images/back_button.png', height: 20),
                               ),
                               const SizedBox(width: 12),
@@ -756,16 +948,16 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                     padding: const EdgeInsets.all(20),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(32),
-                      child: GestureDetector( // ✅ GestureDetector 추가
-                        onTapUp: _handleTapUp, // ✅ onTapUp 콜백 연결
-                        behavior: HitTestBehavior.translucent, // ✅ 투명 영역도 터치 이벤트 받도록 설정
-                        child: Stack(
-                          key: _stackKey,
-                          children: [
-                            // ① 손글씨 캔버스
-                            Positioned.fill(
-                              child: RepaintBoundary(
-                                key: _repaintKey,
+                      child: RepaintBoundary( // ✅ 전체 Stack을 감싸도록 이동
+                        key: _repaintKey,
+                        child: GestureDetector(
+                          onTapUp: _handleTapUp,
+                          behavior: HitTestBehavior.translucent,
+                          child: Stack(
+                            key: _stackKey,
+                            children: [
+                              // 기존 CustomPaint만 감싸던 RepaintBoundary는 삭제
+                              Positioned.fill(
                                 child: CustomPaint(
                                   painter: DrawingPainter(
                                     strokes,
@@ -776,186 +968,177 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                   child: Container(),
                                 ),
                               ),
-                            ),
 
-                            // 손글씨 입력 영역
-                            if (isDrawingMode)
-                              Positioned.fill(
+                              if (isDrawingMode)
+                                Positioned.fill(
                                   child: Listener(
                                     onPointerDown: _handleStylusDown,
                                     onPointerMove: _handleStylusMove,
                                     onPointerUp: _handleStylusUp,
                                     behavior: HitTestBehavior.translucent,
                                     child: Container(),
-                                  )
-                              ),
-
-
-                            // ③ 선택 영역 제스처
-                            if (isSelectMode)
-                              Positioned.fill(
-                                child: GestureDetector(
-                                  onPanStart: (details) {
-                                    setState(() {
-                                      dragStart = details.localPosition;
-                                      selectedRect = null;
-                                    });
-                                  },
-                                  onPanUpdate: (details) {
-                                    setState(() {
-                                      dragEnd = details.localPosition;
-                                      selectedRect = Rect.fromPoints(dragStart!, dragEnd!);
-                                      showSaveButton = false;
-                                    });
-                                  },
-                                  onPanEnd: (_) {
-                                    setState(() {
-                                      showSaveButton = selectedRect != null;
-                                    });
-                                  },
-                                  behavior: HitTestBehavior.translucent,
-                                ),
-                              ),
-
-                            // ✅ 3. 텍스트 노트들
-                            ...textNotes.map((note) => _buildDraggableNote(note)),
-
-                            // ✅ 이미지 노트들 렌더링
-                            ...imageNotes.map((imgNote) {
-                              return Positioned(
-                                left: imgNote.position.dx,
-                                top: imgNote.position.dy,
-                                child: GestureDetector(
-                                  onPanUpdate: (details) {
-                                    setState(() {
-                                      imgNote.position += details.delta;
-                                    });
-                                  },
-                                  child: Container(
-                                    width: imgNote.size.width,
-                                    height: imgNote.size.height,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey),
-                                    ),
-                                    child: Image.file(
-                                      imgNote.file,
-                                      fit: BoxFit.cover,
-                                    ),
                                   ),
                                 ),
-                              );
-                            }),
 
-
-                            // ✅ 선택 영역
-                            if (selectedRect != null)
-                              Positioned(
-                                left: selectedRect!.left,
-                                top: selectedRect!.top,
-                                child: Container(
-                                  width: selectedRect!.width,
-                                  height: selectedRect!.height,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.blue, width: 2),
-                                    color: Colors.transparent,
-                                  ),
-                                ),
-                              ),
-
-                            // 선택 영역 해제용
-                            if (isSelectMode && selectedRect != null)
-                              Positioned.fill(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.translucent,
-                                  onTapDown: (details) {
-                                    final buttonRect = Rect.fromLTWH(
-                                      selectedRect!.left,
-                                      selectedRect!.top - 40,
-                                      100,
-                                      40,
-                                    );
-                                    if (!selectedRect!.contains(details.localPosition) &&
-                                        !buttonRect.contains(details.localPosition)) {
+                              if (isSelectMode)
+                                Positioned.fill(
+                                  child: GestureDetector(
+                                    onPanStart: (details) {
                                       setState(() {
-                                        selectedRect = null;
-                                        showSaveButton = false;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-
-                            // 텍스트 인식 버튼
-                            if (showSaveButton && selectedRect != null)
-                              Positioned(
-                                left: selectedRect!.left,
-                                top: selectedRect!.top - 40,
-                                child: Material(
-                                  elevation: 2,
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: InkWell(
-                                    onTap: () async {
-                                      await Future.delayed(const Duration(milliseconds: 100));
-                                      await sendToFlaskOCR();
-                                      setState(() {
-                                        showSaveButton = false;
+                                        dragStart = details.localPosition;
                                         selectedRect = null;
                                       });
                                     },
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      child: Text(
-                                        '텍스트 인식',
-                                        style: TextStyle(color: Colors.white, fontSize: 14),
+                                    onPanUpdate: (details) {
+                                      setState(() {
+                                        dragEnd = details.localPosition;
+                                        selectedRect = Rect.fromPoints(dragStart!, dragEnd!);
+                                        showSaveButton = false;
+                                      });
+                                    },
+                                    onPanEnd: (_) {
+                                      setState(() {
+                                        showSaveButton = selectedRect != null;
+                                      });
+                                    },
+                                    behavior: HitTestBehavior.translucent,
+                                  ),
+                                ),
+
+                              ...textNotes.map((note) => _buildDraggableNote(note)),
+
+                              ...imageNotes.map((imgNote) {
+                                return Positioned(
+                                  left: imgNote.position.dx,
+                                  top: imgNote.position.dy,
+                                  child: GestureDetector(
+                                    onPanUpdate: (details) {
+                                      setState(() {
+                                        imgNote.position += details.delta;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: imgNote.size.width,
+                                      height: imgNote.size.height,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey),
+                                      ),
+                                      child: Image.network(
+                                        '${imgNote.file.path}?t=${DateTime.now().millisecondsSinceEpoch}',
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+
+                              if (selectedRect != null)
+                                Positioned(
+                                  left: selectedRect!.left,
+                                  top: selectedRect!.top,
+                                  child: Container(
+                                    width: selectedRect!.width,
+                                    height: selectedRect!.height,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.blue, width: 2),
+                                      color: Colors.transparent,
+                                    ),
+                                  ),
+                                ),
+
+                              if (isSelectMode && selectedRect != null)
+                                Positioned.fill(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onTapDown: (details) {
+                                      final buttonRect = Rect.fromLTWH(
+                                        selectedRect!.left,
+                                        selectedRect!.top - 40,
+                                        100,
+                                        40,
+                                      );
+                                      if (!selectedRect!.contains(details.localPosition) &&
+                                          !buttonRect.contains(details.localPosition)) {
+                                        setState(() {
+                                          selectedRect = null;
+                                          showSaveButton = false;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+
+                              if (showSaveButton && selectedRect != null)
+                                Positioned(
+                                  left: selectedRect!.left,
+                                  top: selectedRect!.top - 40,
+                                  child: Material(
+                                    elevation: 2,
+                                    color: Colors.black87,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: InkWell(
+                                      onTap: () async {
+                                        await Future.delayed(const Duration(milliseconds: 100));
+                                        await sendToFlaskOCR();
+                                        setState(() {
+                                          showSaveButton = false;
+                                          selectedRect = null;
+                                        });
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        child: Text(
+                                          '텍스트 인식',
+                                          style: TextStyle(color: Colors.white, fontSize: 14),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
 
-                            if (isStrokePopupVisible)
-                              Positioned.fill(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.translucent,
-                                  onTap: () {
-                                    setState(() {
-                                      isStrokePopupVisible = false;
-                                    });
-                                  },
-                                  child: Container(),
+                              if (isStrokePopupVisible)
+                                Positioned.fill(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onTap: () {
+                                      setState(() {
+                                        isStrokePopupVisible = false;
+                                      });
+                                    },
+                                    child: Container(),
+                                  ),
                                 ),
-                              ),
 
-                            if (isStrokePopupVisible)
-                              Positioned(
-                                top: 5,
-                                right: 50,
-                                child: Material(
-                                  elevation: 4,
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    child: SizedBox(
-                                      width: 160,
-                                      child: Slider(
-                                        value: strokeWidth,
-                                        min: 1,
-                                        max: 10,
-                                        divisions: 9,
-                                        label: strokeWidth.toStringAsFixed(1),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            strokeWidth = value;
-                                          });
-                                        },
+                              if (isStrokePopupVisible)
+                                Positioned(
+                                  top: 5,
+                                  right: 50,
+                                  child: Material(
+                                    elevation: 4,
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      child: SizedBox(
+                                        width: 160,
+                                        child: Slider(
+                                          value: strokeWidth,
+                                          min: 1,
+                                          max: 10,
+                                          divisions: 9,
+                                          label: strokeWidth.toStringAsFixed(1),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              strokeWidth = value;
+                                            });
+                                          },
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
