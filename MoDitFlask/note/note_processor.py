@@ -1,14 +1,14 @@
 import re
 from utils.file_handler import save_temp_file, upload_to_object_storage, delete_file
 
-def handle_note_upload(file, group_id, user_email, note_title):
+def handle_note_upload(file, user_email, note_title):
     filename = custom_filename(file.filename)
 
     # 임시 파일 저장
     temp_path = save_temp_file(file, filename)
 
     # NCP Object Storage 저장 경로 (note로 시작)
-    object_key = f"note/{group_id}/{user_email}/{note_title}/{filename}"
+    object_key = f"note/{user_email}/{note_title}/{filename}"
 
     try:
         file_url = upload_to_object_storage(temp_path, object_key)

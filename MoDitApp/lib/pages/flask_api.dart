@@ -67,9 +67,9 @@ class Api {
       return null;
     }
   }
-  
+
   // 노트 업로드 api (flask에서 ncp object stroage에 업로드) -> 파베에 url 업로드는 dart에서 해야됨(반환값 확인하기)
-  Future<Map<String, dynamic>?> uploadNoteFile(File file, String groupId, String userEmail, String noteTitle) async {
+  Future<Map<String, dynamic>?> uploadNoteFile(File file, String userEmail, String noteTitle) async {
     final uri = Uri.parse('$baseUrl/Note/upload');
     final request = http.MultipartRequest('POST', uri);
 
@@ -82,7 +82,6 @@ class Api {
       filename: basename(file.path),
     ));
 
-    request.fields['groupId'] = groupId;
     request.fields['userEmail'] = userEmail;
     request.fields['noteTitle'] = noteTitle;
 
