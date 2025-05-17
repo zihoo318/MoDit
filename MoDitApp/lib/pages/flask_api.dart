@@ -96,5 +96,22 @@ class Api {
     }
   }
 
+  // 노트 파일 삭제 요청 (Object Storage에서 삭제)
+  Future<void> deleteNoteFile(String userEmail, String noteTitle) async {
+    final uri = Uri.parse('$baseUrl/delete_note');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': userEmail,
+        'title': noteTitle,
+      }),
+    );
 
+    if (response.statusCode == 200) {
+      print("🗑️ 오브젝트 스토리지 노트 삭제 성공");
+    } else {
+      print("❌ 삭제 실패: ${response.statusCode} ${response.body}");
+    }
+  }
 }
