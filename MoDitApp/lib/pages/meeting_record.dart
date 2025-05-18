@@ -500,18 +500,28 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                               FutureBuilder<Map<String, dynamic>?>(
                                 future: _summaryFuture,
                                 builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
                                     return const Text("요약본을 불러오는 데 실패했습니다.");
                                   } else {
-                                    return SingleChildScrollView(
-                                      child: Text(
-                                          snapshot.data!['summary_preview'] ??
-                                              "",
-                                          style: const TextStyle(fontSize: 14)),
+                                    final summaryUrl = snapshot.data!['summary_url'];
+                                    return FutureBuilder<http.Response>(
+                                      future: http.get(Uri.parse(summaryUrl)),
+                                      builder: (context, summarySnapshot) {
+                                        if (summarySnapshot.connectionState == ConnectionState.waiting) {
+                                          return const Center(child: CircularProgressIndicator());
+                                        } else if (!summarySnapshot.hasData || summarySnapshot.data!.statusCode != 200) {
+                                          return const Text("요약본 텍스트를 불러오는 데 실패했습니다.");
+                                        } else {
+                                          return SingleChildScrollView(
+                                            child: Text(
+                                              summarySnapshot.data!.body,
+                                              style: const TextStyle(fontSize: 14),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     );
                                   }
                                 },
