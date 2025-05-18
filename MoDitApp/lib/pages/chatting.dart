@@ -31,7 +31,6 @@ class _ChattingPageState extends State<ChattingPage> {
     if (groupSnap.exists) {
       final data = Map<String, dynamic>.from(groupSnap.value as Map);
       final members = Map<String, dynamic>.from(data['members'] ?? {});
-
       setState(() {
         groupMembers = members.entries.map((e) {
           return {
@@ -114,7 +113,6 @@ class _ChattingPageState extends State<ChattingPage> {
       'timestamp': timestamp,
     });
 
-    // ✅ Flutter 기본 Snackbar로 대체
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("상대방에게 '공부하세요!' 알림을 보냈습니다."),
@@ -129,40 +127,150 @@ class _ChattingPageState extends State<ChattingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(80),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Container(
-            width: 720,
-            child: ClipRRect(
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
-              child: AppBar(
-                automaticallyImplyLeading: false,
-                elevation: 0,
-                backgroundColor: Color(0xFFB8BDF1).withOpacity(0.3),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      body: SafeArea(
+        child: Row(
+          children: [
+            // ✅ 왼쪽 회색 멤버 박스
+            Container(
+              width: 180,
+              margin: const EdgeInsets.only(left: 12, top: 12, bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: groupMembers.length,
+                      itemBuilder: (context, index) {
+                        final member = groupMembers[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 0),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: const Color(0xFFD9D9D9),
+                                child: Text(
+                                  member['name']!,
+                                  style: const TextStyle(color: Colors.black87),
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            setState(() {
+                              targetUserEmail = member['email']!;
+                              targetUserName = member['name']!;
+                              _loadChatMessages();
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ✅ 오른쪽 채팅 영역 (4방향 radius 적용)
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, right: 12, bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                title: Row(
+                child: Column(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Color(0xFFD9D9D9),
-                      child: Image.asset('assets/images/user_icon2.png', width: 30),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      targetUserName.isEmpty ? '' : targetUserName,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                    ),
-                    Spacer(),
-                    GestureDetector(
-                      onTap: _sendReminderMessage,
+                    // ✅ 상단 AppBar
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFB8BDF1).withOpacity(0.3),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(15),
+                          topRight: Radius.circular(15),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(
                         children: [
-                          Image.asset('assets/images/hand_icon.png', width: 40),
-                          const SizedBox(width: 8),
-                          const Text('찌르기'),
+                          CircleAvatar(
+                            backgroundColor: const Color(0xFFD9D9D9),
+                            child: Image.asset('assets/images/user_icon2.png', width: 30),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            targetUserName.isEmpty ? '' : targetUserName,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: _sendReminderMessage,
+                            child: Row(
+                              children: [
+                                Image.asset('assets/images/hand_icon.png', width: 40),
+                                const SizedBox(width: 8),
+                                const Text('찌르기'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ✅ 채팅 메시지 + 입력창
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: chatMessages.length,
+                              itemBuilder: (context, index) {
+                                final chat = chatMessages[index];
+                                final isSender = chat['senderId'] == widget.currentUserEmail;
+                                return ListTile(
+                                  title: Align(
+                                    alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Color(0xFFB8BDF1).withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                      child: Text(chat['message']!),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: messageController,
+                                    decoration: const InputDecoration(hintText: '메시지를 입력하세요'),
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFFECE6F0),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.send),
+                                    onPressed: _sendMessage,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -170,113 +278,8 @@ class _ChattingPageState extends State<ChattingPage> {
                 ),
               ),
             ),
-          ),
+          ],
         ),
-      ),
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: 180,
-            height: double.infinity,
-            padding: const EdgeInsets.all(8),
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: groupMembers.length,
-                    itemBuilder: (context, index) {
-                      final member = groupMembers[index];
-                      return ListTile(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 0),
-                        title: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Color(0xFFD9D9D9),
-                              child: Text(
-                                member['name']!,
-                                style: TextStyle(color: Colors.black87),
-                              ),
-                            ),
-                          ],
-                        ),
-                        onTap: () {
-                          setState(() {
-                            targetUserEmail = member['email']!;
-                            targetUserName = member['name']!;
-                            _loadChatMessages();
-                          });
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 5),
-          Align(
-            alignment: Alignment.topRight,
-            child: SizedBox(
-              width: 700,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: chatMessages.length,
-                      itemBuilder: (context, index) {
-                        final chat = chatMessages[index];
-                        final isSender = chat['senderId'] == widget.currentUserEmail;
-                        return ListTile(
-                          title: Align(
-                            alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Color(0xFFB8BDF1).withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: Text(chat['message']!),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: messageController,
-                            decoration: const InputDecoration(hintText: '메시지를 입력하세요'),
-                          ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Color(0xFFECE6F0),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.send),
-                            onPressed: _sendMessage,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
