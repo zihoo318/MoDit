@@ -61,6 +61,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   final GlobalKey _stackKey = GlobalKey();
 
+  // 제목 커서 사라지게 하기 위한 변수
+  final FocusNode _titleFocusNode = FocusNode();
+
   // 노트 이름 설정을 위한 변수
   TextEditingController _noteTitleController = TextEditingController();
   bool _isEditingTitle = false; // 사용자가 텍스트 수정할 때 사용
@@ -200,7 +203,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     setState(() {
       _isEditingTitle = false;
     });
-    // 여기에서 설정된 제목으로 동작을 구현할 수 있습니다.
+    _titleFocusNode.unfocus();
     print("노트 이름이 변경되었습니다: ${_noteTitleController.text}");
   }
 
@@ -209,9 +212,10 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       onTap: _toggleNoteTitleEditing, // 텍스트를 클릭하면 수정모드로 전환
       child: _isEditingTitle
           ? SizedBox(
-        width: 160, // 너비 고정
+        width: 240, // 너비 고정
         child: TextField(
           controller: _noteTitleController,
+          focusNode: _titleFocusNode,
           autofocus: true,
           decoration: const InputDecoration(
             hintText: '노트 제목을 입력하세요',
@@ -224,7 +228,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         ),
       )
           : SizedBox(
-        width: 160, // 텍스트도 같은 너비
+        width: 240, // 텍스트도 같은 너비
         child: Text(
           _noteTitleController.text.isEmpty
               ? '노트 이름 설정'
@@ -285,7 +289,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
-    final uri = Uri.parse('http://192.168.219.105:8080/ocr/upload');
+    final uri = Uri.parse('http://172.16.100.79:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes(
           'image', imageBytes, filename: 'note.jpg'));
@@ -735,7 +739,11 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GestureDetector(
+        onTap: () {
+      FocusScope.of(context).unfocus(); // 🔴 키보드 내려가면 포커스 해제
+    },
+    child: Scaffold(
       body: Stack(
         children: [
           // 배경 이미지
@@ -1149,6 +1157,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
+    ),
     );
   }
 

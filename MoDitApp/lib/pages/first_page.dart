@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ).then((_) => loadGroupStudies());
   }
 
-  void loadUserNotes() async {
+  Future<void> loadUserNotes() async {
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
     final snapshot = await db.child('notes').child(userKey).get();
     if (snapshot.exists) {
@@ -76,11 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
         };
       }).toList();
 
-      setState(() {
+      setState(() {  // 이 부분이 반드시 있어야 함
         userNotes = loadedNotes;
+      });
+    } else {
+      setState(() {
+        userNotes = []; // 노트가 없을 경우 비워줌
       });
     }
   }
+
 
   Widget _buildGroupStudyCard(Map<String, dynamic> group) {
     return GestureDetector(
@@ -201,6 +206,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _deleteNote(String title) async {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+
+    final snap = await db.child('notes').child(userKey)
+        .orderByChild('title').equalTo(title)
+        .limitToFirst(1)
+        .get();
+
+    if (snap.exists) {
+      final existingSnap = snap.children.first;
+      final noteId = existingSnap.key;
+
+      // Firebase에서 삭제
+      await db.child('notes').child(userKey).child(noteId!).remove();
+    }
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -283,9 +307,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => NoteScreen(currentUserEmail: widget.currentUserEmail),
                     ),
                   ).then((value) {
-                    if (value == true) loadUserNotes(); // ✅ 저장되었을 경우에만 갱신
+                    if (value == true) {
+                      loadUserNotes();
+                    }
                   });
+                  return; // ✅ 명시적으로 void 반환
                 }),
+
+
 
                 ...userNotes.map((note) =>
                     GestureDetector(
@@ -311,8 +340,41 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
 
-                        if (result == true) loadUserNotes(); // ✅ 저장되었을 경우만 다시 로드
+                        if (result == true) loadUserNotes();
                       },
+
+                      onLongPress: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('노트 삭제'),
+                            content: Text("‘${note['title']}’ 노트를 삭제하시겠습니까?"),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('취소'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('삭제', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          await _deleteNote(note['title']);
+                          await loadUserNotes();  // 데이터 다시 불러오기
+                          setState(() {});        // ✅ 강제로 UI 다시 그리기
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('노트가 삭제되었습니다')),
+                          );
+                        }
+
+                      },
+
+
                       child: _buildNoteCardFromFirebase(note['imageUrl'], note['title']),
                     )
                 ),
