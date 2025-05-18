@@ -136,43 +136,13 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   fonts:
-    - family: kakao
-      fonts:
-        - asset: assets/fonts/KakaoSmallSans-Regular.ttf
-          weight: 300
-        - asset: assets/fonts/KakaoSmallSans-Bold.ttf
-    - family: paperlogy
-      fonts:
-        - asset: assets/fonts/Paperlogy-4Regular.ttf
-          weight: 300
-        - asset: assets/fonts/Paperlogy-7Bold.ttf
-          weight: 600
-    - family: nanum_neo
-      fonts:
-        - asset: assets/fonts/NanumSquareNeo-bRg.ttf
-          weight: 300
-        - asset: assets/fonts/NanumSquareNeo-cBd.ttf
-          weight: 600
     - family: nanum_round
       fonts:
         - asset: assets/fonts/NanumSquareRoundR.ttf
           weight: 300
         - asset: assets/fonts/NanumSquareRoundB.ttf
           weight: 600
-    - family: scdream
-      fonts:
-        - asset: assets/fonts/SCDream4.otf
-          weight: 300
-        - asset: assets/fonts/SCDream6.otf
-          weight: 600
-    - family: mango
-      fonts:
-        - asset: assets/fonts/MangoDdobak-R(ttf).ttf
-          weight: 300
-        - asset: assets/fonts/MangoDdobak-B(ttf).ttf
-          weight: 600
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
 

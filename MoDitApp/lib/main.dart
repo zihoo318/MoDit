@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:moditapp/pages/group_main_screen.dart';
-import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
+import 'pages/first_page.dart';
 import 'pages/logo_screen.dart';
 import 'pages/meeting_calendar.dart';
 import 'pages/meeting_record.dart';
@@ -9,8 +9,8 @@ import 'pages/study_first_page.dart';
 import 'pages/study_time.dart';
 import 'package:moditapp/pages/chatting.dart';
 import 'package:moditapp/pages/join.dart';
-import 'pages/home.dart';
-import 'pages/login.dart'; // 👈 login.dart 임포트 추가
+import 'pages/home.dart'; // ✅ 홈으로 연결
+import 'pages/login.dart';
 import 'pages/note_screen.dart';
 import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,7 +23,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
+  runApp(const MoDitApp());
 }
 
 class MoDitApp extends StatelessWidget {
@@ -35,9 +35,9 @@ class MoDitApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(
-        fontFamily: 'nanum_round', // 전체 폰트 지정
+        fontFamily: 'nanum_round',
       ),
-      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
+      localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -46,12 +46,7 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: HomeScreen(
-      //   groupId: '-OPqe387N6zi4K4UK3IT',
-         currentUserEmail: 'yun@naver.com',
-        currentUserName: 'yujin',
-       ),
+      home: const Home(), // ✅ 첫 화면을 Home으로 지정
     );
-    //home: NoteScreen());
   }
 }

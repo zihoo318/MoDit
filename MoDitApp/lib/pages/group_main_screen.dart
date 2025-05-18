@@ -1,6 +1,3 @@
-// -----------------------------
-// group_main_screen.dart
-// -----------------------------
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'chatting.dart';
@@ -12,6 +9,10 @@ import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'menu.dart';
 import 'home.dart';
+import 'mypage.dart'; // 맨 위에 추가
+import 'package:moditapp/pages/mypage.dart';
+
+
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
@@ -79,7 +80,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -176,11 +176,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                 child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
                               )),
                               const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                              )
+                              GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => MyPagePopup(
+                                      userEmail: widget.currentUserEmail,
+                                      userName: widget.currentUserName,
+                                    )
+                                  );
+                                },
+                                child: const CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                                ),
+                              ),
+
                             ],
                           ),
                         ],
@@ -193,6 +205,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               )
             ],
           ),
+          _buildBackButton(),
         ],
       ),
     );
@@ -305,10 +318,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         return (_recordDate == null || _meetingId == null)
             ? const Center(child: Text('날짜가 선택되지 않았습니다'))
             : MeetingRecordWidget(
-                selectedDate: _recordDate!,
-                groupId: widget.groupId,
-                meetingId: _meetingId!,
-              );
+          selectedDate: _recordDate!,
+          groupId: widget.groupId,
+          meetingId: _meetingId!,
+        );
       default:
         return const SizedBox();
     }

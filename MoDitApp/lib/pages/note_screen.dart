@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'loading_overlay.dart'; // 추가
 
 
 
@@ -257,70 +258,74 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   Future<void> sendToFlaskOCR() async {
     if (_repaintKey.currentContext == null || selectedRect == null) return;
 
+    print("[🖼️] 선택된 영역 캡처 시작");
+
     await WidgetsBinding.instance.endOfFrame;
 
-    final boundary = _repaintKey.currentContext!
-        .findRenderObject() as RenderRepaintBoundary;
+    final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
     final pixelRatio = 3.0;
     final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) return;
+    if (byteData == null) {
+      print("[⚠️] 이미지 캡처 실패 - byteData null");
+      return;
+    }
 
     final buffer = byteData.buffer.asUint8List();
     final fullImage = img.decodeImage(buffer);
-    if (fullImage == null) return;
+    if (fullImage == null) {
+      print("[⚠️] 이미지 디코딩 실패");
+      return;
+    }
 
-    final cropX = (selectedRect!.left * pixelRatio).clamp(
-        0, fullImage.width - 1).toInt();
-    final cropY = (selectedRect!.top * pixelRatio).clamp(
-        0, fullImage.height - 1).toInt();
-    final cropWidth = (selectedRect!.width * pixelRatio).clamp(
-        1, fullImage.width - cropX).toInt();
-    final cropHeight = (selectedRect!.height * pixelRatio).clamp(
-        1, fullImage.height - cropY).toInt();
+    final cropX = (selectedRect!.left * pixelRatio).clamp(0, fullImage.width - 1).toInt();
+    final cropY = (selectedRect!.top * pixelRatio).clamp(0, fullImage.height - 1).toInt();
+    final cropWidth = (selectedRect!.width * pixelRatio).clamp(1, fullImage.width - cropX).toInt();
+    final cropHeight = (selectedRect!.height * pixelRatio).clamp(1, fullImage.height - cropY).toInt();
 
-    final cropped = img.copyCrop(
-      fullImage,
-      x: cropX,
-      y: cropY,
-      width: cropWidth,
-      height: cropHeight,
-    );
+    print("[✂️] 선택 영역 자르기: x=$cropX, y=$cropY, w=$cropWidth, h=$cropHeight");
 
+    final cropped = img.copyCrop(fullImage, x: cropX, y: cropY, width: cropWidth, height: cropHeight);
     final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
-    final uri = Uri.parse('http://172.16.100.79:8080/ocr/upload');
+    print("[🚀] Flask 서버로 전송 시작");
+
+    final uri = Uri.parse('http://192.168.219.108:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
-      ..files.add(http.MultipartFile.fromBytes(
-          'image', imageBytes, filename: 'note.jpg'));
+      ..files.add(http.MultipartFile.fromBytes('image', imageBytes, filename: 'note.jpg'));
 
-    final response = await request.send();
-    final respStr = await response.stream.bytesToString();
-    final result = jsonDecode(respStr);
+    try {
+      final response = await request.send();
+      final respStr = await response.stream.bytesToString();
 
-    print("Flask 응답: $respStr");
+      print("[📨] Flask 응답 상태코드: ${response.statusCode}");
+      print("[📨] Flask 응답 내용: $respStr");
 
-    if (response.statusCode == 200) {
-      final text = result['text'] ?? ''; // 서버에서 받은 텍스트
+      final result = jsonDecode(respStr);
+      if (response.statusCode == 200) {
+        final text = result['text'] ?? '';
+        print("[✅] 텍스트 추출 완료: $text");
 
-      setState(() {
-        textNotes.add(_TextNote(
-          position: Offset(selectedRect!.left, selectedRect!.top),
-          initialText: text,
-        ));
-        // 선택 영역 안에 포함된 선들 제거
-        strokes = strokes.where((stroke) {
-          return !stroke.points.any((point) =>
-          point != null && selectedRect!.contains(point!));
-        }).toList();
-        canUndo = strokes.isNotEmpty;
-        selectedRect = null;
-        showSaveButton = false;
-      });
-    } else {
-      print("OCR 요청 실패: ${response.statusCode}");
+        setState(() {
+          textNotes.add(_TextNote(
+            position: Offset(selectedRect!.left, selectedRect!.top),
+            initialText: text,
+          ));
+          strokes = strokes.where((stroke) {
+            return !stroke.points.any((point) => point != null && selectedRect!.contains(point!));
+          }).toList();
+          canUndo = strokes.isNotEmpty;
+          selectedRect = null;
+          showSaveButton = false;
+        });
+      } else {
+        print("[❌] 서버 오류 발생: 상태코드 ${response.statusCode}");
+      }
+    } catch (e) {
+      print("[❗] 예외 발생: $e");
     }
   }
+
 
   Future<void> _captureAndUploadNote() async {
     String title = '';
@@ -799,13 +804,17 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                     return;
                                   }
 
-                                  await _captureAndUploadNote();
 
-                                  if (!mounted) return;
-                                  isSaving = false;
-
-                                  Navigator.pop(context, true); // ✅ 변경된 부분
-                                },
+                                  LoadingOverlay.show(context, message: '노트 저장 중...');
+                                  try {
+                                    await _captureAndUploadNote();
+                                  } finally {
+                                    LoadingOverlay.hide();
+                                    isSaving = false;
+                                    if (mounted) Navigator.pop(context, true);
+                                  }
+                                }
+                                ,
                                 child: Image.asset('assets/images/back_button.png', height: 20),
                               ),
                               const SizedBox(width: 12),
@@ -1087,11 +1096,25 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                     child: InkWell(
                                       onTap: () async {
                                         await Future.delayed(const Duration(milliseconds: 100));
-                                        await sendToFlaskOCR();
-                                        setState(() {
-                                          showSaveButton = false;
-                                          selectedRect = null;
-                                        });
+                                        LoadingOverlay.show(context, message: '텍스트 추출 중...');
+                                        try {
+                                          await sendToFlaskOCR(); // ✅ 텍스트 추출 로직 실행
+                                          setState(() {
+                                            showSaveButton = false;
+                                            selectedRect = null;
+                                          });
+                                        } catch (e) {
+                                          print("❌ 텍스트 추출 중 오류 발생: $e");
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text("텍스트 추출 중 오류 발생: $e"),
+                                              backgroundColor: Colors.red,
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        } finally {
+                                          LoadingOverlay.hide();
+                                        }
                                       },
                                       child: const Padding(
                                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1103,6 +1126,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                     ),
                                   ),
                                 ),
+
 
                               if (isStrokePopupVisible)
                                 Positioned.fill(
