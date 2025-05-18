@@ -49,7 +49,7 @@ class MoDitApp extends StatelessWidget {
       home: HomeScreen(
       //   groupId: '-OPqe387N6zi4K4UK3IT',
          currentUserEmail: 'ga@naver.com',
-        currentUserName: 'yujin',
+        currentUserName: 'ga',
        ),
     );
     //home: NoteScreen());
