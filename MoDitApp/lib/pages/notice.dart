@@ -1,4 +1,3 @@
-// notice_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'notice_view_popup.dart';
@@ -6,7 +5,7 @@ import 'notice_view_popup.dart';
 class NoticePage extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
-  final String currentUserName; // ✅ 이름 추가
+  final String currentUserName;
 
   const NoticePage({
     required this.groupId,
@@ -89,7 +88,7 @@ class _NoticePageState extends State<NoticePage> {
               await newRef.set({
                 'title': titleController.text,
                 'body': bodyController.text,
-                'name': widget.currentUserName, // ✅ 이름 저장
+                'name': widget.currentUserName,
                 'createdAt': DateTime.now().millisecondsSinceEpoch,
                 'pinned': false,
               });
@@ -124,6 +123,7 @@ class _NoticePageState extends State<NoticePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 상단 헤더
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -141,6 +141,8 @@ class _NoticePageState extends State<NoticePage> {
               ],
             ),
             const SizedBox(height: 20),
+
+            // 공지 리스트
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -153,20 +155,7 @@ class _NoticePageState extends State<NoticePage> {
                   separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (_, i) {
                     final notice = pagedNotices[i];
-                    return ListTile(
-                      title: Text(notice['title']),
-                      subtitle: Text('${notice['name']}  |  ${_formatDate(notice['createdAt'])}'),
-                      trailing: IconButton(
-                        icon: Icon(
-                          notice['pinned'] ? Icons.star : Icons.star_border,
-                          color: notice['pinned'] ? Colors.amber : null,
-                        ),
-                        onPressed: () async {
-                          await db.child('groupStudies').child(widget.groupId).child('notices').child(notice['id'])
-                              .update({'pinned': !(notice['pinned'] ?? false)});
-                          loadNotices();
-                        },
-                      ),
+                    return GestureDetector(
                       onTap: () => showDialog(
                         context: context,
                         builder: (_) => NoticeViewPopup(
@@ -174,12 +163,61 @@ class _NoticePageState extends State<NoticePage> {
                           body: notice['body'],
                         ),
                       ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ⭐ 왼쪽 별 아이콘
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await db
+                                      .child('groupStudies')
+                                      .child(widget.groupId)
+                                      .child('notices')
+                                      .child(notice['id'])
+                                      .update({'pinned': !(notice['pinned'] ?? false)});
+                                  loadNotices();
+                                },
+                                child: Icon(
+                                  notice['pinned'] ? Icons.star : Icons.star_border,
+                                  color: notice['pinned'] ? Colors.amber : null,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+
+                            // 📄 텍스트 블럭
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(notice['title'], style: const TextStyle(fontSize: 16)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(notice['name'], style: const TextStyle(fontSize: 12)),
+                                      const Spacer(),
+                                      Text(_formatDate(notice['createdAt']), style: const TextStyle(fontSize: 12)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
             ),
+
             const SizedBox(height: 10),
+
+            // 페이지네이션
             if (totalPages > 1)
               Center(
                 child: Wrap(
