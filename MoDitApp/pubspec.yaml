@@ -49,6 +49,7 @@ dependencies:
   flutter_sound: ^9.2.13
   firebase_storage: ^11.5.2
   url_launcher: ^6.2.4
+  just_audio: ^0.9.36
 
 
   # The following adds the Cupertino Icons font to your application.
