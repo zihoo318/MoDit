@@ -43,6 +43,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   int? _playingIndex;
   String? _selectedTextUrl;
   Future<Map<String, dynamic>?>? _summaryFuture; // 요약 요청 Future를 저장
+  Future<http.Response>? _summaryTextFuture; // 요약 텍스트용 캐시 Future
   String? _cachedTextUrl;
   Future<http.Response>? _textFuture;
   String? _cachedSummaryUrl;
@@ -399,20 +400,19 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                               onTap: () {
                                 if (r.containsKey('text_url')) {
                                   final textUrl = r['text_url'];
+                                  if (_cachedTextUrl != textUrl) {
+                                    _cachedTextUrl = textUrl;
+                                    _textFuture = http.get(Uri.parse(textUrl));
+                                  }
+
+                                  if (_cachedSummaryUrl != textUrl) {
+                                    _cachedSummaryUrl = textUrl;
+                                    _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
+                                    _summaryTextFuture = null; // 새로 받을 준비
+                                  }
+
                                   setState(() {
                                     _selectedTextUrl = textUrl;
-
-                                    if (_cachedTextUrl != textUrl) {
-                                      _cachedTextUrl = textUrl;
-                                      _textFuture =
-                                          http.get(Uri.parse(textUrl));
-                                    }
-
-                                    if (_cachedSummaryUrl != textUrl) {
-                                      _cachedSummaryUrl = textUrl;
-                                      _summaryFuture = Api().requestSummary(
-                                          textUrl, widget.groupId);
-                                    }
                                   });
                                 }
                               },
@@ -506,19 +506,35 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                     return const Text("요약본을 불러오는 데 실패했습니다.");
                                   } else {
                                     final summaryUrl = snapshot.data!['summary_url'];
-                                    return FutureBuilder<http.Response>(
-                                      future: http.get(Uri.parse(summaryUrl)),
-                                      builder: (context, summarySnapshot) {
-                                        if (summarySnapshot.connectionState == ConnectionState.waiting) {
+                                    return FutureBuilder<Map<String, dynamic>?>(
+                                      future: _summaryFuture,
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) {
                                           return const Center(child: CircularProgressIndicator());
-                                        } else if (!summarySnapshot.hasData || summarySnapshot.data!.statusCode != 200) {
-                                          return const Text("요약본 텍스트를 불러오는 데 실패했습니다.");
+                                        } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
+                                          return const Text("요약본을 불러오는 데 실패했습니다.");
                                         } else {
-                                          return SingleChildScrollView(
-                                            child: Text(
-                                              summarySnapshot.data!.body,
-                                              style: const TextStyle(fontSize: 14),
-                                            ),
+                                          final summaryUrl = snapshot.data!['summary_url'];
+
+                                          // ✅ 캐싱된 요약 텍스트 Future가 없을 때만 생성
+                                          _summaryTextFuture ??= http.get(Uri.parse(summaryUrl));
+
+                                          return FutureBuilder<http.Response>(
+                                            future: _summaryTextFuture,
+                                            builder: (context, summarySnapshot) {
+                                              if (summarySnapshot.connectionState == ConnectionState.waiting) {
+                                                return const Center(child: CircularProgressIndicator());
+                                              } else if (!summarySnapshot.hasData || summarySnapshot.data!.statusCode != 200) {
+                                                return const Text("요약본 텍스트를 불러오는 데 실패했습니다.");
+                                              } else {
+                                                return SingleChildScrollView(
+                                                  child: Text(
+                                                    summarySnapshot.data!.body,
+                                                    style: const TextStyle(fontSize: 14),
+                                                  ),
+                                                );
+                                              }
+                                            },
                                           );
                                         }
                                       },
