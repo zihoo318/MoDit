@@ -226,7 +226,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFFF1ECFA),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('노트 이름을 저장해주세요.'),
+        title: const Text('녹음 이름을 저장해주세요.'),
         content: TextField(
           controller: _nameController,
           decoration: const InputDecoration(hintText: '예: 회의녹음_1'),
