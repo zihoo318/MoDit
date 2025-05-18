@@ -285,7 +285,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
-    final uri = Uri.parse('http://192.168.219.105:8080/ocr/upload');
+    final uri = Uri.parse('http://172.16.100.187:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes(
           'image', imageBytes, filename: 'note.jpg'));
