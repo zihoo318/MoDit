@@ -58,7 +58,7 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
     final events = getEventsForDay(selectedDate);
 
     // ✅ Month 모드일 경우 더 작은 높이 사용
-    final double listHeight = _calendarFormat == CalendarFormat.month ? 50 : 120;
+    final double listHeight = (events.length * 48.0).clamp(60.0, 240.0);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -128,6 +128,7 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
                 ),
               ),
             )
+
           else
             const Padding(
               padding: EdgeInsets.only(top: 6),

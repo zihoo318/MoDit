@@ -105,7 +105,7 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
         borderRadius: BorderRadius.circular(16),
       ),
       width: MediaQuery.of(context).size.width * 0.42,
-      height: 190, // 예시: 세로 높이 고정
+      height: MediaQuery.of(context).size.height * 0.31,
       child: GridView.count(
         physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 3,
