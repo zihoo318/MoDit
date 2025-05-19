@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:moditapp/pages/popup_submit_choice.dart';
 import 'package:moditapp/pages/popup_task_edit.dart';
+import 'package:moditapp/pages/popup_task_submit_note.dart';
 
 import 'flask_api.dart';
 import 'popup_task_register.dart';
@@ -37,11 +39,10 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   String? selectedUser;
   String? selectedFileType;
   String? selectedFileUrl;
-  bool _isSubmitOptionsVisible = false; // for 내외부 파일 선택 버튼
-  int? _submitOptionIndex; // 어떤 소과제의 옵션인지 추적 //for 내외부 파일 선택 버튼
-  final LayerLink _layerLink = LayerLink(); //for 내외부 파일 선택 버튼의 토글
-  OverlayEntry? _submitOverlay; //for 내외부 파일 선택 버튼의 토글
+  final ScrollController _scrollController = ScrollController();
+  OverlayEntry? _submitOverlay;
 
+  late StreamSubscription<DatabaseEvent> _tasksSubscription;
 
   final List<Map<String, dynamic>> tasks = [];
   Map<String, Map<String, List<String>>> submissions = {};
@@ -50,114 +51,94 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
-    loadTasks();
-    loadSubmissions();
+    listenToTasks();
   }
 
-  Future<void> loadTasks() async {
-    print("현재 widget.groupId : ${widget.groupId}");
-    final snapshot = await db.child('tasks').child(widget.groupId).get();
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _tasksSubscription.cancel();
+    super.dispose();
+  }
 
-    if (!snapshot.exists) return;
-
-    final data = snapshot.value;
-    print("snapshot.value: $data");
-
-    if (data is! Map) {
-      print("snapshot.value가 Map이 아님: ${data.runtimeType}");
-      return;
+  @override
+  void didUpdateWidget(covariant TaskManageScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.groupId != widget.groupId) {
+      _tasksSubscription.cancel();
+      listenToTasks();
     }
+  }
 
-    final Map<String, dynamic> taskMap = Map<String, dynamic>.from(data);
-    final List<Map<String, dynamic>> loadedTasks = [];
-
-    taskMap.forEach((taskId, taskValue) {
-      if (taskValue is! Map) return;
-
-      final taskData = Map<String, dynamic>.from(taskValue);
-      final subTaskList = <Map<String, dynamic>>[];
-
-      if (taskData['subTasks'] is Map) {
-        final subTaskMap = Map<String, dynamic>.from(taskData['subTasks']);
-        subTaskMap.forEach((subId, subData) {
-          if (subData is! Map) return;
-          final subMap = Map<String, dynamic>.from(subData);
-
-          // submissions 파싱 추가
-          Map<String, dynamic> submissions = {};
-          if (subMap['submissions'] is Map) {
-            submissions = Map<String, dynamic>.from(subMap['submissions']);
-          }
-
-          subTaskList.add({
-            "subId": subId,
-            "subtitle": subMap["subtitle"] ?? '',
-            "description": subMap["description"] ?? '',
-            "submissions": submissions, // 포함시켜야 과제물이 보임
-          });
-
-          print("DEBUG: taskId = $taskId, subId = $subId");
+  void listenToTasks() {
+    _tasksSubscription = db.child('tasks').child(widget.groupId).onValue.listen((event) {
+      final data = event.snapshot.value;
+      if (data == null || data is! Map) {
+        setState(() {
+          tasks.clear();
+          submissions.clear();
         });
+        return;
       }
 
-      loadedTasks.add({
-        "taskId": taskId,
-        "title": taskData['title'] ?? '',
-        "deadline": taskData['deadline'] ?? '',
-        "subTasks": subTaskList,
+      final Map<String, dynamic> taskMap = Map<String, dynamic>.from(data);
+      final List<Map<String, dynamic>> loadedTasks = [];
+
+      taskMap.forEach((taskId, taskValue) {
+        if (taskValue is! Map) return;
+        final taskData = Map<String, dynamic>.from(taskValue);
+        final subTaskList = <Map<String, dynamic>>[];
+
+        if (taskData['subTasks'] is Map) {
+          final subTaskMap = Map<String, dynamic>.from(taskData['subTasks']);
+          subTaskMap.forEach((subId, subData) {
+            if (subData is! Map) return;
+            final subMap = Map<String, dynamic>.from(subData);
+            Map<String, dynamic> submissionsMap = {};
+            if (subMap['submissions'] is Map) {
+              submissionsMap = Map<String, dynamic>.from(subMap['submissions']);
+            }
+
+            subTaskList.add({
+              "subId": subId,
+              "subtitle": subMap["subtitle"] ?? '',
+              "description": subMap["description"] ?? '',
+              "submissions": submissionsMap,
+            });
+          });
+        }
+
+        loadedTasks.add({
+          "taskId": taskId,
+          "title": taskData['title'] ?? '',
+          "deadline": taskData['deadline'] ?? '',
+          "subTasks": subTaskList,
+        });
       });
-    });
 
-    setState(() {
-      tasks.clear();
-      tasks.addAll(loadedTasks);
-
-      if (tasks.isNotEmpty) {
-        // 마감일 기준 정렬된 리스트 생성
-        final sortedTasks = List<Map<String, dynamic>>.from(tasks)
+      int newSelectedIndex = 0;
+      if (loadedTasks.isNotEmpty) {
+        final sortedTasks = List<Map<String, dynamic>>.from(loadedTasks)
           ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
-
-        // 정렬된 첫 번째 task의 원래 인덱스를 찾아 설정
         final firstSorted = sortedTasks.first;
-        selectedTaskIndex = tasks.indexOf(firstSorted);
+        newSelectedIndex = loadedTasks.indexOf(firstSorted);
       }
+
+      setState(() {
+        tasks
+          ..clear()
+          ..addAll(loadedTasks);
+        selectedTaskIndex = newSelectedIndex;
+      });
+
+      parseSubmissionsFromTasks(taskMap);
     });
   }
 
-
-  Future<void> registerTask(String title, String deadline, List<Map<String, String>> subTasks) async {
-    final taskId = db.child('tasks').child(widget.groupId).push().key;
-    if (taskId == null) return;
-
-    final subTaskMap = <String, Map<String, String>>{};
-    for (var sub in subTasks) {
-      final subId = db.child('tasks').child(widget.groupId).child(taskId).child('subTasks').push().key;
-      if (subId != null) subTaskMap[subId] = sub;
-    }
-
-    final taskData = {
-      "title": title,
-      "deadline": deadline,
-      "subTasks": subTaskMap,
-    };
-
-    await db.child('tasks').child(widget.groupId).child(taskId).set(taskData);
-    await loadTasks();
-  }
-
-  Future<void> loadSubmissions() async {
-    final snapshot = await db.child('tasks').child(widget.groupId).get();
-    if (!snapshot.exists) {
-      setState(() {
-        submissions = {};
-      });
-      return;
-    }
-
-    final Map<String, dynamic> tasksData = Map<String, dynamic>.from(snapshot.value as Map);
+  void parseSubmissionsFromTasks(Map<String, dynamic> taskMap) {
     final newSubmissions = <String, Map<String, List<String>>>{};
 
-    tasksData.forEach((taskId, taskData) {
+    taskMap.forEach((taskId, taskData) {
       final task = Map<String, dynamic>.from(taskData);
       final taskTitle = task['title'] ?? '';
       final subTaskMap = task['subTasks'];
@@ -180,15 +161,12 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       submissions = newSubmissions;
     });
   }
-
-
   Future<String> _loadTextFromUrl(String url) async {
     final uri = Uri.parse(url);
     final response = await HttpClient().getUrl(uri).then((req) => req.close());
     final contents = await response.transform(const Utf8Decoder()).join();
     return contents;
   }
-
 
   Future<void> loadSubmissionFile(String user, String taskTitle, String subTaskTitle) async {
     final task = tasks.firstWhere((t) => t['title'] == taskTitle, orElse: () => {});
@@ -224,43 +202,47 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         selectedFileUrl = data['fileUrl'];
         selectedFileType = data['fileType'];
       });
-    } else {
-      print("해당 제출 데이터 없음");
     }
   }
 
-  //과제 전체(task 및 그 내부의 소과제 및 제출 데이터 포함)를 삭제
-  Future<void> deleteTask(String taskId) async {
-    await db.child('tasks').child(widget.groupId).child(taskId).remove();
+  String sanitizeKey(String key) {
+    return key
+        .replaceAll('.', '_')
+        .replaceAll('#', '_')
+        .replaceAll('\$', '_')
+        .replaceAll('[', '_')
+        .replaceAll(']', '_')
+        .replaceAll('/', '_');
   }
 
-  // 새로운 소과제 추가 시 파베 저장 함수
-  void _addSubTask(List<Map<String, String>> subTasks) {
-    setState(() {
-      subTasks.add({
-        'subtitle': '',
-        'description': '',
-      });
-    });
+  Future<void> registerTask(String title, String deadline, List<Map<String, String>> subTasks) async {
+    final taskId = db.child('tasks').child(widget.groupId).push().key;
+    if (taskId == null) return;
+
+    final subTaskMap = <String, Map<String, String>>{};
+    for (var sub in subTasks) {
+      final subId = db.child('tasks').child(widget.groupId).child(taskId).child('subTasks').push().key;
+      if (subId != null) subTaskMap[subId] = sub;
+    }
+
+    final taskData = {
+      "title": title,
+      "deadline": deadline,
+      "subTasks": subTaskMap,
+    };
+
+    await db.child('tasks').child(widget.groupId).child(taskId).set(taskData);
   }
 
-  // 원래 있던 소과제 수정 시 변경 내용 파베에 업로드 함수
   Future<void> updateTask(
       String taskId,
       String newTitle,
       String newDeadline,
       List<Map<String, String>> updatedSubTasks,
       ) async {
-
-    //같은 subTask 순서(index)에 대해 subtitle과 description은 갱신
-    // 기존 subId와 그에 포함된 submissions은 유지
-    // 새로 추가된 subTask는 새 subId 생성
-    // 삭제된 subTask는 제거
-
     final taskRef = db.child('tasks').child(widget.groupId).child(taskId);
     final subTasksRef = taskRef.child('subTasks');
 
-    // 현재 subTask들과 그 ID, submissions 불러오기
     final snapshot = await subTasksRef.get();
     final Map<String, dynamic> existingSubTaskData =
     snapshot.exists ? Map<String, dynamic>.from(snapshot.value as Map) : {};
@@ -272,19 +254,15 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       final sub = updatedSubTasks[i];
 
       if (i < existingSubTaskIds.length) {
-        // 기존 subId 유지 + submissions 유지
         final oldSubId = existingSubTaskIds[i];
         final oldSub = Map<String, dynamic>.from(existingSubTaskData[oldSubId]);
-        final existingSubmissions =
-            oldSub['submissions'] ?? {}; // 없으면 빈 맵
-
+        final existingSubmissions = oldSub['submissions'] ?? {};
         newSubTaskMap[oldSubId] = {
           'subtitle': sub['subtitle'] ?? '',
           'description': sub['description'] ?? '',
           'submissions': existingSubmissions,
         };
       } else {
-        // 새로 추가된 소과제 → 새 subId 발급
         final newSubId = subTasksRef.push().key!;
         newSubTaskMap[newSubId] = {
           'subtitle': sub['subtitle'] ?? '',
@@ -294,7 +272,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       }
     }
 
-    // 전체 task 덮어쓰기 (기존 subTask 중 삭제된 것도 반영)
     final updatedTask = {
       'title': newTitle,
       'deadline': newDeadline,
@@ -304,67 +281,8 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     await taskRef.set(updatedTask);
   }
 
-  // 과제 수정 팝업창 호출 및 파베에 수정사항 반영
-  void _showTaskEditDialog(int index) async {
-    final task = tasks[index];
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => TaskEditPopup(
-        groupId: widget.groupId,
-        initialTitle: task['title'],
-        initialDeadline: task['deadline'],
-        initialSubTasks: (task['subTasks'] as List)
-            .map<Map<String, String>>((sub) => {
-          'subtitle': sub['subtitle'] ?? '',
-          'description': sub['description'] ?? '',
-        })
-            .toList(),
-        onTaskUpdated: (newTitle, newDeadline, updatedSubTasks) async {
-          await updateTask(task['taskId'], newTitle, newDeadline, updatedSubTasks);
-          await loadTasks();
-          await loadSubmissions();
-          Navigator.pop(context, true); // 팝업 닫을 때 true 반환
-        },
-        onTaskDeleted: () async {
-          await deleteTask(task['taskId']);
-          await loadTasks();
-          await loadSubmissions();
-          Navigator.pop(context, true); // 팝업 닫을 때 true 반환
-        },
-      ),
-    );
-
-    // 팝업 닫힌 후 갱신
-    if (result == true) {
-      setState(() {});
-    }
-  }
-
-  // 과제 등록 팝업 호출
-  void _showTaskRegisterDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => TaskRegisterPopup(
-        groupId: widget.groupId,
-        onTaskRegistered: (title, deadline, subTasks) async {
-          await registerTask(title, deadline, subTasks);
-          await loadTasks();
-          await loadSubmissions();
-        },
-      ),
-    );
-  }
-
-  // Firebase 경로에 쓸 수 없는 문자 제거용 유틸 함수
-  String sanitizeKey(String key) {
-    return key
-        .replaceAll('.', '_')
-        .replaceAll('#', '_')
-        .replaceAll('\$', '_')
-        .replaceAll('[', '_')
-        .replaceAll(']', '_')
-        .replaceAll('/', '_');
+  Future<void> deleteTask(String taskId) async {
+    await db.child('tasks').child(widget.groupId).child(taskId).remove();
   }
 
   Future<void> _pickAndUploadExternalFile(
@@ -390,7 +308,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
 
         final encodedEmail = sanitizeKey(userEmail);
 
-        // groupId가 누락되지 않도록 경로 수정
         await db
             .child('tasks')
             .child(groupId)
@@ -404,9 +321,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           "submittedAt": DateTime.now().toIso8601String(),
           "fileType": uploaded['file_url'].toString().endsWith('.txt') ? 'text' : 'image',
         });
-
-        await loadSubmissions();
-        setState(() {});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("파일 업로드 실패.")),
@@ -414,6 +328,50 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       }
     }
   }
+
+  void _showTaskEditDialog(int index) async {
+    final task = tasks[index];
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => TaskEditPopup(
+        groupId: widget.groupId,
+        initialTitle: task['title'],
+        initialDeadline: task['deadline'],
+        initialSubTasks: (task['subTasks'] as List)
+            .map<Map<String, String>>((sub) => {
+          'subtitle': sub['subtitle'] ?? '',
+          'description': sub['description'] ?? '',
+        })
+            .toList(),
+        onTaskUpdated: (newTitle, newDeadline, updatedSubTasks) async {
+          await updateTask(task['taskId'], newTitle, newDeadline, updatedSubTasks);
+          Navigator.pop(context, true);
+        },
+        onTaskDeleted: () async {
+          await deleteTask(task['taskId']);
+          Navigator.pop(context, true);
+        },
+      ),
+    );
+
+    if (result == true) {
+      setState(() {});
+    }
+  }
+
+  void _showTaskRegisterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => TaskRegisterPopup(
+        groupId: widget.groupId,
+        onTaskRegistered: (title, deadline, subTasks) async {
+          await registerTask(title, deadline, subTasks);
+        },
+      ),
+    );
+  }
+
 
   Widget _buildCircleTabButton(int index) {
     return GestureDetector(
@@ -555,8 +513,8 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.only(top: 35),
-              child: SizedBox( // 고정 높이를 주기 위해 SizedBox 추가
-                height: 500,   // 원하는 고정 높이 설정
+              child: SizedBox(
+                height: 500,
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -566,15 +524,20 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                   child: task == null
                       ? const Center(child: Text("과제를 선택하세요."))
                       : Scrollbar(
+                    controller: _scrollController, // ✅ 여기
                     thumbVisibility: true,
                     radius: const Radius.circular(8),
                     thickness: 6,
                     child: SingleChildScrollView(
+                      controller: _scrollController, // ✅ 여기
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ...List.generate(task['subTasks'].length, (index) {
                             final sub = task['subTasks'][index];
+                            final LayerLink layerLink = LayerLink();
+                            OverlayEntry? localOverlay;
+
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -592,73 +555,107 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                     ),
                                     const SizedBox(width: 19),
                                     CompositedTransformTarget(
-                                      link: _layerLink,
+                                      link: layerLink,
                                       child: TextButton(
                                         onPressed: () {
-                                          if (_submitOverlay != null) {
-                                            _submitOverlay!.remove();
-                                            _submitOverlay = null;
+                                          if (localOverlay != null) {
+                                            localOverlay!.remove();
+                                            localOverlay = null;
                                           } else {
                                             final overlay = Overlay.of(context);
-                                            _submitOverlay = OverlayEntry(
-                                              builder: (context) => Positioned(
-                                                width: 200,
-                                                child: CompositedTransformFollower(
-                                                  link: _layerLink,
-                                                  showWhenUnlinked: false,
-                                                  offset: const Offset(3, 1),
-                                                  followerAnchor: Alignment.topRight,
-                                                  targetAnchor: Alignment.bottomRight,
-                                                  child: Material(
-                                                    elevation: 0,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                    child: Container(
-                                                      decoration: BoxDecoration(
-                                                        color: Color(0xFFF9F9FD),
-                                                        //border: Border.all(color: const Color(0xFF0D0A64), width: 1.2),
+                                            localOverlay = OverlayEntry(
+                                              builder: (context) => Stack(
+                                                children: [
+                                                  Positioned.fill(
+                                                    child: GestureDetector(
+                                                      onTap: () {
+                                                        localOverlay?.remove();
+                                                        localOverlay = null;
+                                                      },
+                                                      behavior: HitTestBehavior.translucent,
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    width: 200,
+                                                    child: CompositedTransformFollower(
+                                                      link: layerLink,
+                                                      showWhenUnlinked: false,
+                                                      offset: const Offset(3, 1),
+                                                      followerAnchor: Alignment.topRight,
+                                                      targetAnchor: Alignment.bottomRight,
+                                                      child: Material(
+                                                        elevation: 0,
                                                         borderRadius: BorderRadius.circular(12),
-                                                      ),
-                                                      child: Column(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          InkWell(
-                                                            onTap: () {
-                                                              print('내부 노트 선택');
-                                                              _submitOverlay?.remove();
-                                                              _submitOverlay = null;
-                                                            },
-                                                            child: Padding(
-                                                              padding: const EdgeInsets.all(12),
-                                                              child: Text("📓 내부 노트 파일 제출",
-                                                                  style: TextStyle(color: Color(0xFF0D0A64))),
-                                                            ),
+                                                        child: Container(
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(0xFFF9F9FD),
+                                                            borderRadius: BorderRadius.circular(12),
                                                           ),
-                                                          Container(height: 1, color: Color(0xFF0D0A64)),
-                                                          InkWell(
-                                                            onTap: () async {
-                                                              await _pickAndUploadExternalFile(
-                                                                task['taskId'],
-                                                                sub['subId'],
-                                                                widget.currentUserEmail,
-                                                                widget.groupId,
-                                                              );
-                                                              _submitOverlay?.remove();
-                                                              _submitOverlay = null;
-                                                            },
-                                                            child: Padding(
-                                                              padding: const EdgeInsets.all(12),
-                                                              child: Text("📁 외부 파일 선택",
-                                                                  style: TextStyle(color: Color(0xFF0D0A64))),
-                                                            ),
+                                                          child: Column(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              InkWell(
+                                                                onTap: () async {
+                                                                  localOverlay?.remove();
+                                                                  localOverlay = null;
+
+                                                                  final result = await showNoteSubmitPopup(
+                                                                    context: context,
+                                                                    userEmail: widget.currentUserEmail,
+                                                                    taskId: task['taskId'],
+                                                                    subId: sub['subId'],
+                                                                    groupId: widget.groupId,
+                                                                  );
+
+                                                                  if (result == true) {
+                                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                                      const SnackBar(
+                                                                        content: Text('노트가 성공적으로 제출되었습니다'),
+                                                                      ),
+                                                                    );
+                                                                  } else if (result == false) {
+                                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                                      const SnackBar(
+                                                                        content: Text('노트 제출에 실패했습니다'),
+                                                                        backgroundColor: Colors.red,
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                },
+                                                                child: const Padding(
+                                                                  padding: EdgeInsets.all(12),
+                                                                  child: Text("📓 내부 노트 파일 제출",
+                                                                      style: TextStyle(color: Color(0xFF0D0A64))),
+                                                                ),
+                                                              ),
+                                                              Container(height: 1, color: const Color(0xFF0D0A64)),
+                                                              InkWell(
+                                                                onTap: () async {
+                                                                  await _pickAndUploadExternalFile(
+                                                                    task['taskId'],
+                                                                    sub['subId'],
+                                                                    widget.currentUserEmail,
+                                                                    widget.groupId,
+                                                                  );
+                                                                  localOverlay?.remove();
+                                                                  localOverlay = null;
+                                                                },
+                                                                child: const Padding(
+                                                                  padding: EdgeInsets.all(12),
+                                                                  child: Text("📁 외부 파일 선택",
+                                                                      style: TextStyle(color: Color(0xFF0D0A64))),
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                        ],
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
-                                                ),
+                                                ],
                                               ),
                                             );
-                                            overlay.insert(_submitOverlay!);
+                                            overlay.insert(localOverlay!);
                                           }
                                         },
                                         style: TextButton.styleFrom(
@@ -680,16 +677,17 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                     ),
                                   ],
                                 ),
-                                Text("${sub['description']}",
-                                    style: const TextStyle(fontSize: 19)),
+                                Text(
+                                  "${sub['description']}",
+                                  style: const TextStyle(fontSize: 19),
+                                ),
                                 const SizedBox(height: 12),
-                                if (index != task['subTasks'].length - 1) ...[
+                                if (index != task['subTasks'].length - 1)
                                   const Divider(
                                     thickness: 1.2,
                                     color: Colors.grey,
                                     height: 24,
                                   ),
-                                ]
                               ],
                             );
                           }),
@@ -879,7 +877,12 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                   minScale: 0.5,
                                   maxScale: 3.0,
                                   child: selectedFileType == 'image'
-                                      ? Image.network(selectedFileUrl!, fit: BoxFit.contain)
+                                      ? Image.network(
+                                    selectedFileUrl!,
+                                    fit: BoxFit.fill, // 또는 BoxFit.fill
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  )
                                       : FutureBuilder<String>(
                                     future: _loadTextFromUrl(selectedFileUrl!),
                                     builder: (context, snapshot) {
@@ -912,12 +915,10 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // 원형 탭 인디케이터
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 1),
           child: Row(
@@ -929,8 +930,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             ],
           ),
         ),
-
-        // 실제 페이지
         Expanded(
           child: PageView(
             controller: _pageController,
@@ -948,5 +947,4 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       ],
     );
   }
-
 }
