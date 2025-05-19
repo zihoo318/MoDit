@@ -42,6 +42,12 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   String? recordedFilePath;
   int? _playingIndex;
   String? _selectedTextUrl;
+  Future<Map<String, dynamic>?>? _summaryFuture; // 요약 요청 Future를 저장
+  Future<http.Response>? _summaryTextFuture; // 요약 텍스트용 캐시 Future
+  String? _cachedTextUrl;
+  Future<http.Response>? _textFuture;
+  String? _cachedSummaryUrl;
+
 
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
@@ -54,7 +60,6 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   }
 
 
-
   @override
   void dispose() {
     _progressSubscription?.cancel();
@@ -65,15 +70,15 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
 
   Future<int> getDurationMs(String filePath) async {
-      final player = AudioPlayer();
-      try {
-        await player.setFilePath(filePath);
-        final duration = player.duration;
-        return duration?.inMilliseconds ?? 0;
-      } finally {
-        await player.dispose();
-      }
+    final player = AudioPlayer();
+    try {
+      await player.setFilePath(filePath);
+      final duration = player.duration;
+      return duration?.inMilliseconds ?? 0;
+    } finally {
+      await player.dispose();
     }
+  }
 
   Future<void> _loadRecordings() async {
     final snapshot = await db
@@ -87,7 +92,8 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
           final value = Map<String, dynamic>.from(entry.value);
           return {
             'name': value['name'] ?? '이름 없음',
-            'timestamp': DateTime.tryParse(value['timestamp'] ?? '') ?? DateTime.now(),
+            'timestamp': DateTime.tryParse(value['timestamp'] ?? '') ??
+                DateTime.now(),
             'url': value['url'] ?? '',
             'text_url': value['text_url'] ?? '',
             'duration_ms': value['duration_ms'] ?? 0,
@@ -109,7 +115,9 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
     if (status != PermissionStatus.granted) return;
 
     final dir = await getApplicationDocumentsDirectory();
-    final filePath = '${dir.path}/record_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final filePath = '${dir.path}/record_${DateTime
+        .now()
+        .millisecondsSinceEpoch}.m4a';
     recordedFilePath = filePath;
 
     await _recorder.openRecorder();
@@ -135,12 +143,14 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
             return AlertDialog(
               backgroundColor: const Color(0xFFF1ECFA),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
               title: Column(
                 children: [
                   const Icon(Icons.mic, size: 40, color: Color(0xFF9F8DF1)),
                   const SizedBox(height: 8),
-                  Text(_formatDuration(recordDuration), style: const TextStyle(fontSize: 24)),
+                  Text(_formatDuration(recordDuration),
+                      style: const TextStyle(fontSize: 24)),
                 ],
               ),
               actions: [
@@ -150,7 +160,8 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                     Navigator.pop(context);
                     _showSaveDialog();
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE1D9F8)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE1D9F8)),
                   child: const Text('Stop'),
                 ),
               ],
@@ -164,24 +175,26 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   void _showSaveDialog() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFFF1ECFA),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('녹음 이름을 저장해주세요.'),
-        content: TextField(
-          controller: _nameController,
-          decoration: const InputDecoration(hintText: '예: 회의녹음_1'),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              _stopRecordingAndSave();
-              Navigator.pop(context);
-            },
-            child: const Text('저장'),
+      builder: (_) =>
+          AlertDialog(
+            backgroundColor: const Color(0xFFF1ECFA),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: const Text('녹음 이름을 저장해주세요.'),
+            content: TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(hintText: '예: 회의녹음_1'),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  _stopRecordingAndSave();
+                  Navigator.pop(context);
+                },
+                child: const Text('저장'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -194,18 +207,25 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
     final file = File(recordedFilePath!);
     if (!file.existsSync()) return;
 
-    final name = _nameController.text.trim().isEmpty
-        ? 'record_${DateTime.now().millisecondsSinceEpoch}'
+    final name = _nameController.text
+        .trim()
+        .isEmpty
+        ? 'record_${DateTime
+        .now()
+        .millisecondsSinceEpoch}'
         : _nameController.text.trim();
 
     final api = Api();
     final result = await api.uploadVoiceFile(file, widget.groupId);
 
-    if (result != null && result.containsKey('audio_url') && result.containsKey('text_url')) {
+    if (result != null && result.containsKey('audio_url') &&
+        result.containsKey('text_url')) {
       final uploadedUrl = result['audio_url'];
       final textUrl = result['text_url'];
 
-      final newRef = db.child('groupStudies/${widget.groupId}/recordings/${widget.meetingId}').push();
+      final newRef = db.child(
+          'groupStudies/${widget.groupId}/recordings/${widget.meetingId}')
+          .push();
       // duration 추정
       final durMs = await getDurationMs(file.path);
 
@@ -241,29 +261,33 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   void _showRecordPrompt() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFFF1ECFA),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('녹음을 하시겠습니까?', textAlign: TextAlign.center),
-            SizedBox(height: 12),
-            Icon(Icons.mic, size: 36, color: Color(0xFF9F8DF1)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _startRecording();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE1D9F8)),
-            child: const Text('Start'),
+      builder: (_) =>
+          AlertDialog(
+            backgroundColor: const Color(0xFFF1ECFA),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('녹음을 하시겠습니까?', textAlign: TextAlign.center),
+                SizedBox(height: 12),
+                Icon(Icons.mic, size: 36, color: Color(0xFF9F8DF1)),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context),
+                  child: const Text('No')),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startRecording();
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE1D9F8)),
+                child: const Text('Start'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -279,13 +303,15 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("미팅 일정 & 녹음", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("미팅 일정 & 녹음",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1ECFA),
                       borderRadius: BorderRadius.circular(20),
@@ -294,7 +320,8 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                   ),
                   const SizedBox(width: 10),
                   IconButton(
-                    icon: const Icon(Icons.mic, size: 48, color: Color(0xFF9F8DF1)),
+                    icon: const Icon(
+                        Icons.mic, size: 48, color: Color(0xFF9F8DF1)),
                     onPressed: _showRecordPrompt,
                   ),
                 ],
@@ -323,10 +350,13 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                             ListTile(
                               leading: const Icon(Icons.mic),
                               title: Text(r['name']),
-                              subtitle: Text(DateFormat('yyyy.MM.dd HH:mm:ss').format(r['timestamp'])),
+                              subtitle: Text(
+                                  DateFormat('yyyy.MM.dd HH:mm:ss').format(
+                                      r['timestamp'])),
                               trailing: IconButton(
                                 icon: Icon(
-                                  _playingIndex == index && _isPlaying ? Icons.stop : Icons.play_arrow,
+                                  _playingIndex == index && _isPlaying ? Icons
+                                      .stop : Icons.play_arrow,
                                 ),
                                 onPressed: () async {
                                   if (_isPlaying) {
@@ -345,12 +375,13 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                   await _player.setUrl(r['url']);
                                   await _player.play();
 
-                                  _progressSubscription = _player.positionStream.listen((position) {
-                                    if (!mounted) return;
-                                    setState(() {
-                                      _currentPosition = position;
-                                    });
-                                  });
+                                  _progressSubscription =
+                                      _player.positionStream.listen((position) {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _currentPosition = position;
+                                        });
+                                      });
 
                                   _player.durationStream.listen((duration) {
                                     if (duration != null && mounted) {
@@ -363,36 +394,50 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                   setState(() {
                                     _isPlaying = true;
                                     _playingIndex = index;
-                                    _selectedTextUrl = r['text_url'];
                                   });
                                 },
                               ),
-                              // ✅ onTap은 여기에!
                               onTap: () {
                                 if (r.containsKey('text_url')) {
-                                  setState(() => _selectedTextUrl = r['text_url']);
+                                  final textUrl = r['text_url'];
+                                  if (_cachedTextUrl != textUrl) {
+                                    _cachedTextUrl = textUrl;
+                                    _textFuture = http.get(Uri.parse(textUrl));
+                                  }
+
+                                  if (_cachedSummaryUrl != textUrl) {
+                                    _cachedSummaryUrl = textUrl;
+                                    _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
+                                    _summaryTextFuture = null; // 새로 받을 준비
+                                  }
+
+                                  setState(() {
+                                    _selectedTextUrl = textUrl;
+                                  });
                                 }
                               },
                             ),
-
                             if (_playingIndex == index && _isPlaying)
                               Column(
                                 children: [
                                   Slider(
                                     value: _currentPosition.inMilliseconds
                                         .clamp(0, _totalDuration.inMilliseconds)
-                                        .toDouble(), // 👈 여기를 clamp
-                                    max: _totalDuration.inMilliseconds.toDouble().clamp(1.0, double.infinity),
+                                        .toDouble(),
+                                    max: _totalDuration.inMilliseconds
+                                        .toDouble().clamp(1.0, double.infinity),
                                     onChanged: (value) {
-                                      final newPosition = Duration(milliseconds: value.toInt());
+                                      final newPosition = Duration(
+                                          milliseconds: value.toInt());
                                       _player.seek(newPosition);
                                     },
                                   ),
-
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceBetween,
                                       children: [
                                         Text(_formatDuration(_currentPosition)),
                                         Text(_formatDuration(_totalDuration)),
@@ -420,54 +465,89 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                   child: _selectedTextUrl == null
                       ? const Center(child: Text("녹음을 선택해주세요."))
                       : DefaultTabController(
-                          length: 2,
-                          child: Column(
+                    length: 2,
+                    child: Column(
+                      children: [
+                        const TabBar(
+                          labelColor: Color(0xFF5C4DB1),
+                          unselectedLabelColor: Colors.grey,
+                          tabs: [
+                            Tab(text: "전체 텍스트"),
+                            Tab(text: "요약본"),
+                          ],
+                        ),
+                        Expanded(
+                          child: TabBarView(
                             children: [
-                              const TabBar(
-                                labelColor: Color(0xFF5C4DB1),
-                                unselectedLabelColor: Colors.grey,
-                                tabs: [
-                                  Tab(text: "전체 텍스트"),
-                                  Tab(text: "요약본"),
-                                ],
+                              FutureBuilder<http.Response>(
+                                future: _textFuture,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  } else if (!snapshot.hasData ||
+                                      snapshot.data!.statusCode != 200) {
+                                    return const Text("전체 텍스트를 불러오는 데 실패했습니다.");
+                                  } else {
+                                    return SingleChildScrollView(
+                                      child: Text(snapshot.data!.body,
+                                          style: const TextStyle(fontSize: 14)),
+                                    );
+                                  }
+                                },
                               ),
-                              Expanded(
-                                child: TabBarView(
-                                  children: [
-                                    FutureBuilder<http.Response>(
-                                      future: http.get(Uri.parse(_selectedTextUrl!)),
+                              FutureBuilder<Map<String, dynamic>?>(
+                                future: _summaryFuture,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
+                                    return const Text("요약본을 불러오는 데 실패했습니다.");
+                                  } else {
+                                    final summaryUrl = snapshot.data!['summary_url'];
+                                    return FutureBuilder<Map<String, dynamic>?>(
+                                      future: _summaryFuture,
                                       builder: (context, snapshot) {
                                         if (snapshot.connectionState == ConnectionState.waiting) {
                                           return const Center(child: CircularProgressIndicator());
-                                        } else if (!snapshot.hasData || snapshot.data!.statusCode != 200) {
-                                          return const Text("전체 텍스트를 불러오는 데 실패했습니다.");
-                                        } else {
-                                          return SingleChildScrollView(
-                                            child: Text(snapshot.data!.body, style: const TextStyle(fontSize: 14)),
-                                          );
-                                        }
-                                      },
-                                    ),
-                                    FutureBuilder<Map<String, dynamic>?>(
-                                      future: Api().requestSummary(_selectedTextUrl!, widget.groupId),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const Center(child: CircularProgressIndicator());
-                                        } else if (!snapshot.hasData) {
+                                        } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
                                           return const Text("요약본을 불러오는 데 실패했습니다.");
                                         } else {
-                                          return SingleChildScrollView(
-                                            child: Text(snapshot.data!['summary_preview'] ?? "", style: const TextStyle(fontSize: 14)),
+                                          final summaryUrl = snapshot.data!['summary_url'];
+
+                                          // ✅ 캐싱된 요약 텍스트 Future가 없을 때만 생성
+                                          _summaryTextFuture ??= http.get(Uri.parse(summaryUrl));
+
+                                          return FutureBuilder<http.Response>(
+                                            future: _summaryTextFuture,
+                                            builder: (context, summarySnapshot) {
+                                              if (summarySnapshot.connectionState == ConnectionState.waiting) {
+                                                return const Center(child: CircularProgressIndicator());
+                                              } else if (!summarySnapshot.hasData || summarySnapshot.data!.statusCode != 200) {
+                                                return const Text("요약본 텍스트를 불러오는 데 실패했습니다.");
+                                              } else {
+                                                return SingleChildScrollView(
+                                                  child: Text(
+                                                    summarySnapshot.data!.body,
+                                                    style: const TextStyle(fontSize: 14),
+                                                  ),
+                                                );
+                                              }
+                                            },
                                           );
                                         }
                                       },
-                                    ),
-                                  ],
-                                ),
+                                    );
+                                  }
+                                },
                               ),
                             ],
                           ),
                         ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

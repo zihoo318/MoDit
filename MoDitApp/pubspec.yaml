@@ -117,9 +117,7 @@ flutter:
     - assets/images/box.png
     - assets/images/clicked_box.png
     - assets/images/back_button.png
-    - assets/images/test_note1.jpg
-    - assets/images/test_note2.jpg
-    - assets/images/test_note3.jpg
+    - assets/images/menu.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

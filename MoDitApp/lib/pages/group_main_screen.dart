@@ -103,7 +103,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                     const SizedBox(height: 25),
                     Padding(
                       padding: const EdgeInsets.only(right: 110),
-                      child: Image.asset('assets/images/logo.png', height: 35),
+                      child: Image.asset('assets/images/logo.png', height: 40),
                     ),
                     const SizedBox(height: 50),
                     ...List.generate(menuTitles.length, (index) {
@@ -193,6 +193,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               )
             ],
           ),
+          _buildBackButton(),
         ],
       ),
     );
