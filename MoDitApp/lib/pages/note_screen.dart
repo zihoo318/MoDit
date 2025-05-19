@@ -541,9 +541,12 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           final newWidth = note.size.width + details.delta.dx;
           final newHeight = note.size.height + details.delta.dy;
 
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+
           note.size = Size(
-            newWidth.clamp(60.0, 500.0),
-            newHeight.clamp(30.0, 500.0),
+            newWidth.clamp(60.0, screenWidth - 80), // 양쪽 여백 고려
+            newHeight.clamp(30.0, screenWidth - 80),
           );
         });
       },
@@ -728,7 +731,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.blue),
+                  border: Border.all(color: Colors.grey),
                 ),
                 child: const Icon(Icons.open_in_full, size: 18),
               ),
@@ -1057,7 +1060,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                       width: selectedRect!.width,
                                       height: selectedRect!.height,
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.blue, width: 2),
+                                        border: Border.all(color: Colors.grey, width: 2),
                                         color: Colors.transparent,
                                       ),
                                     ),
