@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'loading_overlay.dart'; // 추가
 
 
 
@@ -257,70 +258,74 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   Future<void> sendToFlaskOCR() async {
     if (_repaintKey.currentContext == null || selectedRect == null) return;
 
+    print("[🖼️] 선택된 영역 캡처 시작");
+
     await WidgetsBinding.instance.endOfFrame;
 
-    final boundary = _repaintKey.currentContext!
-        .findRenderObject() as RenderRepaintBoundary;
+    final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
     final pixelRatio = 3.0;
     final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) return;
+    if (byteData == null) {
+      print("[⚠️] 이미지 캡처 실패 - byteData null");
+      return;
+    }
 
     final buffer = byteData.buffer.asUint8List();
     final fullImage = img.decodeImage(buffer);
-    if (fullImage == null) return;
+    if (fullImage == null) {
+      print("[⚠️] 이미지 디코딩 실패");
+      return;
+    }
 
-    final cropX = (selectedRect!.left * pixelRatio).clamp(
-        0, fullImage.width - 1).toInt();
-    final cropY = (selectedRect!.top * pixelRatio).clamp(
-        0, fullImage.height - 1).toInt();
-    final cropWidth = (selectedRect!.width * pixelRatio).clamp(
-        1, fullImage.width - cropX).toInt();
-    final cropHeight = (selectedRect!.height * pixelRatio).clamp(
-        1, fullImage.height - cropY).toInt();
+    final cropX = (selectedRect!.left * pixelRatio).clamp(0, fullImage.width - 1).toInt();
+    final cropY = (selectedRect!.top * pixelRatio).clamp(0, fullImage.height - 1).toInt();
+    final cropWidth = (selectedRect!.width * pixelRatio).clamp(1, fullImage.width - cropX).toInt();
+    final cropHeight = (selectedRect!.height * pixelRatio).clamp(1, fullImage.height - cropY).toInt();
 
-    final cropped = img.copyCrop(
-      fullImage,
-      x: cropX,
-      y: cropY,
-      width: cropWidth,
-      height: cropHeight,
-    );
+    print("[✂️] 선택 영역 자르기: x=$cropX, y=$cropY, w=$cropWidth, h=$cropHeight");
 
+    final cropped = img.copyCrop(fullImage, x: cropX, y: cropY, width: cropWidth, height: cropHeight);
     final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
-    final uri = Uri.parse('http://172.16.100.79:8080/ocr/upload');
+    print("[🚀] Flask 서버로 전송 시작");
+
+    final uri = Uri.parse('http://192.168.219.110:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
-      ..files.add(http.MultipartFile.fromBytes(
-          'image', imageBytes, filename: 'note.jpg'));
+      ..files.add(http.MultipartFile.fromBytes('image', imageBytes, filename: 'note.jpg'));
 
-    final response = await request.send();
-    final respStr = await response.stream.bytesToString();
-    final result = jsonDecode(respStr);
+    try {
+      final response = await request.send();
+      final respStr = await response.stream.bytesToString();
 
-    print("Flask 응답: $respStr");
+      print("[📨] Flask 응답 상태코드: ${response.statusCode}");
+      print("[📨] Flask 응답 내용: $respStr");
 
-    if (response.statusCode == 200) {
-      final text = result['text'] ?? ''; // 서버에서 받은 텍스트
+      final result = jsonDecode(respStr);
+      if (response.statusCode == 200) {
+        final text = result['text'] ?? '';
+        print("[✅] 텍스트 추출 완료: $text");
 
-      setState(() {
-        textNotes.add(_TextNote(
-          position: Offset(selectedRect!.left, selectedRect!.top),
-          initialText: text,
-        ));
-        // 선택 영역 안에 포함된 선들 제거
-        strokes = strokes.where((stroke) {
-          return !stroke.points.any((point) =>
-          point != null && selectedRect!.contains(point!));
-        }).toList();
-        canUndo = strokes.isNotEmpty;
-        selectedRect = null;
-        showSaveButton = false;
-      });
-    } else {
-      print("OCR 요청 실패: ${response.statusCode}");
+        setState(() {
+          textNotes.add(_TextNote(
+            position: Offset(selectedRect!.left, selectedRect!.top),
+            initialText: text,
+          ));
+          strokes = strokes.where((stroke) {
+            return !stroke.points.any((point) => point != null && selectedRect!.contains(point!));
+          }).toList();
+          canUndo = strokes.isNotEmpty;
+          selectedRect = null;
+          showSaveButton = false;
+        });
+      } else {
+        print("[❌] 서버 오류 발생: 상태코드 ${response.statusCode}");
+      }
+    } catch (e) {
+      print("[❗] 예외 발생: $e");
     }
   }
+
 
   Future<void> _captureAndUploadNote() async {
     String title = '';
@@ -740,424 +745,443 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: () {
-      FocusScope.of(context).unfocus(); // 🔴 키보드 내려가면 포커스 해제
-    },
-    child: Scaffold(
-      body: Stack(
-        children: [
-          // 배경 이미지
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/background.png',
-              fit: BoxFit.cover,
+      onTap: () {
+        FocusScope.of(context).unfocus(); // 🔴 키보드 내려가면 포커스 해제
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // 배경 이미지
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/background.png',
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                // 상단 모드 선택바
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        children: [
-                          // 왼쪽: 로고
-                          Row(
-                            children: [
-                              //뒤로가기 버튼 누르면 노트 저장
-                              GestureDetector(
-                                // NoteScreen.dart 파일의 뒤로가기 버튼 onTap 수정
-                                onTap: () async {
-                                  if (isSaving) return;
-                                  isSaving = true;
+            SafeArea(
+              child: Column(
+                children: [
+                  // 상단 모드 선택바
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Row(
+                          children: [
+                            // 왼쪽: 로고
+                            Row(
+                              children: [
+                                //뒤로가기 버튼 누르면 노트 저장
+                                GestureDetector(
+                                  // NoteScreen.dart 파일의 뒤로가기 버튼 onTap 수정
+                                  onTap: () async {
+                                    if (isSaving) return;
+                                    isSaving = true;
 
-                                  final title = _noteTitleController.text.trim();
+                                    final title = _noteTitleController.text.trim();
 
-                                  if (title.isEmpty || title == '노트 이름 설정') {
-                                    isSaving = false;
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        title: const Text('알림'),
-                                        content: const Text('노트 이름을 먼저 설정해주세요.'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('확인'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    return;
+                                    if (title.isEmpty || title == '노트 이름 설정') {
+                                      isSaving = false;
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('알림'),
+                                          content: const Text('노트 이름을 먼저 설정해주세요.'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              child: const Text('확인'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+
+                                    LoadingOverlay.show(context, message: '노트 저장 중...');
+                                    try {
+                                      await _captureAndUploadNote();
+                                    } finally {
+                                      LoadingOverlay.hide();
+                                      isSaving = false;
+                                      if (mounted) Navigator.pop(context, true);
+                                    }
                                   }
-
-                                  await _captureAndUploadNote();
-
-                                  if (!mounted) return;
-                                  isSaving = false;
-
-                                  Navigator.pop(context, true); // ✅ 변경된 부분
-                                },
-                                child: Image.asset('assets/images/back_button.png', height: 20),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildNoteTitle(),
-                            ],
-                          ),
-
-                          const Spacer(),
-
-                          // 중앙: 손글씨 아이콘만 (항상 고정 위치)
-                          GestureDetector(
-                            onTap: () => _setMode(drawing: true),
-                            child: Image.asset(
-                              isDrawingMode
-                                  ? 'assets/images/clicked_pen.png'
-                                  : 'assets/images/pen.png',
-                              height: 28,
+                                  ,
+                                  child: Image.asset('assets/images/back_button.png', height: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                _buildNoteTitle(),
+                              ],
                             ),
-                          ),
 
-                          const SizedBox(width: 12),
+                            const Spacer(),
 
-                          // 오른쪽: 손글씨 모드일 때 도구바 + 나머지 아이콘
-                          if (isDrawingMode) ...[
-                            const SizedBox(width: 16),
-                            _buildColorButton(Colors.black),
-                            _buildColorButton(Colors.red),
-                            _buildColorButton(Colors.blue),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 50,
-                              child: _buildStrokeWidthButton(),
-                            ),
+                            // 중앙: 손글씨 아이콘만 (항상 고정 위치)
                             GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedColor = Colors.white;
-                                  isEraser = true;
-                                });
-                              },
+                              onTap: () => _setMode(drawing: true),
                               child: Image.asset(
-                                isEraser
-                                    ? 'assets/images/clicked_eraser.png'
-                                    : 'assets/images/eraser.png',
+                                isDrawingMode
+                                    ? 'assets/images/clicked_pen.png'
+                                    : 'assets/images/pen.png',
                                 height: 28,
                               ),
                             ),
-                            IconButton(
-                              onPressed: canUndo
-                                  ? () {
-                                setState(() {
-                                  redoStack.add(strokes.removeLast());
-                                  canUndo = strokes.isNotEmpty;
-                                });
-                              }
-                                  : null,
-                              icon: const Icon(Icons.undo),
-                            ),
-                            IconButton(
-                              onPressed: redoStack.isNotEmpty
-                                  ? () {
-                                setState(() {
-                                  strokes.add(redoStack.removeLast());
-                                  canUndo = true;
-                                });
-                              }
-                                  : null,
-                              icon: const Icon(Icons.redo),
-                            ),
-                          ],
 
-                          if (isTextMode)
+                            const SizedBox(width: 12),
+
+                            // 오른쪽: 손글씨 모드일 때 도구바 + 나머지 아이콘
+                            if (isDrawingMode) ...[
+                              const SizedBox(width: 16),
+                              _buildColorButton(Colors.black),
+                              _buildColorButton(Colors.red),
+                              _buildColorButton(Colors.blue),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 50,
+                                child: _buildStrokeWidthButton(),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedColor = Colors.white;
+                                    isEraser = true;
+                                  });
+                                },
+                                child: Image.asset(
+                                  isEraser
+                                      ? 'assets/images/clicked_eraser.png'
+                                      : 'assets/images/eraser.png',
+                                  height: 28,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: canUndo
+                                    ? () {
+                                  setState(() {
+                                    redoStack.add(strokes.removeLast());
+                                    canUndo = strokes.isNotEmpty;
+                                  });
+                                }
+                                    : null,
+                                icon: const Icon(Icons.undo),
+                              ),
+                              IconButton(
+                                onPressed: redoStack.isNotEmpty
+                                    ? () {
+                                  setState(() {
+                                    strokes.add(redoStack.removeLast());
+                                    canUndo = true;
+                                  });
+                                }
+                                    : null,
+                                icon: const Icon(Icons.redo),
+                              ),
+                            ],
+
+                            if (isTextMode)
+                              Row(
+                                children: [
+                                  _buildColorButton(Colors.black),
+                                  _buildColorButton(Colors.red),
+                                  _buildColorButton(Colors.blue),
+                                  const SizedBox(width: 16),
+                                  const Text('폰트 크기'),
+                                  SizedBox(
+                                    width: 120,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Slider(
+                                            value: fontSize,
+                                            min: 10,
+                                            max: 32,
+                                            divisions: 11,
+                                            label: fontSize.toStringAsFixed(0),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                fontSize = value;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        Text(fontSize.toInt().toString()),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+
+                            // 오른쪽 끝: 키보드 + 선택 아이콘
                             Row(
                               children: [
-                                _buildColorButton(Colors.black),
-                                _buildColorButton(Colors.red),
-                                _buildColorButton(Colors.blue),
-                                const SizedBox(width: 16),
-                                const Text('폰트 크기'),
-                                SizedBox(
-                                  width: 120,
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Slider(
-                                          value: fontSize,
-                                          min: 10,
-                                          max: 32,
-                                          divisions: 11,
-                                          label: fontSize.toStringAsFixed(0),
-                                          onChanged: (value) {
-                                            setState(() {
-                                              fontSize = value;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                      Text(fontSize.toInt().toString()),
-                                    ],
+                                GestureDetector(
+                                  onTap: () => _setMode(text: true),
+                                  child: Image.asset(
+                                    isTextMode
+                                        ? 'assets/images/clicked_keyboard.png'
+                                        : 'assets/images/keyboard.png',
+                                    height: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => _setMode(image: true),
+                                  child: Image.asset(
+                                    isImageMode
+                                        ? 'assets/images/clicked_image.png'
+                                        : 'assets/images/image.png',
+                                    height: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => _setMode(select: true),
+                                  child: Image.asset(
+                                    isSelectMode
+                                        ? 'assets/images/clicked_box.png'
+                                        : 'assets/images/box.png',
+                                    height: 28,
                                   ),
                                 ),
                               ],
                             ),
-
-
-                          // 오른쪽 끝: 키보드 + 선택 아이콘
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _setMode(text: true),
-                                child: Image.asset(
-                                  isTextMode
-                                      ? 'assets/images/clicked_keyboard.png'
-                                      : 'assets/images/keyboard.png',
-                                  height: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _setMode(image: true),
-                                child: Image.asset(
-                                  isImageMode
-                                      ? 'assets/images/clicked_image.png'
-                                      : 'assets/images/image.png',
-                                  height: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _setMode(select: true),
-                                child: Image.asset(
-                                  isSelectMode
-                                      ? 'assets/images/clicked_box.png'
-                                      : 'assets/images/box.png',
-                                  height: 28,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      )
+                          ],
+                        )
+                    ),
                   ),
-                ),
 
-                // 필기 영역
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(32),
-                      child: RepaintBoundary( // ✅ 전체 Stack을 감싸도록 이동
-                        key: _repaintKey,
-                        child: GestureDetector(
-                          onTapUp: _handleTapUp,
-                          behavior: HitTestBehavior.translucent,
-                          child: Stack(
-                            key: _stackKey,
-                            children: [
-                              // 기존 CustomPaint만 감싸던 RepaintBoundary는 삭제
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: DrawingPainter(
-                                    strokes,
-                                    currentPoints,
-                                    selectedColor,
-                                    strokeWidth,
-                                  ),
-                                  child: Container(),
-                                ),
-                              ),
-
-                              if (isDrawingMode)
+                  // 필기 영역
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(32),
+                        child: RepaintBoundary( // ✅ 전체 Stack을 감싸도록 이동
+                          key: _repaintKey,
+                          child: GestureDetector(
+                            onTapUp: _handleTapUp,
+                            behavior: HitTestBehavior.translucent,
+                            child: Stack(
+                              key: _stackKey,
+                              children: [
+                                // 기존 CustomPaint만 감싸던 RepaintBoundary는 삭제
                                 Positioned.fill(
-                                  child: Listener(
-                                    onPointerDown: _handleStylusDown,
-                                    onPointerMove: _handleStylusMove,
-                                    onPointerUp: _handleStylusUp,
-                                    behavior: HitTestBehavior.translucent,
+                                  child: CustomPaint(
+                                    painter: DrawingPainter(
+                                      strokes,
+                                      currentPoints,
+                                      selectedColor,
+                                      strokeWidth,
+                                    ),
                                     child: Container(),
                                   ),
                                 ),
 
-                              if (isSelectMode)
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    onPanStart: (details) {
-                                      setState(() {
-                                        dragStart = details.localPosition;
-                                        selectedRect = null;
-                                      });
-                                    },
-                                    onPanUpdate: (details) {
-                                      setState(() {
-                                        dragEnd = details.localPosition;
-                                        selectedRect = Rect.fromPoints(dragStart!, dragEnd!);
-                                        showSaveButton = false;
-                                      });
-                                    },
-                                    onPanEnd: (_) {
-                                      setState(() {
-                                        showSaveButton = selectedRect != null;
-                                      });
-                                    },
-                                    behavior: HitTestBehavior.translucent,
-                                  ),
-                                ),
-
-                              ...textNotes.map((note) => _buildDraggableNote(note)),
-
-                              ...imageNotes.map((imgNote) {
-                                return Positioned(
-                                  left: imgNote.position.dx,
-                                  top: imgNote.position.dy,
-                                  child: GestureDetector(
-                                    onPanUpdate: (details) {
-                                      setState(() {
-                                        imgNote.position += details.delta;
-                                      });
-                                    },
-                                    child: Container(
-                                      width: imgNote.size.width,
-                                      height: imgNote.size.height,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey),
-                                      ),
-                                      child: Image.network(
-                                        '${imgNote.file.path}?t=${DateTime.now().millisecondsSinceEpoch}',
-                                        fit: BoxFit.cover,
-                                      ),
+                                if (isDrawingMode)
+                                  Positioned.fill(
+                                    child: Listener(
+                                      onPointerDown: _handleStylusDown,
+                                      onPointerMove: _handleStylusMove,
+                                      onPointerUp: _handleStylusUp,
+                                      behavior: HitTestBehavior.translucent,
+                                      child: Container(),
                                     ),
                                   ),
-                                );
-                              }),
 
-                              if (selectedRect != null)
-                                Positioned(
-                                  left: selectedRect!.left,
-                                  top: selectedRect!.top,
-                                  child: Container(
-                                    width: selectedRect!.width,
-                                    height: selectedRect!.height,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.blue, width: 2),
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                ),
-
-                              if (isSelectMode && selectedRect != null)
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.translucent,
-                                    onTapDown: (details) {
-                                      final buttonRect = Rect.fromLTWH(
-                                        selectedRect!.left,
-                                        selectedRect!.top - 40,
-                                        100,
-                                        40,
-                                      );
-                                      if (!selectedRect!.contains(details.localPosition) &&
-                                          !buttonRect.contains(details.localPosition)) {
+                                if (isSelectMode)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      onPanStart: (details) {
                                         setState(() {
-                                          selectedRect = null;
-                                          showSaveButton = false;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
-
-                              if (showSaveButton && selectedRect != null)
-                                Positioned(
-                                  left: selectedRect!.left,
-                                  top: selectedRect!.top - 40,
-                                  child: Material(
-                                    elevation: 2,
-                                    color: Colors.black87,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: InkWell(
-                                      onTap: () async {
-                                        await Future.delayed(const Duration(milliseconds: 100));
-                                        await sendToFlaskOCR();
-                                        setState(() {
-                                          showSaveButton = false;
+                                          dragStart = details.localPosition;
                                           selectedRect = null;
                                         });
                                       },
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        child: Text(
-                                          '텍스트 인식',
-                                          style: TextStyle(color: Colors.white, fontSize: 14),
+                                      onPanUpdate: (details) {
+                                        setState(() {
+                                          dragEnd = details.localPosition;
+                                          selectedRect = Rect.fromPoints(dragStart!, dragEnd!);
+                                          showSaveButton = false;
+                                        });
+                                      },
+                                      onPanEnd: (_) {
+                                        setState(() {
+                                          showSaveButton = selectedRect != null;
+                                        });
+                                      },
+                                      behavior: HitTestBehavior.translucent,
+                                    ),
+                                  ),
+
+                                ...textNotes.map((note) => _buildDraggableNote(note)),
+
+                                ...imageNotes.map((imgNote) {
+                                  return Positioned(
+                                    left: imgNote.position.dx,
+                                    top: imgNote.position.dy,
+                                    child: GestureDetector(
+                                      onPanUpdate: (details) {
+                                        setState(() {
+                                          imgNote.position += details.delta;
+                                        });
+                                      },
+                                      child: Container(
+                                        width: imgNote.size.width,
+                                        height: imgNote.size.height,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey),
+                                        ),
+                                        child: Image.network(
+                                          '${imgNote.file.path}?t=${DateTime.now().millisecondsSinceEpoch}',
+                                          fit: BoxFit.cover,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                }),
 
-                              if (isStrokePopupVisible)
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.translucent,
-                                    onTap: () {
-                                      setState(() {
-                                        isStrokePopupVisible = false;
-                                      });
-                                    },
-                                    child: Container(),
+                                if (selectedRect != null)
+                                  Positioned(
+                                    left: selectedRect!.left,
+                                    top: selectedRect!.top,
+                                    child: Container(
+                                      width: selectedRect!.width,
+                                      height: selectedRect!.height,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.blue, width: 2),
+                                        color: Colors.transparent,
+                                      ),
+                                    ),
                                   ),
-                                ),
 
-                              if (isStrokePopupVisible)
-                                Positioned(
-                                  top: 5,
-                                  right: 50,
-                                  child: Material(
-                                    elevation: 4,
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: SizedBox(
-                                        width: 160,
-                                        child: Slider(
-                                          value: strokeWidth,
-                                          min: 1,
-                                          max: 10,
-                                          divisions: 9,
-                                          label: strokeWidth.toStringAsFixed(1),
-                                          onChanged: (value) {
+                                if (isSelectMode && selectedRect != null)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.translucent,
+                                      onTapDown: (details) {
+                                        final buttonRect = Rect.fromLTWH(
+                                          selectedRect!.left,
+                                          selectedRect!.top - 40,
+                                          100,
+                                          40,
+                                        );
+                                        if (!selectedRect!.contains(details.localPosition) &&
+                                            !buttonRect.contains(details.localPosition)) {
+                                          setState(() {
+                                            selectedRect = null;
+                                            showSaveButton = false;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+
+                                if (showSaveButton && selectedRect != null)
+                                  Positioned(
+                                    left: selectedRect!.left,
+                                    top: selectedRect!.top - 40,
+                                    child: Material(
+                                      elevation: 2,
+                                      color: Colors.black87,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        onTap: () async {
+                                          await Future.delayed(const Duration(milliseconds: 100));
+                                          LoadingOverlay.show(context, message: '텍스트 추출 중...');
+                                          try {
+                                            await sendToFlaskOCR(); // ✅ 텍스트 추출 로직 실행
                                             setState(() {
-                                              strokeWidth = value;
+                                              showSaveButton = false;
+                                              selectedRect = null;
                                             });
-                                          },
+                                          } catch (e) {
+                                            print("❌ 텍스트 추출 중 오류 발생: $e");
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text("텍스트 추출 중 오류 발생: $e"),
+                                                backgroundColor: Colors.red,
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          } finally {
+                                            LoadingOverlay.hide();
+                                          }
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          child: Text(
+                                            '텍스트 인식',
+                                            style: TextStyle(color: Colors.white, fontSize: 14),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                            ],
+
+
+                                if (isStrokePopupVisible)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.translucent,
+                                      onTap: () {
+                                        setState(() {
+                                          isStrokePopupVisible = false;
+                                        });
+                                      },
+                                      child: Container(),
+                                    ),
+                                  ),
+
+                                if (isStrokePopupVisible)
+                                  Positioned(
+                                    top: 5,
+                                    right: 50,
+                                    child: Material(
+                                      elevation: 4,
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        child: SizedBox(
+                                          width: 160,
+                                          child: Slider(
+                                            value: strokeWidth,
+                                            min: 1,
+                                            max: 10,
+                                            divisions: 9,
+                                            label: strokeWidth.toStringAsFixed(1),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                strokeWidth = value;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                )
-              ],
+                  )
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
