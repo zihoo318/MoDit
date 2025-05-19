@@ -5,7 +5,11 @@ class ChattingPage extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
 
-  const ChattingPage({required this.groupId, required this.currentUserEmail, super.key});
+  const ChattingPage({
+    required this.groupId,
+    required this.currentUserEmail,
+    super.key,
+  });
 
   @override
   _ChattingPageState createState() => _ChattingPageState();
@@ -17,13 +21,13 @@ class _ChattingPageState extends State<ChattingPage> {
   String targetUserName = '';
   final TextEditingController messageController = TextEditingController();
   List<Map<String, dynamic>> groupMembers = [];
-  List<Map<String, String>> chatMessages = [];
+  List<Map<String, dynamic>> chatMessages = [];
 
   @override
   void initState() {
     super.initState();
     _loadGroupMembers();
-    _createChatIfNotExist();
+    _listenToMessages();
   }
 
   void _loadGroupMembers() async {
@@ -31,42 +35,45 @@ class _ChattingPageState extends State<ChattingPage> {
     if (groupSnap.exists) {
       final data = Map<String, dynamic>.from(groupSnap.value as Map);
       final members = Map<String, dynamic>.from(data['members'] ?? {});
+
+      final List<Map<String, dynamic>> loaded = [];
+      for (var emailKey in members.keys) {
+        final userSnap = await db.child('user').child(emailKey).get();
+        final name = userSnap.child('name').value?.toString() ?? emailKey.split('@')[0];
+        loaded.add({'email': emailKey, 'name': name});
+      }
+
       setState(() {
-        groupMembers = members.entries.map((e) {
-          return {
-            'email': e.key,
-            'name': e.key.split('@')[0],
-          };
-        }).toList();
+        groupMembers = loaded;
       });
     }
   }
 
-  void _createChatIfNotExist() async {
-    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
-    if (!chatSnap.exists) {
-      await db.child('groupStudies').child(widget.groupId).child('chat').set({});
-    }
-  }
-
-  void _loadChatMessages() async {
-    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
-    if (chatSnap.exists) {
-      final data = Map<String, dynamic>.from(chatSnap.value as Map);
-      setState(() {
-        chatMessages = data.entries
-            .where((e) =>
-        (e.value['senderId'] == widget.currentUserEmail && e.value['receiverId'] == targetUserEmail) ||
-            (e.value['senderId'] == targetUserEmail && e.value['receiverId'] == widget.currentUserEmail))
+  void _listenToMessages() {
+    db.child('groupStudies').child(widget.groupId).child('chat').onValue.listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists && targetUserEmail.isNotEmpty) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final loaded = data.entries
+            .where((e) {
+          final v = e.value as Map;
+          final msg = v['message']?.toString() ?? '';
+          final isPoke = msg == '공부하세요!' || msg == '상대방을 찔렀습니다';
+          return !isPoke &&
+              ((v['senderId'] == widget.currentUserEmail && v['receiverId'] == targetUserEmail) ||
+                  (v['senderId'] == targetUserEmail && v['receiverId'] == widget.currentUserEmail));
+        })
             .map((e) {
+          final v = e.value as Map;
           return {
-            'senderId': e.value['senderId'] as String,
-            'message': e.value['message'] as String,
-            'timestamp': e.value['timestamp'] as String,
+            'senderId': v['senderId'],
+            'message': v['message'],
+            'timestamp': v['timestamp'],
           };
         }).toList();
-      });
-    }
+        setState(() => chatMessages = loaded);
+      }
+    });
   }
 
   void _sendMessage() async {
@@ -81,13 +88,6 @@ class _ChattingPageState extends State<ChattingPage> {
         'message': message,
         'timestamp': timestamp,
       });
-      setState(() {
-        chatMessages.add({
-          'senderId': widget.currentUserEmail,
-          'message': message,
-          'timestamp': timestamp,
-        });
-      });
       messageController.clear();
     }
   }
@@ -95,31 +95,21 @@ class _ChattingPageState extends State<ChattingPage> {
   void _sendReminderMessage() async {
     if (targetUserEmail.isEmpty) return;
 
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-
-    final chatRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
-    await chatRef.set({
+    final reminderRef = db.child('groupStudies').child(widget.groupId).child('reminder').push();
+    await reminderRef.set({
       'senderId': widget.currentUserEmail,
       'receiverId': targetUserEmail,
       'message': '공부하세요!',
-      'timestamp': timestamp,
-    });
-
-    final reminderRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
-    await reminderRef.set({
-      'senderId': widget.currentUserEmail,
-      'receiverId': widget.currentUserEmail,
-      'message': '상대방을 찔렀습니다',
-      'timestamp': timestamp,
+      'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("상대방에게 '공부하세요!' 알림을 보냈습니다."),
-        backgroundColor: Color(0xFFECE6F0),
+        content: const Text("상대방에게 '공부하세요!' 알림을 보냈습니다."),
+        backgroundColor: const Color(0xFFECE6F0),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -133,7 +123,7 @@ class _ChattingPageState extends State<ChattingPage> {
             // ✅ 왼쪽 회색 멤버 박스
             Container(
               width: 180,
-              margin: const EdgeInsets.only(left: 12, top: 12, bottom: 12),
+              margin: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(15),
@@ -147,7 +137,7 @@ class _ChattingPageState extends State<ChattingPage> {
                       itemBuilder: (context, index) {
                         final member = groupMembers[index];
                         return ListTile(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 0),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 0),
                           title: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -164,7 +154,7 @@ class _ChattingPageState extends State<ChattingPage> {
                             setState(() {
                               targetUserEmail = member['email']!;
                               targetUserName = member['name']!;
-                              _loadChatMessages();
+                              // 메시지는 실시간 onValue에서 자동 반영됨
                             });
                           },
                         );
@@ -175,21 +165,20 @@ class _ChattingPageState extends State<ChattingPage> {
               ),
             ),
 
-            // ✅ 오른쪽 채팅 영역 (4방향 radius 적용)
+            // ✅ 오른쪽 채팅 영역
             Expanded(
               child: Container(
-                margin: const EdgeInsets.only(top: 12, right: 12, bottom: 12),
+                margin: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Column(
                   children: [
-                    // ✅ 상단 AppBar
                     Container(
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Color(0xFFB8BDF1).withOpacity(0.3),
+                        color: const Color(0xFFB8BDF1).withOpacity(0.3),
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(15),
                           topRight: Radius.circular(15),
@@ -238,7 +227,7 @@ class _ChattingPageState extends State<ChattingPage> {
                                     child: Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: Color(0xFFB8BDF1).withOpacity(0.3),
+                                        color: const Color(0xFFB8BDF1).withOpacity(0.3),
                                         borderRadius: BorderRadius.circular(30),
                                       ),
                                       child: Text(chat['message']!),
@@ -260,7 +249,7 @@ class _ChattingPageState extends State<ChattingPage> {
                                 ),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Color(0xFFECE6F0),
+                                    color: const Color(0xFFECE6F0),
                                     borderRadius: BorderRadius.circular(30),
                                   ),
                                   child: IconButton(
