@@ -71,6 +71,10 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   bool isSaving = false;
 
+  bool isNoteMenuVisible = false;
+  Offset? noteMenuPosition;
+
+
   @override
   void initState() {
     super.initState();
@@ -923,7 +927,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                               ),
 
 
-                            // 오른쪽 끝: 키보드 + 선택 아이콘
+                            // 오른쪽 끝: 키보드 + 선택 아이콘 + 메뉴 아이콘
                             Row(
                               children: [
                                 GestureDetector(
@@ -952,6 +956,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                     isSelectMode
                                         ? 'assets/images/clicked_box.png'
                                         : 'assets/images/box.png',
+                                    height: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTapDown: (details) {
+                                    setState(() {
+                                      isNoteMenuVisible = !isNoteMenuVisible;
+                                      noteMenuPosition = details.globalPosition;
+                                    });
+                                  },
+                                  child: Image.asset(
+                                    'assets/images/menu.png',
                                     height: 28,
                                   ),
                                 ),
@@ -1130,6 +1147,46 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                     ),
                                   ),
 
+                                if (isNoteMenuVisible && noteMenuPosition != null)
+                                  Positioned(
+                                    left: noteMenuPosition!.dx - 60,
+                                    top: noteMenuPosition!.dy + 10 - MediaQuery.of(context).padding.top,
+                                    child: Material(
+                                      elevation: 4,
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          InkWell(
+                                            onTap: () {
+                                              print('📄 요약 실행'); // TODO: 실제 요약 함수로 연결
+                                              setState(() {
+                                                isNoteMenuVisible = false;
+                                              });
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                              child: Text('요약', style: TextStyle(fontSize: 16)),
+                                            ),
+                                          ),
+                                          const Divider(height: 1),
+                                          InkWell(
+                                            onTap: () {
+                                              print('🗑️ 삭제 실행'); // TODO: 실제 삭제 함수로 연결
+                                              setState(() {
+                                                isNoteMenuVisible = false;
+                                              });
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                              child: Text('삭제', style: TextStyle(fontSize: 16, color: Colors.red)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
 
                                 if (isStrokePopupVisible)
                                   Positioned.fill(
@@ -1172,6 +1229,20 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                       ),
                                     ),
                                   ),
+                                if (isNoteMenuVisible)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          isNoteMenuVisible = false;
+                                        });
+                                      },
+                                      child: Container(
+                                        color: Colors.transparent,
+                                      ),
+                                    ),
+                                  ),
+
                               ],
                             ),
                           ),
