@@ -1,22 +1,35 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <supports-screens
-        android:smallScreens="false"
-        android:normalScreens="true"
-        android:largeScreens="true"
-        android:xlargeScreens="true"
-        android:anyDensity="true" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"> <!-- ✅ tools 네임스페이스 추가 -->
 
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Android 13 이상 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 🟡 FCM 푸시 알림 권한 추가 (Android 13 이상) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 🔵 파일 접근 권한 -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Android 12 이하 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
 
     <application
         android:label="moditapp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- ✅ FCM 알림 채널 설정 -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="default_channel" />
+
+        <!-- ✅ Firebase 메시지 수신용 서비스 등록 -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="true"
+            tools:replace="android:exported"> <!-- ✅ 충돌 해결 -->
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -27,34 +40,26 @@
             android:hardwareAccelerated="true"
             android:enableOnBackInvokedCallback="true"
             android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <!-- ✅ Flutter 텍스트 공유 관련 쿼리 유지 -->
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
+
 </manifest>

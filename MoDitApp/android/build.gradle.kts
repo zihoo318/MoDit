@@ -1,4 +1,8 @@
-allprojects {
+buildscript {
+    dependencies {
+        classpath("com.google.gms:google-services:4.4.0") // ✅ FCM용 Google Services
+    }
+
     repositories {
         google()
         mavenCentral()

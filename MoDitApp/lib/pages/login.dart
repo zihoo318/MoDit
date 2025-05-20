@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'first_page.dart';
 import 'home.dart';           // 뒤로가기 버튼용 홈
 import 'first_page.dart';   // 로그인 성공 시 이동할 홈 화면
+import 'package:firebase_messaging/firebase_messaging.dart'; // ✅ 추가
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +22,16 @@ class _LoginScreenState extends State<LoginScreen> {
     if (userSnapshot.exists) {
       final data = userSnapshot.value as Map;
       if (data['password'] == password.text) {
+        final userKey = email.text.replaceAll('.', '_'); // ✅ 추가
+        // ✅ FCM 토큰 받아와서 DB에 저장
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          await db.child('user').child(userKey).update({'fcmToken': token});
+
+
+        }
+
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
