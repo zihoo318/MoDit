@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://192.168.159.1:8080";
+  static const String baseUrl = "http://192.168.45.229:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupId) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -30,8 +30,8 @@ class Api {
 
     print("================= print 시작 =====================");
     if (response.statusCode == 200) {
-      print('✅ 업로드 성공');
-      print('📄 결과 본문: ${response.body}');
+      print('업로드 성공');
+      print('결과 본문: ${response.body}');
       return jsonDecode(response.body);
     } else {
       print('오류 상태 코드: ${response.statusCode}');
@@ -112,13 +112,13 @@ class Api {
     );
 
     if (response.statusCode == 200) {
-      print("🗑️ 오브젝트 스토리지 노트 삭제 성공");
+      print("🗑오브젝트 스토리지 노트 삭제 성공");
     } else {
-      print("❌ 삭제 실패: ${response.statusCode} ${response.body}");
+      print("삭제 실패: ${response.statusCode} ${response.body}");
     }
   }
 
-  // 요약 생성 요청 API
+  // 음성녹음 요약 생성 요청 API
   Future<Map<String, dynamic>?> requestSummary(String fileUrl, String groupName) async {
     final uri = Uri.parse('$baseUrl/summary/generate');
 
@@ -144,7 +144,9 @@ class Api {
     }
   }
 
-  Future<String?> uploadAndSummarizeNoteImage(File imageFile, String groupName) async {
+  // 노트 요약(ocr->요약)
+  // 노트 캡처 이미지를 서버로 전송하고, 요약된 텍스트를 바로 반환
+  Future<String?> uploadNoteImageAndSummarize(File imageFile) async {
     final uri = Uri.parse('$baseUrl/ocr/upload_and_summarize_text');
     final request = http.MultipartRequest('POST', uri);
 
@@ -157,14 +159,11 @@ class Api {
       filename: basename(imageFile.path),
     ));
 
-    request.fields['groupName'] = groupName;
-
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
-      print('요약 성공');
       print('요약 결과: ${result['summary']}');
       return result['summary'];
     } else {
