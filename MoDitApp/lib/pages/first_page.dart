@@ -244,8 +244,8 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Transform.translate(
-                  offset: const Offset(-20, 0),
-                  child: Image.asset('assets/images/logo.png', height: 40),
+                  offset: const Offset(-10, 0),
+                  child: Image.asset('assets/images/logo.png', height: 45),
                 ),
                 GestureDetector(
                   onTap: _showFriendAddPopup,

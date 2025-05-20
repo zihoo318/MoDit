@@ -103,7 +103,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 children: [
                   SizedBox(
                     width: cardWidth + 45,
-                    height: screenHeight * 0.80 + 21,
+                    height: screenHeight * 0.9,
                     child: Column(
                       children: [
                         InkWell(
@@ -136,7 +136,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 child: _buildCard(
                                   title: '공지사항',
                                   icon: 'notice_icon',
-                                  iconSize: 52,
+                                  iconSize: 40,
                                   onTap: () => widget.onNavigateToTab?.call(4),
                                 )
                               ),
