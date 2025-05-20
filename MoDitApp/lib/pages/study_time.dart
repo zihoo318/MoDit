@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
+import 'loading_overlay.dart';
 
 class StudyTimeWidget extends StatefulWidget {
   final String groupId;
@@ -29,12 +30,28 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
   @override
   void initState() {
     super.initState();
-    _loadMembers();
-    _listenToStudyTimes();
-    _checkMidnightReset();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData(); // 안전하게 context 사용 가능
+    });
   }
 
-  void _loadMembers() async {
+  Future<void> _initializeData() async {
+    LoadingOverlay.show(context, message: "공부 시간 불러오는 중...");
+
+    try {
+      await _loadMembers(); // 멤버 이름 불러오기
+      _listenToStudyTimes(); // 실시간 리스너 시작
+      _checkMidnightReset();
+    } catch (e) {
+      print("초기화 에러: $e");
+    } finally {
+      LoadingOverlay.hide();
+    }
+  }
+
+
+  Future<void> _loadMembers() async {
     final snap = await db.child('groupStudies').child(widget.groupId).child('members').get();
     if (snap.exists) {
       final members = Map<String, dynamic>.from(snap.value as Map);
@@ -167,7 +184,7 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
               children: [
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text("공부 시간", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text("공부 시간", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 ),
                 Align(
                   alignment: Alignment.center,

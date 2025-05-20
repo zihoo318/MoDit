@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://192.168.45.230:8080";
+  static const String baseUrl = "http://192.168.159.1:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupId) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -139,6 +139,36 @@ class Api {
       return result;
     } else {
       print('요약 요청 실패: ${response.statusCode}');
+      print('본문: ${response.body}');
+      return null;
+    }
+  }
+
+  Future<String?> uploadAndSummarizeNoteImage(File imageFile, String groupName) async {
+    final uri = Uri.parse('$baseUrl/ocr/upload_and_summarize_text');
+    final request = http.MultipartRequest('POST', uri);
+
+    final mimeType = lookupMimeType(imageFile.path) ?? 'image/jpeg';
+
+    request.files.add(await http.MultipartFile.fromPath(
+      'image',
+      imageFile.path,
+      contentType: MediaType.parse(mimeType),
+      filename: basename(imageFile.path),
+    ));
+
+    request.fields['groupName'] = groupName;
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      print('요약 성공');
+      print('요약 결과: ${result['summary']}');
+      return result['summary'];
+    } else {
+      print('요약 실패: ${response.statusCode}');
       print('본문: ${response.body}');
       return null;
     }

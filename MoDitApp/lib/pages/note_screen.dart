@@ -317,7 +317,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     print("[🚀] Flask 서버로 전송 시작");
 
-    final uri = Uri.parse('http://192.168.219.110:8080/ocr/upload');
+    final uri = Uri.parse('http://192.168.159.1:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('image', imageBytes, filename: 'note.jpg'));
 
