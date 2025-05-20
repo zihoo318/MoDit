@@ -624,7 +624,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                                                 },
                                                                 child: const Padding(
                                                                   padding: EdgeInsets.all(12),
-                                                                  child: Text("📓 내부 노트 파일 제출",
+                                                                  child: Text("📓 모딧 노트 제출",
                                                                       style: TextStyle(color: Color(0xFF0D0A64))),
                                                                 ),
                                                               ),

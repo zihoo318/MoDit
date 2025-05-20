@@ -193,6 +193,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
               )
             ],
           ),
+          _buildBackButton(),
         ],
       ),
     );
