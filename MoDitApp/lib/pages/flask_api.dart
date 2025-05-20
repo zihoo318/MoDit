@@ -147,13 +147,13 @@ class Api {
   // 노트 요약(ocr->요약)
   // 노트 캡처 이미지를 서버로 전송하고, 요약된 텍스트를 바로 반환
   Future<String?> uploadNoteImageAndSummarize(File imageFile) async {
-    final uri = Uri.parse('$baseUrl/note/summarize');
+    final uri = Uri.parse('$baseUrl/ocr/upload_and_summarize_text');
     final request = http.MultipartRequest('POST', uri);
 
     final mimeType = lookupMimeType(imageFile.path) ?? 'image/jpeg';
 
     request.files.add(await http.MultipartFile.fromPath(
-      'note',
+      'image',
       imageFile.path,
       contentType: MediaType.parse(mimeType),
       filename: basename(imageFile.path),

@@ -38,7 +38,7 @@ def upload_ocr_image():
 # 노트 전체 요약 함수
 @ocr_bp.route('/upload_and_summarize_text', methods=['POST'])
 def upload_and_summarize_text():
-    if 'image' not in request.files or 'groupName' not in request.form:
+    if 'image' not in request.files not in request.form:
         return jsonify({'error': '이미지가 누락되었습니다.'}), 400
 
     file = request.files['image']

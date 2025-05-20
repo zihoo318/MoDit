@@ -10,11 +10,7 @@ class SummaryPopup extends StatefulWidget {
   const SummaryPopup({super.key, required this.imageFile});
 
   static void show(BuildContext context, {required File imageFile}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const DialogBackgroundWrapper(),
-    );
+    print("팝업 호출됨");
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -75,15 +71,22 @@ class _SummaryPopupState extends State<SummaryPopup> {
             const Divider(thickness: 1, color: Color(0xFF0D0A64)),
             const SizedBox(height: 12),
             isLoading
-                ? Column(
-              children: const [
-                SizedBox(height: 40),
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("AI가 열심히 요약 중입니다...",
-                    style: TextStyle(fontSize: 16, color: Colors.black54)),
-                SizedBox(height: 40),
-              ],
+                ? SizedBox(
+              width: double.infinity, // 팝업 너비에 맞춤
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: const [
+                  SizedBox(height: 40),
+                  Center(child: CircularProgressIndicator()),
+                  SizedBox(height: 16),
+                  Text(
+                    "AI가 열심히 요약 중입니다...",
+                    style: TextStyle(fontSize: 16, color: Colors.black54),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 40),
+                ],
+              ),
             )
                 : SizedBox(
               height: 300,

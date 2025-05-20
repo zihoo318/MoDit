@@ -1317,6 +1317,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                       ),
                                     ),
                                   ),
+                                if (isNoteMenuVisible)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          isNoteMenuVisible = false;
+                                        });
+                                      },
+                                      child: Container(
+                                        color: Colors.transparent,
+                                      ),
+                                    ),
+                                  ),
 
                                 if (isNoteMenuVisible && noteMenuPosition != null)
                                   Positioned(
@@ -1334,6 +1347,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                             onTap: () async {
                                               setState(() => isNoteMenuVisible = false);
 
+                                              await Future.delayed(const Duration(milliseconds: 200)); // 렌더링 대기
+
                                               try {
                                                 final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
                                                 if (boundary != null) {
@@ -1343,13 +1358,14 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                                     final tempFile = await File('${Directory.systemTemp.path}/note_summary.png').create();
                                                     await tempFile.writeAsBytes(byteData.buffer.asUint8List());
 
-                                                    /// 팝업 호출 (팝업 내부에서 요약 API 호출함)
-                                                    print("찹업 호충 직전");
+                                                    //print("팝업 호출 직전");
                                                     SummaryPopup.show(context, imageFile: tempFile);
-                                                    print("찹업 호충 직후");
+                                                    //print("팝업 호출 직후");
                                                   } else {
                                                     throw Exception("바이트 데이터를 가져올 수 없습니다.");
                                                   }
+                                                } else {
+                                                  throw Exception("RepaintBoundary 찾기 실패");
                                                 }
                                               } catch (e) {
                                                 print("요약 처리 중 오류 발생: $e");
@@ -1358,8 +1374,6 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                                     const SnackBar(content: Text('요약 처리 중 오류가 발생했습니다'), backgroundColor: Colors.red),
                                                   );
                                                 }
-                                              } finally {
-                                                LoadingOverlay.hide();
                                               }
                                             },
                                             child: const Padding(
@@ -1426,19 +1440,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                       ),
                                     ),
                                   ),
-                                if (isNoteMenuVisible)
-                                  Positioned.fill(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          isNoteMenuVisible = false;
-                                        });
-                                      },
-                                      child: Container(
-                                        color: Colors.transparent,
-                                      ),
-                                    ),
-                                  ),
+                                // if (isNoteMenuVisible)
+                                //   Positioned.fill(
+                                //     child: GestureDetector(
+                                //       onTap: () {
+                                //         setState(() {
+                                //           isNoteMenuVisible = false;
+                                //         });
+                                //       },
+                                //       child: Container(
+                                //         color: Colors.transparent,
+                                //       ),
+                                //     ),
+                                //   ),
 
                               ],
                             ),
