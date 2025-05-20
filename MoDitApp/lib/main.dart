@@ -48,8 +48,8 @@ class MoDitApp extends StatelessWidget {
       ],
       home: HomeScreen(
       //   groupId: '-OPqe387N6zi4K4UK3IT',
-         currentUserEmail: 'ji@naver.com',
-        currentUserName: 'ji',
+         currentUserEmail: 'ga@naver.com',
+        currentUserName: 'ga',
        ),
     );
     //home: NoteScreen());

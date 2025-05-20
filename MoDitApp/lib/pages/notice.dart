@@ -127,7 +127,7 @@ class _NoticePageState extends State<NoticePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('공지사항', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                const Text('공지사항', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 GestureDetector(
                   onTap: _showNoticeDialog,
                   child: Row(

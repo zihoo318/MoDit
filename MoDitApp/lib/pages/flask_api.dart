@@ -144,4 +144,34 @@ class Api {
     }
   }
 
+  Future<String?> uploadAndSummarizeNoteImage(File imageFile, String groupName) async {
+    final uri = Uri.parse('$baseUrl/ocr/upload_and_summarize_text');
+    final request = http.MultipartRequest('POST', uri);
+
+    final mimeType = lookupMimeType(imageFile.path) ?? 'image/jpeg';
+
+    request.files.add(await http.MultipartFile.fromPath(
+      'image',
+      imageFile.path,
+      contentType: MediaType.parse(mimeType),
+      filename: basename(imageFile.path),
+    ));
+
+    request.fields['groupName'] = groupName;
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      print('요약 성공');
+      print('요약 결과: ${result['summary']}');
+      return result['summary'];
+    } else {
+      print('요약 실패: ${response.statusCode}');
+      print('본문: ${response.body}');
+      return null;
+    }
+  }
+
 }

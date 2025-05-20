@@ -5,12 +5,14 @@ class StudyTimeCard extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
+  final VoidCallback? onDataLoaded;
 
   const StudyTimeCard({
     super.key,
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
+    this.onDataLoaded,
   });
 
   @override
@@ -26,11 +28,22 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
   @override
   void initState() {
     super.initState();
-    _loadMembers();
-    _listenToStudyTimes();
+    // _loadMembers();
+    // _listenToStudyTimes();
+    _loadStudyData(); // 비동기 로딩 시작
   }
 
-  void _loadMembers() async {
+  Future<void> _loadStudyData() async {
+    await _loadMembers(); // 예: 멤버 정보 불러오기
+    _listenToStudyTimes(); // 리스너 등록
+
+    // 모든 데이터 로딩이 끝나면 콜백 호출
+    if (widget.onDataLoaded != null) {
+      widget.onDataLoaded!();
+    }
+  }
+
+  Future<void> _loadMembers() async {
     final snap = await db.child('groupStudies').child(widget.groupId).child('members').get();
     if (snap.exists) {
       final members = Map<String, dynamic>.from(snap.value as Map);
