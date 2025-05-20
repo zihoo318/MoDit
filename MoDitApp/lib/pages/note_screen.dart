@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'loading_overlay.dart'; // 추가
-import 'summary_popup.dart';
+import 'note_summary_popup.dart';
 
 
 
@@ -1343,8 +1343,12 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                                     final tempFile = await File('${Directory.systemTemp.path}/note_summary.png').create();
                                                     await tempFile.writeAsBytes(byteData.buffer.asUint8List());
 
-                                                    // 팝업을 열고 내부에서 요약 API 호출
+                                                    /// 팝업 호출 (팝업 내부에서 요약 API 호출함)
+                                                    print("찹업 호충 직전");
                                                     SummaryPopup.show(context, imageFile: tempFile);
+                                                    print("찹업 호충 직후");
+                                                  } else {
+                                                    throw Exception("바이트 데이터를 가져올 수 없습니다.");
                                                   }
                                                 }
                                               } catch (e) {
@@ -1354,6 +1358,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                                     const SnackBar(content: Text('요약 처리 중 오류가 발생했습니다'), backgroundColor: Colors.red),
                                                   );
                                                 }
+                                              } finally {
+                                                LoadingOverlay.hide();
                                               }
                                             },
                                             child: const Padding(
