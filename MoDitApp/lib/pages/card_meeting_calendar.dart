@@ -3,7 +3,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class MeetingCalendarCard extends StatefulWidget {
-  const MeetingCalendarCard({super.key});
+  final String groupId; // ✅ 그룹 ID 추가
+
+  const MeetingCalendarCard({super.key, required this.groupId});
 
   @override
   State<MeetingCalendarCard> createState() => _MeetingCalendarCardState();
@@ -14,51 +16,58 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
   DateTime focusedDate = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
   final db = FirebaseDatabase.instance.ref();
-  final Map<DateTime, List<String>> eventMap = {};
+  late Map<DateTime, List<String>> eventMap;
 
   @override
   void initState() {
     super.initState();
-    _loadMeetingEvents();
+    eventMap = {};
+    _listenGroupMeetingEvents();
   }
 
-  void _loadMeetingEvents() async {
-    final snapshot = await db.child('groupStudies').get();
+  void _listenGroupMeetingEvents() {
+    db.child('groupStudies/${widget.groupId}/meeting').onValue.listen((event) {
+      final data = event.snapshot.value;
+      if (data == null) return;
 
-    if (snapshot.exists) {
-      final groupStudies = Map<String, dynamic>.from(snapshot.value as Map);
+      final meetings = Map<String, dynamic>.from(data as Map);
+      final newEventMap = <DateTime, List<String>>{};
 
-      for (final groupEntry in groupStudies.entries) {
-        final group = groupEntry.value;
-        if (group is Map && group.containsKey('meeting')) {
-          final meetings = Map<String, dynamic>.from(group['meeting']);
-          for (final entry in meetings.entries) {
-            final meeting = Map<String, dynamic>.from(entry.value);
-            if (meeting['date'] != null) {
-              final date = DateTime.tryParse(meeting['date']);
-              if (date != null) {
-                final day = DateTime(date.year, date.month, date.day);
-                eventMap.putIfAbsent(day, () => []).add(meeting['title'] ?? '미팅');
-              }
-            }
+      for (final entry in meetings.entries) {
+        final meeting = Map<String, dynamic>.from(entry.value);
+
+        final rawTitle = meeting['title']?.toString().trim();
+        final hasValidTitle = rawTitle != null && rawTitle.isNotEmpty;
+
+        if (hasValidTitle && meeting['date'] != null) {
+          final parsedDate = DateTime.tryParse(meeting['date']);
+          if (parsedDate != null) {
+            final normalizedDay = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+            newEventMap.putIfAbsent(normalizedDay, () => []).add(rawTitle);
           }
         }
       }
 
-      setState(() {});
-    }
+      newEventMap.removeWhere((_, v) => v.isEmpty);
+
+      setState(() {
+        eventMap = newEventMap;
+      });
+    });
   }
 
   List<String> getEventsForDay(DateTime day) {
-    return eventMap[DateTime(day.year, day.month, day.day)] ?? [];
+    final events = eventMap[DateTime(day.year, day.month, day.day)] ?? [];
+    return List.from(events);
   }
 
   @override
   Widget build(BuildContext context) {
     final events = getEventsForDay(selectedDate);
-
-    // ✅ Month 모드일 경우 더 작은 높이 사용
-    final double listHeight = (events.length * 48.0).clamp(60.0, 240.0);
+    final double baseHeight = (events.length * 48.0).clamp(60.0, 240.0);
+    final double listHeight = _calendarFormat == CalendarFormat.month
+        ? baseHeight * 0.5
+        : baseHeight;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -70,6 +79,7 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TableCalendar(
+            key: ValueKey("${eventMap.hashCode}-${DateTime.now().millisecondsSinceEpoch}"),
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: focusedDate,
@@ -94,15 +104,14 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
             headerStyle: HeaderStyle(
               formatButtonVisible: true,
               formatButtonShowsNext: false,
-              formatButtonTextStyle: const TextStyle(fontSize: 14),
+              formatButtonTextStyle: TextStyle(fontSize: 14),
               formatButtonDecoration: BoxDecoration(
                 border: Border.all(color: Colors.black26),
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-          const SizedBox(height: 6), // 🔧 더 여유 줄이기
-
+          const SizedBox(height: 6),
           if (events.isNotEmpty)
             SizedBox(
               height: listHeight,
@@ -128,7 +137,6 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
                 ),
               ),
             )
-
           else
             const Padding(
               padding: EdgeInsets.only(top: 6),

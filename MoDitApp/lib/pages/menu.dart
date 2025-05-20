@@ -204,7 +204,8 @@ class _MenuScreenState extends State<MenuScreen> {
                         title: '미팅 일정 & 녹음',
                         icon: 'calendar_icon',
                         iconSize: 29,
-                        child: const MeetingCalendarCard(),
+                        child: MeetingCalendarCard(groupId: widget.groupId),
+
                       ),
                     ),
                   ),
