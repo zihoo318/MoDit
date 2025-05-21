@@ -205,7 +205,6 @@ class _MenuScreenState extends State<MenuScreen> {
                         icon: 'calendar_icon',
                         iconSize: 29,
                         child: MeetingCalendarCard(groupId: widget.groupId),
-
                       ),
                     ),
                   ),
