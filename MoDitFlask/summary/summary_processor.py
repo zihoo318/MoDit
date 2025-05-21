@@ -21,29 +21,13 @@ def summarize_from_ncp(file_url, group_name):
 
     # 2. GPT 요약 요청
     summary_text = request_summary_from_voice(content)
-    print("gpt 요약 결과 : ",summary_text)
+    print("gpt 요약 결과 : ", summary_text)
 
-    # 3. 요약 결과 저장
-    base_filename = str(uuid.uuid4())
-    grouped_filename = f"{group_name}_{base_filename}.txt"
-    with open(grouped_filename, 'w', encoding='utf-8') as f:
-        f.write(summary_text)
-
-    # 4. NCP Object Storage 업로드
-    object_key = f"summary/{grouped_filename}"
-    text_url = upload_to_object_storage(grouped_filename, object_key)
-    os.remove(grouped_filename)
-
+    # 3. 바로 반환 (파일 저장, 업로드 없이)
     return {
-        "summary_url": text_url,
-        "summary_preview": summary_text[:100]
+        "summary_text": summary_text,
     }
 
-    # # 이 위까지의 코드가 실제 코드 아래는 테스트용 가짜 코드===================================
-    # print(f"[TEST MODE] gpt 호출 생략됨.")
-
-    # # === 가짜 결과 반환 ===
-    # return "이것은 테스트용 gpt 결과입니다."
 
 def request_summary_from_note(text):
     prompt = f"""

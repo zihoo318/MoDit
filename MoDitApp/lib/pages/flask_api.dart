@@ -133,16 +133,16 @@ class Api {
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
-      print('요약 요청 성공');
-      print('요약 URL: ${result['summary_url']}');
-      print('요약 미리보기: ${result['summary_preview']}');
+      print('녹음텍스트 요약 요청 성공');
+      print('요약 텍스트: ${result['summary_text']}');
       return result;
     } else {
-      print('요약 요청 실패: ${response.statusCode}');
+      print('녹음텍스트 요약 요청 실패: ${response.statusCode}');
       print('본문: ${response.body}');
       return null;
     }
   }
+
 
   // 노트 요약(ocr->요약)
   // 노트 캡처 이미지를 서버로 전송하고, 요약된 텍스트를 바로 반환
@@ -170,6 +170,34 @@ class Api {
       print('요약 실패: ${response.statusCode}');
       print('본문: ${response.body}');
       return null;
+    }
+  }
+
+  // 스토리지에서 음성녹음파일, 텍스트화 파일, 요약본 한번에 삭제
+  Future<void> deleteRecordingFiles({
+    required String audioUrl,
+    required String textUrl,
+    String? summaryUrl,
+  }) async {
+    final uri = Uri.parse('$baseUrl/stt/delete_audio_text'); // Flask 서버 주소
+
+    final body = {
+      'audio_url': audioUrl,
+      'text_url': textUrl,
+      if (summaryUrl != null) 'summary_url': summaryUrl,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      print("스토리지에서 녹음, 텍스트, 요약 삭제 성공");
+      print("응답: ${response.body}");
+    } else {
+      print("삭제 실패: ${response.statusCode} - ${response.body}");
     }
   }
 

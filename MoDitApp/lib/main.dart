@@ -12,7 +12,6 @@ import 'package:moditapp/pages/join.dart';
 import 'pages/home.dart';
 import 'pages/login.dart'; // 👈 login.dart 임포트 추가
 import 'pages/note_screen.dart';
-import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
