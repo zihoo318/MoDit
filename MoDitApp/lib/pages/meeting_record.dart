@@ -43,10 +43,8 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   int? _playingIndex;
   String? _selectedTextUrl;
   Future<Map<String, dynamic>?>? _summaryFuture; // 요약 요청 Future를 저장
-  Future<http.Response>? _summaryTextFuture; // 요약 텍스트용 캐시 Future
   String? _cachedTextUrl;
   Future<http.Response>? _textFuture;
-  String? _cachedSummaryUrl;
 
 
   Duration _currentPosition = Duration.zero;
@@ -241,6 +239,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
       setState(() {
         recordings.add({
+          'key': newRef.key,
           'name': name,
           'timestamp': DateTime.now(),
           'url': uploadedUrl,
@@ -319,7 +318,11 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
       // 서버에서도 삭제
       final api = Api();
-      await api.deleteNoteFile(widget.groupId, recording['name']); // audio_url 기반 처리 시 Flask에서도 처리 필요
+      await api.deleteRecordingFiles(
+        audioUrl: recording['url'],
+        textUrl: recording['text_url'],
+      );
+
 
       setState(() {
         if (_playingIndex == index) {
@@ -461,11 +464,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                     _textFuture = http.get(Uri.parse(textUrl));
                                   }
 
-                                  if (_cachedSummaryUrl != textUrl) {
-                                    _cachedSummaryUrl = textUrl;
-                                    _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
-                                    _summaryTextFuture = null; // 새로 받을 준비
-                                  }
+                                  _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
 
                                   setState(() {
                                     _selectedTextUrl = textUrl;
@@ -558,42 +557,15 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState == ConnectionState.waiting) {
                                     return const Center(child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
+                                  } else if (!snapshot.hasData || snapshot.data!['summary_text'] == null) {
                                     return const Text("요약본을 불러오는 데 실패했습니다.");
                                   } else {
-                                    final summaryUrl = snapshot.data!['summary_url'];
-                                    return FutureBuilder<Map<String, dynamic>?>(
-                                      future: _summaryFuture,
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const Center(child: CircularProgressIndicator());
-                                        } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
-                                          return const Text("요약본을 불러오는 데 실패했습니다.");
-                                        } else {
-                                          final summaryUrl = snapshot.data!['summary_url'];
-
-                                          // ✅ 캐싱된 요약 텍스트 Future가 없을 때만 생성
-                                          _summaryTextFuture ??= http.get(Uri.parse(summaryUrl));
-
-                                          return FutureBuilder<http.Response>(
-                                            future: _summaryTextFuture,
-                                            builder: (context, summarySnapshot) {
-                                              if (summarySnapshot.connectionState == ConnectionState.waiting) {
-                                                return const Center(child: CircularProgressIndicator());
-                                              } else if (!summarySnapshot.hasData || summarySnapshot.data!.statusCode != 200) {
-                                                return const Text("요약본 텍스트를 불러오는 데 실패했습니다.");
-                                              } else {
-                                                return SingleChildScrollView(
-                                                  child: Text(
-                                                    summarySnapshot.data!.body,
-                                                    style: const TextStyle(fontSize: 14),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                          );
-                                        }
-                                      },
+                                    final summaryText = snapshot.data!['summary_text'];
+                                    return SingleChildScrollView(
+                                      child: Text(
+                                        summaryText,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
                                     );
                                   }
                                 },

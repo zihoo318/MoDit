@@ -44,7 +44,7 @@ class SubmitChoicePopup extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('내부 노트 파일 제출', style: TextStyle(fontSize: 16)),
+            child: const Text('모딧 노트 파일 제출', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 10),
           OutlinedButton(

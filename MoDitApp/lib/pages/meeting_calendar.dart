@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'dart:ui';
 
 class MeetingCalendarWidget extends StatefulWidget {
   final String groupId;
@@ -146,7 +147,6 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
       ),
     );
   }
-
   void showAddMeetingDialog() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -163,78 +163,120 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
     showDialog(
       context: context,
       builder: (_) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24, // 키보드 높이만큼 아래 띄우기
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 450,
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
               ),
-              child: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: 500,
-                    maxHeight: MediaQuery.of(context).size.height * 0.9,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('미팅 일정 추가', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        Text(DateFormat('yyyy.MM.dd').format(pickedDate)),
-                        const SizedBox(height: 16),
-                        TextField(controller: participantsController, decoration: const InputDecoration(hintText: '참여자 (쉼표로 구분)')),
-                        const SizedBox(height: 12),
-                        TextField(controller: locationController, decoration: const InputDecoration(hintText: '장소')),
-                        const SizedBox(height: 12),
-                        TextField(controller: topicController, decoration: const InputDecoration(hintText: '미팅 주제')),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () async {
-                                final newMeeting = {
-                                  'date': DateFormat('yyyy-MM-dd').format(pickedDate),
-                                  'title': topicController.text,
-                                  'members': participantsController.text.split(',').map((e) => e.trim()).toList(),
-                                  'location': locationController.text,
-                                  'createdAt': ServerValue.timestamp,
-                                };
-
-                                final ref = db.child('groupStudies/${widget.groupId}/meeting').push();
-                                await ref.set(newMeeting);
-
-                                setState(() {
-                                  meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
-                                  selectedDate = pickedDate;
-                                  focusedDate = pickedDate;
-                                });
-
-                                Navigator.pop(context);
-                              },
-                              child: const Text("등록"),
-                            ),
-                          ],
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '📅 미팅 일정 추가',
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
+                      ),
+                      const SizedBox(height: 20),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          DateFormat('yyyy.MM.dd').format(pickedDate),
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: participantsController,
+                        decoration: const InputDecoration(
+                          labelText: '참여자 (쉼표로 구분)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: locationController,
+                        decoration: const InputDecoration(
+                          labelText: '장소',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: topicController,
+                        decoration: const InputDecoration(
+                          labelText: '미팅 주제',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                              foregroundColor: const Color(0xFF0D0A64),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text("취소"),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final newMeeting = {
+                                'date': DateFormat('yyyy-MM-dd').format(pickedDate),
+                                'title': topicController.text,
+                                'members': participantsController.text.split(',').map((e) => e.trim()).toList(),
+                                'location': locationController.text,
+                                'createdAt': ServerValue.timestamp,
+                              };
+
+                              final ref = db.child('groupStudies/${widget.groupId}/meeting').push();
+                              await ref.set(newMeeting);
+
+                              setState(() {
+                                meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
+                                selectedDate = pickedDate;
+                                focusedDate = pickedDate;
+                              });
+
+                              Navigator.pop(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                              foregroundColor: const Color(0xFF0D0A64),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text("등록"),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
-
   }
-
 
   @override
   Widget build(BuildContext context) {
