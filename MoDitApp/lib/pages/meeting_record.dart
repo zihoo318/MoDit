@@ -43,10 +43,8 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   int? _playingIndex;
   String? _selectedTextUrl;
   Future<Map<String, dynamic>?>? _summaryFuture; // 요약 요청 Future를 저장
-  Future<http.Response>? _summaryTextFuture; // 요약 텍스트용 캐시 Future
   String? _cachedTextUrl;
   Future<http.Response>? _textFuture;
-  String? _cachedSummaryUrl;
 
 
   Duration _currentPosition = Duration.zero;
@@ -91,6 +89,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         recordings = data.entries.map((entry) {
           final value = Map<String, dynamic>.from(entry.value);
           return {
+            'key': entry.key, // ✅ 추가
             'name': value['name'] ?? '이름 없음',
             'timestamp': DateTime.tryParse(value['timestamp'] ?? '') ??
                 DateTime.now(),
@@ -240,6 +239,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
       setState(() {
         recordings.add({
+          'key': newRef.key,
           'name': name,
           'timestamp': DateTime.now(),
           'url': uploadedUrl,
@@ -290,6 +290,53 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
           ),
     );
   }
+
+  void _deleteRecording(int index) async {
+      final recording = recordings[index];
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("삭제 확인"),
+          content: const Text("이 녹음 파일을 삭제하시겠습니까?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("취소"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("확인"),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      // Firebase에서 삭제
+      await db.child('groupStudies/${widget.groupId}/recordings/${widget.meetingId}/${recording['key']}').remove();
+
+      // 서버에서도 삭제
+      final api = Api();
+      await api.deleteRecordingFiles(
+        audioUrl: recording['url'],
+        textUrl: recording['text_url'],
+      );
+
+
+      setState(() {
+        if (_playingIndex == index) {
+          _isPlaying = false;
+          _playingIndex = null;
+        }
+        recordings.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("녹음이 삭제되었습니다.")),
+      );
+    }
+
 
   @override
   Widget build(BuildContext context) {
@@ -353,50 +400,62 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                               subtitle: Text(
                                   DateFormat('yyyy.MM.dd HH:mm:ss').format(
                                       r['timestamp'])),
-                              trailing: IconButton(
-                                icon: Icon(
-                                  _playingIndex == index && _isPlaying ? Icons
-                                      .stop : Icons.play_arrow,
-                                ),
-                                onPressed: () async {
-                                  if (_isPlaying) {
-                                    await _player.stop();
-                                    await _progressSubscription?.cancel();
-                                    setState(() {
-                                      _isPlaying = false;
-                                      _playingIndex = null;
-                                      _currentPosition = Duration.zero;
-                                      _totalDuration = Duration.zero;
-                                    });
-                                    return;
-                                  }
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      _playingIndex == index && _isPlaying ? Icons.stop : Icons.play_arrow,
+                                    ),
+                                    onPressed: () async {
+                                      if (_isPlaying && _playingIndex == index) {
+                                        await _player.stop();
+                                        await _progressSubscription?.cancel();
+                                        setState(() {
+                                          _isPlaying = false;
+                                          _playingIndex = null;
+                                          _currentPosition = Duration.zero;
+                                          _totalDuration = Duration.zero;
+                                        });
+                                        return;
+                                      }
 
-                                  await _progressSubscription?.cancel();
-                                  await _player.setUrl(r['url']);
-                                  await _player.play();
+                                      await _progressSubscription?.cancel();
+                                      await _player.setUrl(r['url']);
+                                      await _player.load();
 
-                                  _progressSubscription =
-                                      _player.positionStream.listen((position) {
+                                      // delay를 주고 duration을 수동으로 다시 fetch
+                                      await Future.delayed(const Duration(milliseconds: 100));
+                                      final duration = _player.duration;
+
+                                      setState(() {
+                                        _totalDuration = duration ?? Duration.zero;
+                                        _currentPosition = Duration.zero;
+                                        _isPlaying = true;
+                                        _playingIndex = index;
+                                      });
+
+                                      _progressSubscription = _player.positionStream.listen((position) {
                                         if (!mounted) return;
                                         setState(() {
                                           _currentPosition = position;
                                         });
                                       });
 
-                                  _player.durationStream.listen((duration) {
-                                    if (duration != null && mounted) {
-                                      setState(() {
-                                        _totalDuration = duration;
-                                      });
-                                    }
-                                  });
+                                      await _player.play();
+                                    },
+                                  ),
 
-                                  setState(() {
-                                    _isPlaying = true;
-                                    _playingIndex = index;
-                                  });
-                                },
+
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () {
+                                      _deleteRecording(index);
+                                    },
+                                  ),
+                                ],
                               ),
+
                               onTap: () {
                                 if (r.containsKey('text_url')) {
                                   final textUrl = r['text_url'];
@@ -405,11 +464,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                     _textFuture = http.get(Uri.parse(textUrl));
                                   }
 
-                                  if (_cachedSummaryUrl != textUrl) {
-                                    _cachedSummaryUrl = textUrl;
-                                    _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
-                                    _summaryTextFuture = null; // 새로 받을 준비
-                                  }
+                                  _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
 
                                   setState(() {
                                     _selectedTextUrl = textUrl;
@@ -502,42 +557,15 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState == ConnectionState.waiting) {
                                     return const Center(child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
+                                  } else if (!snapshot.hasData || snapshot.data!['summary_text'] == null) {
                                     return const Text("요약본을 불러오는 데 실패했습니다.");
                                   } else {
-                                    final summaryUrl = snapshot.data!['summary_url'];
-                                    return FutureBuilder<Map<String, dynamic>?>(
-                                      future: _summaryFuture,
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const Center(child: CircularProgressIndicator());
-                                        } else if (!snapshot.hasData || snapshot.data!['summary_url'] == null) {
-                                          return const Text("요약본을 불러오는 데 실패했습니다.");
-                                        } else {
-                                          final summaryUrl = snapshot.data!['summary_url'];
-
-                                          // ✅ 캐싱된 요약 텍스트 Future가 없을 때만 생성
-                                          _summaryTextFuture ??= http.get(Uri.parse(summaryUrl));
-
-                                          return FutureBuilder<http.Response>(
-                                            future: _summaryTextFuture,
-                                            builder: (context, summarySnapshot) {
-                                              if (summarySnapshot.connectionState == ConnectionState.waiting) {
-                                                return const Center(child: CircularProgressIndicator());
-                                              } else if (!summarySnapshot.hasData || summarySnapshot.data!.statusCode != 200) {
-                                                return const Text("요약본 텍스트를 불러오는 데 실패했습니다.");
-                                              } else {
-                                                return SingleChildScrollView(
-                                                  child: Text(
-                                                    summarySnapshot.data!.body,
-                                                    style: const TextStyle(fontSize: 14),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                          );
-                                        }
-                                      },
+                                    final summaryText = snapshot.data!['summary_text'];
+                                    return SingleChildScrollView(
+                                      child: Text(
+                                        summaryText,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
                                     );
                                   }
                                 },
