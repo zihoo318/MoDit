@@ -84,6 +84,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -109,6 +110,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                     ...List.generate(menuTitles.length, (index) {
                       final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
                       final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
+
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: GestureDetector(
@@ -118,7 +120,9 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               isRecordingView = false;
                             });
                           },
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
                             decoration: BoxDecoration(
                               color: selected ? const Color(0xFFB8BDF1).withOpacity(0.3) : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
@@ -127,24 +131,30 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.all(12),
-                                  child: Image.asset(
-                                    'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
-                                    width: 22,
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Image.asset(
+                                      'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
+                                      key: ValueKey(selected), // 상태 변화 감지용 키
+                                      width: 22,
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  menuTitles[index],
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 300),
                                   style: TextStyle(
                                     fontSize: 18,
                                     color: selected ? const Color(0xFF6495ED) : Colors.black54,
                                   ),
-                                )
+                                  child: Text(menuTitles[index]),
+                                ),
                               ],
                             ),
                           ),
                         ),
                       );
                     }),
+
                   ],
                 ),
               ),
@@ -234,33 +244,42 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   }
 
   Widget _buildSelectedContent() {
-    if (_selectedIndex == 0) {
-      return MenuScreen(
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        // 예: Scale + Fade 효과
+        return ScaleTransition(
+          scale: animation,
+          child: FadeTransition(opacity: animation, child: child),
+        );
+      },
+      child: _selectedIndex == 0
+          ? MenuScreen(
+        key: const ValueKey('menu'), // 키 필수
         groupId: widget.groupId,
         currentUserEmail: widget.currentUserEmail,
         currentUserName: widget.currentUserName,
         onNavigateToTab: (int index) {
           setState(() => _selectedIndex = index);
         },
-      );
-    }
-    return Column(
-      children: [
-        const SizedBox(height: 10),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(40),
-            ),
-            child: _getContentForOtherTabs(),
-          ),
-        ),
-      ],
+      )
+          : _animatedTabWrapper(_selectedIndex),
     );
   }
+
+  Widget _animatedTabWrapper(int index) {
+    return Container(
+      key: ValueKey(index), // 꼭 있어야 AnimatedSwitcher가 동작함
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: _getContentForOtherTabs(),
+    );
+  }
+
 
   Widget _getContentForOtherTabs() {
     switch (_selectedIndex) {
