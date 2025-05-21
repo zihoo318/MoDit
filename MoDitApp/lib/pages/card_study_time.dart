@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'dart:async';
+
+import 'loading_overlay.dart';
+
 
 class StudyTimeCard extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
-  final VoidCallback? onDataLoaded;
 
   const StudyTimeCard({
     super.key,
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
-    this.onDataLoaded,
   });
 
   @override
@@ -21,30 +23,30 @@ class StudyTimeCard extends StatefulWidget {
 
 class _StudyTimeCardState extends State<StudyTimeCard> {
   final db = FirebaseDatabase.instance.ref();
-  Map<String, int> studySeconds = {}; // 초 단위
-  Map<String, String> memberNames = {}; // 이메일 → 이름 매핑
-  Set<String> currentlyStudying = {}; // 공부 중인 사람
+  Map<String, int> studySeconds = {};
+  Map<String, String> memberNames = {};
+  Map<String, dynamic> studyTimes = {};
+  Timer? _refreshTimer;
+  bool _studyTimeLoaded = false; // 로딩 해제 여부
+
 
   @override
   void initState() {
     super.initState();
-    // _loadMembers();
-    // _listenToStudyTimes();
-    _loadStudyData(); // 비동기 로딩 시작
+    _initialize();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
-  Future<void> _loadStudyData() async {
-    await _loadMembers(); // 예: 멤버 정보 불러오기
-    _listenToStudyTimes(); // 리스너 등록
-
-    // 모든 데이터 로딩이 끝나면 콜백 호출
-    if (widget.onDataLoaded != null) {
-      widget.onDataLoaded!();
-    }
+  void _initialize() async {
+    await _loadMembers();      // 여기까진 기다리되
+    _listenToStudyTimes();     // studyTimes 수신 시점에 로딩 해제
   }
+
 
   Future<void> _loadMembers() async {
-    final snap = await db.child('groupStudies').child(widget.groupId).child('members').get();
+    final snap = await db.child('groupStudies/${widget.groupId}/members').get();
     if (snap.exists) {
       final members = Map<String, dynamic>.from(snap.value as Map);
       for (var email in members.keys) {
@@ -59,34 +61,47 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
   }
 
   void _listenToStudyTimes() {
-    db.child('groupStudies').child(widget.groupId).child('studyTimes').onValue.listen((event) {
+    db.child('groupStudies/${widget.groupId}/studyTimes').onValue.listen((event) {
       if (event.snapshot.exists) {
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
         setState(() {
-          studySeconds = {};
-          currentlyStudying.clear();
-          data.forEach((emailKey, value) {
-            studySeconds[emailKey] = value['elapsed'] ?? 0;
-            if (value['isStudying'] == true) {
-              currentlyStudying.add(emailKey);
-            }
-          });
+          studyTimes = data;
         });
+
+        if (!_studyTimeLoaded) {
+          _studyTimeLoaded = true;
+          LoadingOverlay.hide(); // 🎯 최초 수신 시 로딩 해제
+        }
       }
     });
   }
 
+
+  int _calculateRealTimeSeconds(String emailKey) {
+    final data = studyTimes[emailKey];
+    if (data == null) return 0;
+    int base = data['elapsed'] ?? 0;
+    if (data['isStudying'] == true && data['startTime'] != null) {
+      final start = DateTime.tryParse(data['startTime']);
+      if (start != null) {
+        final now = DateTime.now().toUtc();
+        base += now.difference(start).inSeconds;
+      }
+    }
+    return base;
+  }
+
   String _formatTime(int seconds) {
-    final hours = (seconds ~/ 3600).toString().padLeft(2, '0');
-    final minutes = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
-    final secs = (seconds % 60).toString().padLeft(2, '0');
-    return "$hours:$minutes:$secs";
+    final h = (seconds ~/ 3600).toString().padLeft(2, '0');
+    final m = ((seconds % 3600) ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return "$h:$m:$s";
   }
 
   Widget _buildStudent(String emailKey) {
     final name = memberNames[emailKey] ?? emailKey.split('@')[0];
-    final seconds = studySeconds[emailKey] ?? 0;
-    final isStudying = currentlyStudying.contains(emailKey);
+    final seconds = _calculateRealTimeSeconds(emailKey);
+    final isStudying = studyTimes[emailKey]?['isStudying'] == true;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -99,18 +114,20 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
           height: 35,
         ),
         const SizedBox(height: 7),
-        Text(
-          _formatTime(seconds),
-          style: const TextStyle(fontSize: 12),
-        ),
+        Text(_formatTime(seconds), style: const TextStyle(fontSize: 12)),
       ],
     );
   }
 
   @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final members = memberNames.keys.toList();
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
