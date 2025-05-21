@@ -155,31 +155,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 하드코딩 노트카드
-  Widget _buildNoteCardWithImage(String imagePath, String title) {
-    return AspectRatio(
-      aspectRatio: 14 / 9,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Expanded(
-              child: Image.asset(imagePath, fit: BoxFit.cover),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(6),
-              child: Text(title, style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildNoteAddCard(VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -280,37 +255,34 @@ class _HomeScreenState extends State<HomeScreen> {
     if (snap.exists) {
       final existingSnap = snap.children.first;
       final noteId = existingSnap.key;
+      final safeEmail = widget.currentUserEmail.replaceAll('.', '_');
+      final noteData = Map<String, dynamic>.from(existingSnap.value as Map);
 
-      // FirebaseDatabase에서 삭제
+      // 1. FirebaseDatabase에서 삭제
       await db.child('notes').child(userKey).child(noteId!).remove();
 
-      // FirebaseStorage에서 해당 노트의 이미지 삭제
+      // 2. FirebaseStorage에서 해당 노트 폴더 내 파일 전체 삭제
       try {
-        final safeTitle = Uri.encodeComponent(title);
-        final storageRef = FirebaseStorage.instance
+        final folderRef = FirebaseStorage.instance
             .ref()
-            .child('notes/$userKey');
+            .child('notes/$safeEmail/$title');
 
-// 이 경로 하위 전체 파일을 가져와 title이 포함된 것 삭제
-        final ListResult result = await storageRef.listAll();
+        final ListResult result = await folderRef.listAll();
+        if (result.items.isEmpty) {
+          print('⚠️ 삭제할 파일이 없습니다. 경로 확인 필요: ${folderRef.fullPath}');
+        }
         for (final item in result.items) {
-          final nameDecoded = Uri.decodeComponent(item.name);
-          if (nameDecoded.contains(title)) {
-            await item.delete();
-            print('🗑️ 삭제된 파일: ${item.name}');
-          }
+          print('🔍 삭제 시도 중: ${item.fullPath}');
+          await item.delete();
+          print('🗑️ 삭제된 파일: ${item.fullPath}');
         }
 
-
-        print('✅ Firebase Storage 이미지 삭제 완료');
+        print('✅ Firebase Storage 노트 폴더 내 이미지 전체 삭제 완료');
       } catch (e) {
         print('⚠️ Firebase Storage 이미지 삭제 실패: $e');
       }
     }
   }
-
-
-
 
 
   @override
