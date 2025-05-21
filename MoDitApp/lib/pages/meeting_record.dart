@@ -6,7 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter_animate/flutter_animate.dart';
 import 'flask_api.dart';
 
 import 'dart:async'; // 꼭 필요!
@@ -146,12 +146,26 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                   borderRadius: BorderRadius.circular(20)),
               title: Column(
                 children: [
-                  const Icon(Icons.mic, size: 40, color: Color(0xFF9F8DF1)),
+                  Animate(
+                    onPlay: (controller) => controller.repeat(reverse: true),
+                    effects: [
+                      ScaleEffect(
+                        begin: const Offset(1.0, 1.0),
+                        end: const Offset(1.4, 1.4),
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.easeInOut,
+                      ),
+                    ],
+                    child: const Icon(Icons.mic, size: 40, color: Color(0xFF9F8DF1)),
+                  ),
                   const SizedBox(height: 8),
-                  Text(_formatDuration(recordDuration),
-                      style: const TextStyle(fontSize: 24)),
+                  Text(
+                    _formatDuration(recordDuration),
+                    style: const TextStyle(fontSize: 24),
+                  ),
                 ],
               ),
+
               actions: [
                 ElevatedButton(
                   onPressed: () {
