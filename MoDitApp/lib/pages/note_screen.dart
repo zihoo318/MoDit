@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'loading_overlay.dart'; // 추가
+import 'note_summary_popup.dart';
 
 
 
@@ -317,7 +318,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     print("[🚀] Flask 서버로 전송 시작");
 
-    final uri = Uri.parse('http://192.168.219.110:8080/ocr/upload');
+    final uri = Uri.parse('http://192.168.45.229:8080/ocr/upload');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('image', imageBytes, filename: 'note.jpg'));
 
@@ -1144,12 +1145,21 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                             child: Stack(
                               key: _stackKey,
                               children: [
-
                                 Positioned.fill(
                                   child: CustomPaint(
                                     painter: _BackgroundPainter(), // 흰 배경만 그리는 별도 페인터
                                   ),
                                 ),
+                                // if (isDrawingMode)
+                                //   Positioned.fill(
+                                //     child: Listener(
+                                //       onPointerDown: _handleStylusDown,
+                                //       onPointerMove: _handleStylusMove,
+                                //       onPointerUp: _handleStylusUp,
+                                //       behavior: HitTestBehavior.translucent,
+                                //       child: Container(),
+                                //     ),
+                                //   ),
 
                                 if (isSelectMode)
                                   Positioned.fill(
@@ -1307,7 +1317,87 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                       ),
                                     ),
                                   ),
+                                if (isNoteMenuVisible)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          isNoteMenuVisible = false;
+                                        });
+                                      },
+                                      child: Container(
+                                        color: Colors.transparent,
+                                      ),
+                                    ),
+                                  ),
 
+                                if (isNoteMenuVisible && noteMenuPosition != null)
+                                  Positioned(
+                                    left: noteMenuPosition!.dx - 60,
+                                    top: noteMenuPosition!.dy + 10 - MediaQuery.of(context).padding.top,
+                                    child: Material(
+                                      elevation: 4,
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          InkWell(
+                                            // 요약 버튼 탭 시 동작
+                                            onTap: () async {
+                                              setState(() => isNoteMenuVisible = false);
+
+                                              await Future.delayed(const Duration(milliseconds: 200)); // 렌더링 대기
+
+                                              try {
+                                                final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+                                                if (boundary != null) {
+                                                  final image = await boundary.toImage(pixelRatio: 3.0);
+                                                  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                                                  if (byteData != null) {
+                                                    final tempFile = await File('${Directory.systemTemp.path}/note_summary.png').create();
+                                                    await tempFile.writeAsBytes(byteData.buffer.asUint8List());
+
+                                                    //print("팝업 호출 직전");
+                                                    SummaryPopup.show(context, imageFile: tempFile);
+                                                    //print("팝업 호출 직후");
+                                                  } else {
+                                                    throw Exception("바이트 데이터를 가져올 수 없습니다.");
+                                                  }
+                                                } else {
+                                                  throw Exception("RepaintBoundary 찾기 실패");
+                                                }
+                                              } catch (e) {
+                                                print("요약 처리 중 오류 발생: $e");
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(content: Text('요약 처리 중 오류가 발생했습니다'), backgroundColor: Colors.red),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                              child: Text('요약', style: TextStyle(fontSize: 16)),
+                                            ),
+                                          ),
+                                          const Divider(height: 1),
+                                          InkWell(
+                                            onTap: () {
+                                              print('🗑️ 삭제 실행'); // TODO: 실제 삭제 함수로 연결
+                                              setState(() {
+                                                isNoteMenuVisible = false;
+                                              });
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                              child: Text('삭제', style: TextStyle(fontSize: 16, color: Colors.red)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
 
                                 if (isStrokePopupVisible)
                                   Positioned.fill(
@@ -1350,79 +1440,29 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                       ),
                                     ),
                                   ),
-                                if (isNoteMenuVisible)
-                                  Positioned.fill(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          isNoteMenuVisible = false;
-                                        });
-                                      },
-                                      child: Container(
-                                        color: Colors.transparent,
-                                      ),
-                                    ),
-                                  ),
+                                // if (isNoteMenuVisible)
+                                //   Positioned.fill(
+                                //     child: GestureDetector(
+                                //       onTap: () {
+                                //         setState(() {
+                                //           isNoteMenuVisible = false;
+                                //         });
+                                //       },
+                                //       child: Container(
+                                //         color: Colors.transparent,
+                                //       ),
+                                //     ),
+                                //   ),
 
-                                if (isNoteMenuVisible && noteMenuPosition != null)
-                                  Positioned(
-                                    left: 1380,
-                                    top: 10,
-                                    child: Material(
-                                      elevation: 4,
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Ink(
-                                            color: Colors.transparent,
-                                            child: InkWell(
-                                              onTap: () {
-                                                print('📄 요약 실행');
-                                                setState(() {
-                                                  isNoteMenuVisible = false;
-                                                });
-                                              },
-                                              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-                                              child: const Padding(
-                                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                                child: Text('요약', style: TextStyle(fontSize: 16)),
-                                              ),
-                                            ),
-                                          ),
-                                          const Divider(height: 1),
-                                          Ink(
-                                            color: Colors.transparent,
-                                            child: InkWell(
-                                              onTap: () {
-                                                print('🗑️ 삭제 실행');
-                                                setState(() {
-                                                  isNoteMenuVisible = false;
-                                                });
-                                              },
-                                              borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)),
-                                              child: const Padding(
-                                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                                child: Text('삭제', style: TextStyle(fontSize: 16, color: Colors.red)),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-
-                                  ),
                               ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   )
-                  )
                 ],
               ),
-
             ),
           ],
         ),

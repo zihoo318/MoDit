@@ -40,7 +40,7 @@ Future<bool?> showNoteSubmitPopup({
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('📓 내부 노트에서 제출',
+              const Text('📓 모딧 노트 제출',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64))),
               const SizedBox(height: 12),
               const Divider(thickness: 1, color: Color(0xFF0D0A64)),

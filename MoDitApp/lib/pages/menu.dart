@@ -8,6 +8,7 @@ import 'meeting_calendar.dart';
 import 'meeting_record.dart';
 import 'card_study_time.dart';
 import 'card_meeting_calendar.dart';
+import 'loading_overlay.dart';
 
 class MenuScreen extends StatefulWidget {
   final String groupId;
@@ -29,11 +30,44 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   Map<String, String>? upcomingTask;
+  bool _isStudyTimeLoaded = false;
+  bool _isTaskLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUpcomingTask();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      LoadingOverlay.show(context, message: '데이터 로딩 중입니다...');
+      _loadUpcomingTask();
+    });
+  }
+
+  void _onStudyTimeLoaded() {
+    setState(() => _isStudyTimeLoaded = true);
+    _checkAllLoaded();
+  }
+
+  void _onTaskLoaded() {
+    setState(() => _isTaskLoaded = true);
+    _checkAllLoaded();
+  }
+
+  void _checkAllLoaded() {
+    if (_isStudyTimeLoaded && _isTaskLoaded) {
+      LoadingOverlay.hide();
+    }
+  }
+
+  Future<void> _loadAllData() async {
+    LoadingOverlay.show(context, message: '데이터 로딩 중입니다...');
+
+    try {
+      await _loadUpcomingTask();
+    } catch (e) {
+      print("데이터 로딩 에러: $e");
+    } finally {
+      LoadingOverlay.hide();
+    }
   }
 
   Future<void> _loadUpcomingTask() async {
@@ -41,7 +75,9 @@ class _MenuScreenState extends State<MenuScreen> {
     setState(() {
       upcomingTask = task;
     });
+    _onTaskLoaded(); // 과제 데이터 로딩 완료 후 체크
   }
+
 
   Future<Map<String, String>?> getUpcomingUnsubmittedTask(String groupId, String currentUserEmail) async {
     final db = FirebaseDatabase.instance.ref();
@@ -116,6 +152,7 @@ class _MenuScreenState extends State<MenuScreen> {
                               groupId: widget.groupId,
                               currentUserEmail: widget.currentUserEmail,
                               currentUserName: widget.currentUserName,
+                              onDataLoaded: _onStudyTimeLoaded,
                             ),
                           ),
                         ),
@@ -167,7 +204,8 @@ class _MenuScreenState extends State<MenuScreen> {
                         title: '미팅 일정 & 녹음',
                         icon: 'calendar_icon',
                         iconSize: 29,
-                        child: const MeetingCalendarCard(),
+                        child: MeetingCalendarCard(groupId: widget.groupId),
+
                       ),
                     ),
                   ),
@@ -270,7 +308,7 @@ class _MenuScreenState extends State<MenuScreen> {
             children: [
               Image.asset('assets/images/homework_icon.png', width: 36),
               const SizedBox(width: 10),
-              const Text('과제 관리', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('과제 관리', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 10),

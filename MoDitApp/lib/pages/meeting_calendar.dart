@@ -239,7 +239,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text("미팅 일정 & 녹음", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text("미팅 일정 & 녹음", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         Row(
           children: [
             Text(DateFormat('yyyy.MM').format(focusedDate), style: const TextStyle(fontSize: 16)),
