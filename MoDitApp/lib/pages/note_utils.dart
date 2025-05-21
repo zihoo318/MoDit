@@ -67,15 +67,15 @@ Future<Uint8List?> captureSelectedArea({
 
 
 Future<String?> sendToFlaskOCR({
-  required GlobalKey repaintKey,
+  required GlobalKey drawingKey, // ✅ 이름 명확하게 변경
   required Rect selectedRect,
   required double pixelRatio,
 }) async {
-  print("[🖼️] 선택된 영역 캡처 시작");
+  print("[🖼️] 손글씨만 캡처 시작");
 
   await WidgetsBinding.instance.endOfFrame;
 
-  final boundary = repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+  final boundary = drawingKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
   final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
   final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
   if (byteData == null) return null;
@@ -89,7 +89,14 @@ Future<String?> sendToFlaskOCR({
   final cropWidth = (selectedRect.width * pixelRatio).clamp(1, fullImage.width - cropX).toInt();
   final cropHeight = (selectedRect.height * pixelRatio).clamp(1, fullImage.height - cropY).toInt();
 
-  final cropped = img.copyCrop(fullImage, x: cropX, y: cropY, width: cropWidth, height: cropHeight);
+  final cropped = img.copyCrop(
+    fullImage,
+    x: cropX,
+    y: cropY,
+    width: cropWidth,
+    height: cropHeight,
+  );
+
   final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
 
   final uri = Uri.parse('${Api.baseUrl}/ocr/upload');
@@ -110,3 +117,4 @@ Future<String?> sendToFlaskOCR({
 
   return null;
 }
+
