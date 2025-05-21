@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ocr.ocr_processor import run_ocr
 from utils.file_handler import save_temp_file, delete_file
-from summary.summary_processor import request_summary_from_gpt  # 요약 함수
+from summary.summary_processor import request_summary_from_note  # 요약 함수
 import uuid
 import traceback
 
@@ -51,7 +51,7 @@ def upload_and_summarize_text():
         extracted_text = run_ocr(temp_path)
 
         # 요약 처리 (GPT API 호출)
-        summary_text = request_summary_from_gpt(extracted_text)
+        summary_text = request_summary_from_note(extracted_text)
 
         return jsonify({
             "summary": summary_text
