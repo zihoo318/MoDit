@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'firebase_options.dart';
@@ -22,14 +23,20 @@ import 'pages/logo_screen.dart';
 /// ✅ 백그라운드 푸시 알림 수신 핸들러
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('💬 백그라운드 메시지 수신됨: ${message.messageId}');
+  print('💬 백그라운드 메시지 수신됨: \${message.messageId}');
 }
+
+// ✅ navigatorKey를 사용해 어디서든 context 접근 가능하게 함
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ Firebase Auth 익명 로그인 (푸시 식별자용)
+  await FirebaseAuth.instance.signInAnonymously();
 
   // ✅ 백그라운드 메시지 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -43,30 +50,34 @@ void main() async {
 
   // ✅ 포그라운드 메시지 처리 리스너 등록
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("📬 포그라운드 메시지 수신됨: ${message.notification?.title}");
-    // Flutter 앱 내에서 사용자에게 알림 표시
-    if (message.notification != null) {
-      // 이건 Snackbar 예시지만, flutter_local_notifications로 커스텀 알림도 가능
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final context = navigatorKey.currentContext;
-        if (context != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message.notification?.body ?? '새 메시지가 도착했습니다'),
-              backgroundColor: const Color(0xFFECE6F0),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          );
-        }
-      });
+    print("📬 포그라운드 메시지 수신됨: \${message.notification?.title}");
+    final body = message.notification?.body ?? '';
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    // 🔒 본인에게 온 알림이면 무시
+    if (currentUser != null && (body.startsWith(currentUser.email ?? '') || body == '공부하세요!')) {
+      return;
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              body,
+              style: const TextStyle(color: Color(0xFF404040)),
+            ),
+            backgroundColor: const Color(0xFFECE6F0),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    });
   });
 
   runApp(const MoDitApp());
 }
-
-// ✅ navigatorKey를 사용해 어디서든 context 접근 가능하게 함
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MoDitApp extends StatelessWidget {
   const MoDitApp({super.key});

@@ -1,7 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ChattingPage extends StatefulWidget {
   final String groupId;
@@ -24,12 +25,18 @@ class _ChattingPageState extends State<ChattingPage> {
   final TextEditingController messageController = TextEditingController();
   List<Map<String, dynamic>> groupMembers = [];
   List<Map<String, dynamic>> chatMessages = [];
+  StreamSubscription<DatabaseEvent>? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadGroupMembers();
-    _listenToMessages();
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription?.cancel();
+    super.dispose();
   }
 
   void _loadGroupMembers() async {
@@ -37,8 +44,8 @@ class _ChattingPageState extends State<ChattingPage> {
     if (groupSnap.exists) {
       final data = Map<String, dynamic>.from(groupSnap.value as Map);
       final members = Map<String, dynamic>.from(data['members'] ?? {});
-
       final List<Map<String, dynamic>> loaded = [];
+
       for (var emailKey in members.keys) {
         final userSnap = await db.child('user').child(emailKey).get();
         final name = userSnap.child('name').value?.toString() ?? emailKey.split('@')[0];
@@ -51,18 +58,23 @@ class _ChattingPageState extends State<ChattingPage> {
     }
   }
 
-  void _listenToMessages() {
-    db.child('groupStudies').child(widget.groupId).child('chat').onValue.listen((event) {
+  void _listenToMessages(String receiverEmail) {
+    _messageSubscription?.cancel();
+    _messageSubscription = db.child('groupStudies').child(widget.groupId).child('chat').onValue.listen((event) {
       final snapshot = event.snapshot;
-      if (snapshot.exists && targetUserEmail.isNotEmpty) {
+      if (snapshot.exists) {
         final data = Map<String, dynamic>.from(snapshot.value as Map);
         final loaded = data.entries.where((e) {
           final v = e.value as Map;
           final msg = v['message']?.toString() ?? '';
           final isPoke = msg == '공부하세요!' || msg == '상대방을 찔렀습니다';
-          return !isPoke &&
-              ((v['senderId'] == widget.currentUserEmail && v['receiverId'] == targetUserEmail) ||
-                  (v['senderId'] == targetUserEmail && v['receiverId'] == widget.currentUserEmail));
+
+          final sender = v['senderId'].toString().replaceAll('.', '_');
+          final receiver = v['receiverId'].toString().replaceAll('.', '_');
+          final currentUser = widget.currentUserEmail.replaceAll('.', '_');
+          final target = receiverEmail.replaceAll('.', '_');
+
+          return !isPoke && ((sender == currentUser && receiver == target) || (sender == target && receiver == currentUser));
         }).map((e) {
           final v = e.value as Map;
           return {
@@ -70,7 +82,8 @@ class _ChattingPageState extends State<ChattingPage> {
             'message': v['message'],
             'timestamp': v['timestamp'],
           };
-        }).toList();
+        }).toList()
+          ..sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
 
         setState(() => chatMessages = loaded);
       }
@@ -90,7 +103,11 @@ class _ChattingPageState extends State<ChattingPage> {
         'timestamp': timestamp,
       });
 
-      await _sendPushNotification(message);
+      final userSnap = await db.child('user').child(widget.currentUserEmail.replaceAll('.', '_')).get();
+      final senderName = userSnap.child('name').value?.toString() ?? widget.currentUserEmail;
+
+      // 🔒 수신자에게만 푸시 전송
+      await _sendPushNotification("$senderName: $message", targetUserEmail);
 
       messageController.clear();
     }
@@ -107,45 +124,49 @@ class _ChattingPageState extends State<ChattingPage> {
       'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
     });
 
-    await _sendPushNotification('공부하세요!');
+    // 🔒 수신자에게만 푸시 전송
+    await _sendPushNotification("공부하세요!", targetUserEmail);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          "상대방에게 '공부하세요!' 알림을 보냈습니다.",
-          style: TextStyle(color: Color(0xFF404040)),
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFECE6F0),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+          content: const Text(
+            "상대방에게 '공부하세요!' 알림을 보냈습니다.",
+            style: TextStyle(color: Color(0xFF404040)),
+          ),
         ),
-        backgroundColor: const Color(0xFFECE6F0),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    }
   }
 
-  Future<void> _sendPushNotification(String message) async {
-    final userKey = targetUserEmail.replaceAll('.', '_');
+  Future<void> _sendPushNotification(String message, String toEmail) async {
+    if (toEmail == widget.currentUserEmail) return;
+
+    final userKey = toEmail.replaceAll('.', '_');
     final userSnap = await db.child('user').child(userKey).get();
     final token = userSnap.child('fcmToken').value?.toString();
     if (token == null) return;
 
     final body = {
-      'to': token,
-      'notification': {
-        'title': '새 메시지',
-        'body': message,
-      },
-      'priority': 'high',
+      'token': token,
+      'title': '모딧에서 알림!',
+      'body': message,
     };
 
-    await http.post(
-      Uri.parse('https://fcm.googleapis.com/fcm/send'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'key=YOUR_SERVER_KEY', // ✅ FCM 서버 키로 교체
-      },
-      body: json.encode(body),
-    );
+    try {
+      final res = await http.post(
+        Uri.parse('http://192.168.219.106:8080/send_push'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+      print("🔔 알림 전송 결과: \${res.statusCode} / \${res.body}");
+    } catch (e) {
+      print("❌ 알림 전송 예외: \$e");
+    }
   }
 
   @override
@@ -166,10 +187,7 @@ class _ChattingPageState extends State<ChattingPage> {
     return Container(
       width: 180,
       margin: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(15),
-      ),
+      decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(15)),
       child: ListView.builder(
         itemCount: groupMembers.length,
         itemBuilder: (context, index) {
@@ -187,6 +205,7 @@ class _ChattingPageState extends State<ChattingPage> {
                 targetUserEmail = member['email']!;
                 targetUserName = member['name']!;
               });
+              _listenToMessages(targetUserEmail);
             },
           );
         },
@@ -198,10 +217,7 @@ class _ChattingPageState extends State<ChattingPage> {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
         child: Column(
           children: [
             _buildTopBar(),
@@ -218,10 +234,7 @@ class _ChattingPageState extends State<ChattingPage> {
       height: 80,
       decoration: BoxDecoration(
         color: const Color(0xFFB8BDF1).withOpacity(0.3),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(15),
-          topRight: Radius.circular(15),
-        ),
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), topRight: Radius.circular(15)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -251,21 +264,21 @@ class _ChattingPageState extends State<ChattingPage> {
   Widget _buildMessages() {
     return Expanded(
       child: ListView.builder(
+        reverse: false,
         itemCount: chatMessages.length,
         itemBuilder: (context, index) {
           final chat = chatMessages[index];
           final isSender = chat['senderId'] == widget.currentUserEmail;
-          return ListTile(
-            title: Align(
-              alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB8BDF1).withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Text(chat['message']),
+          return Align(
+            alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFB8BDF1).withOpacity(0.3),
+                borderRadius: BorderRadius.circular(20),
               ),
+              child: Text(chat['message'], style: const TextStyle(color: Color(0xFF404040))),
             ),
           );
         },
@@ -285,10 +298,7 @@ class _ChattingPageState extends State<ChattingPage> {
             ),
           ),
           Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFECE6F0),
-              borderRadius: BorderRadius.circular(30),
-            ),
+            decoration: BoxDecoration(color: const Color(0xFFECE6F0), borderRadius: BorderRadius.circular(30)),
             child: IconButton(
               icon: const Icon(Icons.send),
               onPressed: _sendMessage,
