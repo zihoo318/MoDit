@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://192.168.110.1:8080";
+  static const String baseUrl = "http://192.168.45.230:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupId) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -143,6 +143,36 @@ class Api {
       return null;
     }
   }
+
+
+  // 스토리지에서 음성녹음파일, 텍스트화 파일, 요약본 한번에 삭제
+  Future<void> deleteRecordingFiles({
+    required String audioUrl,
+    required String textUrl,
+    String? summaryUrl,
+  }) async {
+    final uri = Uri.parse('$baseUrl/stt/delete_audio_text'); // Flask 서버 주소
+
+    final body = {
+      'audio_url': audioUrl,
+      'text_url': textUrl,
+      if (summaryUrl != null) 'summary_url': summaryUrl,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      print("스토리지에서 녹음, 텍스트, 요약 삭제 성공");
+      print("응답: ${response.body}");
+    } else {
+      print("삭제 실패: ${response.statusCode} - ${response.body}");
+    }
+  }
+
 
   // 노트 요약(ocr->요약)
   // 노트 캡처 이미지를 서버로 전송하고, 요약된 텍스트를 바로 반환
