@@ -3,8 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class MeetingCalendarCard extends StatefulWidget {
-  final String groupId; // ✅ 그룹 ID 추가
-
+  final String groupId;
   const MeetingCalendarCard({super.key, required this.groupId});
 
   @override
@@ -16,6 +15,7 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
   DateTime focusedDate = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
   final db = FirebaseDatabase.instance.ref();
+  final ScrollController _scrollController = ScrollController();
   late Map<DateTime, List<String>> eventMap;
 
   @override
@@ -35,11 +35,8 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
 
       for (final entry in meetings.entries) {
         final meeting = Map<String, dynamic>.from(entry.value);
-
         final rawTitle = meeting['title']?.toString().trim();
-        final hasValidTitle = rawTitle != null && rawTitle.isNotEmpty;
-
-        if (hasValidTitle && meeting['date'] != null) {
+        if (rawTitle != null && rawTitle.isNotEmpty && meeting['date'] != null) {
           final parsedDate = DateTime.tryParse(meeting['date']);
           if (parsedDate != null) {
             final normalizedDay = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
@@ -48,8 +45,6 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
         }
       }
 
-      newEventMap.removeWhere((_, v) => v.isEmpty);
-
       setState(() {
         eventMap = newEventMap;
       });
@@ -57,19 +52,15 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
   }
 
   List<String> getEventsForDay(DateTime day) {
-    final events = eventMap[DateTime(day.year, day.month, day.day)] ?? [];
-    return List.from(events);
+    return eventMap[DateTime(day.year, day.month, day.day)] ?? [];
   }
 
   @override
   Widget build(BuildContext context) {
     final events = getEventsForDay(selectedDate);
-    final double baseHeight = (events.length * 48.0).clamp(60.0, 240.0);
-    final double listHeight = _calendarFormat == CalendarFormat.month
-        ? baseHeight * 0.5
-        : baseHeight;
 
     return Container(
+      height: 500, // 💡 고정된 높이
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.3),
@@ -79,7 +70,6 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TableCalendar(
-            key: ValueKey("${eventMap.hashCode}-${DateTime.now().millisecondsSinceEpoch}"),
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: focusedDate,
@@ -103,7 +93,6 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
             ),
             headerStyle: HeaderStyle(
               formatButtonVisible: true,
-              formatButtonShowsNext: false,
               formatButtonTextStyle: TextStyle(fontSize: 14),
               formatButtonDecoration: BoxDecoration(
                 border: Border.all(color: Colors.black26),
@@ -112,39 +101,36 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
             ),
           ),
           const SizedBox(height: 6),
-          if (events.isNotEmpty)
-            SizedBox(
-              height: listHeight,
-              child: Scrollbar(
-                thumbVisibility: true,
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        events[index],
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    );
-                  },
-                ),
+          Flexible( // 💡 Expanded 대신 Flexible 사용
+            child: events.isNotEmpty
+                ? Scrollbar(
+              thumbVisibility: true,
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      events[index],
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  );
+                },
               ),
             )
-          else
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
+                : const Center(
               child: Text(
                 '해당 날짜에 미팅 일정이 없습니다.',
                 style: TextStyle(fontSize: 13, color: Colors.black87),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -154,3 +140,4 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }
+
