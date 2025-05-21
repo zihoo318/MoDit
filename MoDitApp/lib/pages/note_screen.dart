@@ -1,9 +1,11 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'firebase_utils.dart';
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'loading_overlay.dart';
@@ -11,7 +13,6 @@ import 'note_summary_popup.dart';
 import 'note_utils.dart';
 import 'note_models.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-
 
 class NoteScreen extends StatefulWidget {
   final String currentUserEmail;
@@ -24,7 +25,6 @@ class NoteScreen extends StatefulWidget {
   @override
   _NoteScreenState createState() => _NoteScreenState();
 }
-
 
 class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateMixin {
   // 모드
@@ -76,6 +76,10 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   Color? customColor;
 
   bool _isStrokeButtonTapped = false;
+
+  final GlobalKey _drawingKey = GlobalKey();
+
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -295,17 +299,22 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _captureAndUploadNote() async {
+    if (_isUploading) return;
+    _isUploading = true;
     String title = '';
-    String fileUrl = '';
+    String? fileUrl = '';
 
     try {
-      final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final boundary = _repaintKey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
       final tempDir = Directory.systemTemp;
-      final file = await File('${tempDir.path}/note_capture_${DateTime.now().millisecondsSinceEpoch}.png').create();
+      final file = await File('${tempDir.path}/note_capture_${DateTime
+          .now()
+          .millisecondsSinceEpoch}.png').create();
       await file.writeAsBytes(pngBytes);
 
       title = _noteTitleController.text.trim();
@@ -322,22 +331,42 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       final db = FirebaseDatabase.instance.ref();
       final userKey = widget.currentUserEmail.replaceAll('.', '_');
-      final api = Api();
 
-      final isExistingNote = widget.existingNoteData != null && widget.existingNoteData!['noteId'] != null;
+      final isExistingNote = widget.existingNoteData != null &&
+          widget.existingNoteData!['noteId'] != null;
       final originalTitle = widget.existingNoteData?['title'];
       final isTitleChanged = title != originalTitle;
 
+      if (isExistingNote && originalTitle != null) {
+        try {
+          final safeOriginalTitle = Uri.encodeComponent(originalTitle);
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$safeOriginalTitle');
+
+          final ListResult result = await storageRef.listAll();
+          for (final item in result.items) {
+            await item.delete();
+          }
+          print("✅ 기존 썸네일 이미지 전체 삭제 완료");
+        } catch (e) {
+          print("⚠️ 기존 썸네일 삭제 실패: $e");
+        }
+      }
+
+
+
       // 새 제목이면 중복 검사 후 갱신
-      if (isTitleChanged) {
+      if (!isExistingNote && isTitleChanged) {
         title = await getUniqueNoteTitle(title, widget.currentUserEmail);
         _noteTitleController.text = title;
       }
 
-      // 이미지 업로드
-      final result = await api.uploadNoteFile(file, widget.currentUserEmail, title);
-      if (result != null && result['file_url'] != null) {
-        fileUrl = result['file_url'];
+      // FirebaseStorage 업로드
+      final safeTitle = Uri.encodeComponent(title);
+      fileUrl = await uploadNoteToFirebaseStorage(file, widget.currentUserEmail, safeTitle);
+
+      if (fileUrl != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("노트가 저장되었습니다"),
@@ -357,13 +386,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       }
 
       // JSON 데이터 준비
-      final strokeJson = strokes.map((s) => {
-        'points': s.points.whereType<Offset>().map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+      final strokeJson = strokes.map((s) =>
+      {
+        'points': s.points.whereType<Offset>().map((p) =>
+        {
+          'x': p.dx,
+          'y': p.dy
+        }).toList(),
         'color': '#${s.color.value.toRadixString(16).padLeft(8, '0')}',
         'width': s.strokeWidth,
       }).toList();
 
-      final textJson = textNotes.map((t) => {
+      final textJson = textNotes.map((t) =>
+      {
         'x': t.position.dx,
         'y': t.position.dy,
         'text': t.controller.text,
@@ -373,7 +408,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         'height': t.size.height,
       }).toList();
 
-      final imageJson = imageNotes.map((i) => {
+      final imageJson = imageNotes.map((i) =>
+      {
         'x': i.position.dx,
         'y': i.position.dy,
         'filePath': i.file.path,
@@ -381,36 +417,22 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         'height': i.size.height,
       }).toList();
 
-      // 기존 노트 삭제 조건
-      if (isExistingNote && isTitleChanged) {
-        final oldNoteId = widget.existingNoteData!['noteId'];
-        if (oldNoteId != null) {
-          await db.child('notes').child(userKey).child(oldNoteId).remove();
-          await api.deleteNoteFile(widget.currentUserEmail, originalTitle ?? '');
-        }
-      }
-
-      // 새 노트 저장
-      String noteId;
-      if (isExistingNote && !isTitleChanged) {
-        // 덮어쓰기
-        noteId = widget.existingNoteData!['noteId'];
-      } else {
-        // 새로 push
-        noteId = db.child('notes').child(userKey).push().key!;
-      }
+      // 기존 노트는 덮어쓰기, 새 노트는 새로 생성
+      final noteId = isExistingNote
+          ? widget.existingNoteData!['noteId']
+          : db.child('notes').child(userKey).push().key!;
 
       await db.child('notes').child(userKey).child(noteId).set({
         'title': title,
         'imageUrl': fileUrl,
         'timestamp': DateTime.now().toIso8601String(),
+        'timestampMillis': ServerValue.timestamp,
         'data': {
           'strokes': strokeJson,
           'texts': textJson,
           'images': imageJson,
         }
       });
-
 
     } catch (e) {
       print("❌ 노트 저장 중 오류 발생: $e");
@@ -421,11 +443,13 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           duration: Duration(seconds: 2),
         ),
       );
+    } finally {
+      _isUploading = false;
     }
   }
 
   Future<void> _handleBackNavigation() async {
-    if (isSaving) return;
+    if (isSaving || _isUploading) return; // 중복 방지
     isSaving = true;
 
     final title = _noteTitleController.text.trim();
@@ -461,7 +485,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     } finally {
       LoadingOverlay.hide();
       isSaving = false;
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
     }
   }
 
@@ -497,7 +523,24 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       if (noteId != null && title != null) {
         // ✅ 저장된 노트 삭제
         await db.child('notes').child(userKey).child(noteId).remove();
-        await Api().deleteNoteFile(widget.currentUserEmail, title);
+
+        // Firebase Storage 이미지 삭제
+        try {
+          final safeTitle = Uri.encodeComponent(title);
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$safeTitle');
+
+          final ListResult result = await storageRef.listAll();
+          for (final item in result.items) {
+            await item.delete();
+          }
+
+          print('✅ Firebase Storage 이미지 삭제 완료');
+        } catch (e) {
+          print('⚠️ Firebase Storage 이미지 삭제 실패: $e');
+        }
+
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -629,24 +672,22 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
 
   bool _isInResizeHandle(Offset local, TextNote note) {
-    // note 내부 좌표 기준으로 핸들 위치 정의
     const double handleSize = 40;
-    final handleRect = Rect.fromLTWH(
-      note.size.width - handleSize,
-      note.size.height - handleSize,
+    final rect = Rect.fromLTWH(
+      note.position.dx + note.size.width - handleSize,
+      note.position.dy + note.size.height - handleSize,
       handleSize,
       handleSize,
     );
-    return handleRect.contains(local);
+    return rect.contains(local);
   }
-
-
 
   Widget _buildResizeHandle(TextNote note) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onPanUpdate: (details) {
         setState(() {
+          note.isSelected = true;
           final newWidth = note.size.width + details.delta.dx;
           final newHeight = note.size.height + details.delta.dy;
 
@@ -795,30 +836,33 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // TextField를 Positioned로 감싸 Stack 내에서 아래에 위치하게
-        Positioned(
-          child: Container(
+        Container(
+          width: note.size.width,
+          height: note.size.height,
+          decoration: note.isSelected
+              ? BoxDecoration(
+            border: Border.all(color: Colors.grey, width: 1.5),
+          )
+              : null,
+          child: SizedBox(
             width: note.size.width,
             height: note.size.height,
-            decoration: note.isSelected
-                ? BoxDecoration(
-              border: Border.all(color: Colors.grey, width: 1.5),
-            )
-                : null,
             child: TextField(
               controller: note.controller,
               focusNode: note.focusNode,
               maxLines: null,
+              expands: true, // 🔥 핵심: 텍스트 필드가 부모 크기에 맞춤
+              textAlignVertical: TextAlignVertical.top, // 텍스트를 위쪽 정렬
               enabled: !(isDrawingMode || isSelectMode || isImageMode),
               onTap: () {
-                if (isSelectMode || isImageMode) return; // 선택 모드, 이미지 모드일 땐 무시
+                if (isSelectMode || isImageMode) return;
                 setState(() {
                   for (var n in textNotes) n.isSelected = false;
                   note.isSelected = true;
                   note.focusNode.requestFocus();
                 });
+                note.focusNode.requestFocus();
               },
-
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 isDense: true,
@@ -829,7 +873,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           ),
         ),
 
-        // 삭제 버튼 - Stack 맨 위에 위치
+        // 삭제 버튼
         if (note.isSelected)
           Positioned(
             top: -12,
@@ -861,26 +905,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             right: -12,
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onPanStart: (_) {
-                setState(() {
-                  for (var n in textNotes) n.isSelected = false;
-                  note.isSelected = true;
-                });
-              },
               onPanUpdate: (details) {
                 setState(() {
                   final newWidth = note.size.width + details.delta.dx;
                   final newHeight = note.size.height + details.delta.dy;
 
-                  // 크기 제한
-                  final clampedWidth = newWidth.clamp(60.0, 500.0);
-                  final clampedHeight = newHeight.clamp(30.0, 500.0);
-
-                  note.size = Size(clampedWidth, clampedHeight);
+                  note.size = Size(
+                    newWidth.clamp(60.0, 1000.0),
+                    newHeight.clamp(30.0, 1000.0),
+                  );
                 });
               },
               child: Container(
-                width: 40, // 최소한의 터치 영역 확보
+                width: 40,
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
@@ -895,6 +932,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       ],
     );
   }
+
 
   // 클릭한 좌표가 이미지나 텍스트 영역에 해당되는지 확인
   void _handleTapDownForDeselect(TapDownDetails details) {
@@ -923,7 +961,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     return PopScope(
       canPop: false, // 직접 pop을 제어하므로 false
       onPopInvoked: (bool didPop) async {
-        await _handleBackNavigation(); // 무조건 저장 실행
+        if (!didPop) {
+          await _handleBackNavigation(); // 직접 pop을 제어할 때만 저장 실행
+        }
       },
         child: GestureDetector(
       onTap: () {
@@ -1222,13 +1262,16 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
                                 // 4. 손글씨 (항상 맨 위에서 그리기만 함, 터치 이벤트는 막지 않음)
                                 Positioned.fill(
-                                  child: IgnorePointer(
-                                    child: CustomPaint(
-                                      painter: DrawingPainter(
-                                        strokes,
-                                        currentPoints,
-                                        selectedStrokeColor,
-                                        strokeWidth,
+                                  child: RepaintBoundary(
+                                    key: _drawingKey,
+                                    child: IgnorePointer(
+                                      child: CustomPaint(
+                                        painter: DrawingPainter(
+                                          strokes,
+                                          currentPoints,
+                                          selectedStrokeColor,
+                                          strokeWidth,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1303,7 +1346,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                           LoadingOverlay.show(context, message: '텍스트 추출 중...');
                                           try {
                                             final ocrText = await sendToFlaskOCR(
-                                              repaintKey: _repaintKey,
+                                              drawingKey: _drawingKey, // 손글씨 전용 키
                                               selectedRect: selectedRect!,
                                               pixelRatio: 3.0,
                                             );
@@ -1545,7 +1588,6 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       });
     }
   }
-
 }
 
 class DrawingPainter extends CustomPainter {
@@ -1617,8 +1659,6 @@ class DrawingPainter extends CustomPainter {
 
     canvas.drawPath(path, paint);
   }
-
-
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => true;
