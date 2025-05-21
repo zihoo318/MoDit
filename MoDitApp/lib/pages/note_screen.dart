@@ -339,10 +339,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       if (isExistingNote && originalTitle != null) {
         try {
-          final safeOriginalTitle = Uri.encodeComponent(originalTitle);
           final storageRef = FirebaseStorage.instance
               .ref()
-              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$safeOriginalTitle');
+              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$originalTitle');
 
           final ListResult result = await storageRef.listAll();
           for (final item in result.items) {
@@ -363,8 +362,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       }
 
       // FirebaseStorage 업로드
-      final safeTitle = Uri.encodeComponent(title);
-      fileUrl = await uploadNoteToFirebaseStorage(file, widget.currentUserEmail, safeTitle);
+      fileUrl = await uploadNoteToFirebaseStorage(file, widget.currentUserEmail, title);
 
       if (fileUrl != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -526,10 +524,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
         // Firebase Storage 이미지 삭제
         try {
-          final safeTitle = Uri.encodeComponent(title);
           final storageRef = FirebaseStorage.instance
               .ref()
-              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$safeTitle');
+              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$title');
 
           final ListResult result = await storageRef.listAll();
           for (final item in result.items) {
@@ -1600,9 +1597,6 @@ class DrawingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // final backgroundPaint = Paint()..color = Colors.white;
-    // canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
-
     for (var stroke in strokes) {
       _drawSmoothStroke(canvas, stroke.points, stroke.color, stroke.strokeWidth);
     }

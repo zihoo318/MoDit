@@ -5,11 +5,10 @@ Future<String?> uploadNoteToFirebaseStorage(File file, String email, String titl
   try {
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
     final safeEmail = email.replaceAll('.', '_');
-    final safeTitle = Uri.encodeComponent(title); // title 인코딩
 
     final storageRef = FirebaseStorage.instance
         .ref()
-        .child('notes/$safeEmail/$safeTitle/$fileName');
+        .child('notes/$safeEmail/$title/$fileName');
 
     final uploadTask = await storageRef.putFile(file);
     final downloadUrl = await uploadTask.ref.getDownloadURL();
