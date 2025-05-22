@@ -25,6 +25,8 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
   Map<String, String> memberNames = {}; // 이메일 → 이름 매핑
   Set<String> currentlyStudying = {}; // 공부 중인 사람
 
+  bool _isLoading = true;  // 로딩 플래그 추가
+
   @override
   void initState() {
     super.initState();
@@ -34,10 +36,11 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
   }
 
   Future<void> _loadStudyData() async {
-    await _loadMembers(); // 예: 멤버 정보 불러오기
-    _listenToStudyTimes(); // 리스너 등록
+    setState(() => _isLoading = true);        // 로딩 시작
+    await _loadMembers();                      // 멤버 불러오기
+    _listenToStudyTimes();                     // 리스너 등록
+    setState(() => _isLoading = false);       // 로딩 끝
 
-    // 모든 데이터 로딩이 끝나면 콜백 호출
     if (widget.onDataLoaded != null) {
       widget.onDataLoaded!();
     }
@@ -109,6 +112,22 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
 
   @override
   Widget build(BuildContext context) {
+
+    // 로딩 중에는 카드 크기/모양은 그대로 두고 스피너만 중앙에 표시
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        width: MediaQuery.of(context).size.width * 0.42,
+        height: MediaQuery.of(context).size.height * 0.31,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    // 여기까지 추가
+
     final members = memberNames.keys.toList();
 
     return Container(
