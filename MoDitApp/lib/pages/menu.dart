@@ -1,6 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'notice.dart';
@@ -9,17 +8,20 @@ import 'meeting_calendar.dart';
 import 'meeting_record.dart';
 import 'card_study_time.dart';
 import 'card_meeting_calendar.dart';
+import 'menu_animated_card.dart';
 
 class MenuScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
   final void Function(int)? onNavigateToTab;
+  final Offset targetCenter;
 
   const MenuScreen({
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
+    required this.targetCenter,
     this.onNavigateToTab,
     Key? key,
   }) : super(key: key);
@@ -92,34 +94,6 @@ class _MenuScreenState extends State<MenuScreen> {
     final cardAnim = Duration(milliseconds: 300);
     final pageAnim = Duration(milliseconds: 650);
 
-    Widget _animatedCard({
-      required int index,
-      required Widget child,
-      required VoidCallback onTap,
-    }) {
-      final isSel = _selectedCardIndex == index;
-      final anySel = _selectedCardIndex != null;
-      final targetOpacity = (anySel && !isSel) ? 0.0 : 1.0;
-      final targetScale = isSel ? 1.1 : (anySel ? 0.9 : 1.0);
-
-      return GestureDetector(
-        onTap: () {
-          setState(() => _selectedCardIndex = index);
-          Future.delayed(cardAnim, onTap);
-        },
-        child: AnimatedOpacity(
-          duration: cardAnim,
-          opacity: targetOpacity,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 1.0, end: targetScale),
-            duration: cardAnim,
-            curve: Curves.easeOutBack,
-            builder: (context, s, child) => Transform.scale(scale: s, child: child),
-            child: child,
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       body: Stack(
@@ -144,8 +118,11 @@ class _MenuScreenState extends State<MenuScreen> {
                     child: Column(
                       children: [
                         // 공부 시간 카드 (index = 1)
-                        _animatedCard(
+                        AnimatedCard(
                           index: 1,
+                          selectedIndex: _selectedCardIndex,
+                          onTap: () => setState(() => _selectedCardIndex = 1),
+                          targetCenter: widget.targetCenter,
                           child: _buildCardContainer(
                             title: '공부 시간',
                             icon: 'study_icon',
@@ -157,19 +134,22 @@ class _MenuScreenState extends State<MenuScreen> {
                               //onDataLoaded: _onStudyTimeLoaded,
                             ),
                           ),
-                          onTap: () => widget.onNavigateToTab?.call(1),
+                          onCompleted: () => widget.onNavigateToTab?.call(1),
                         ),
 
                         const SizedBox(height: 12),
 
                         // 과제 관리 카드 (index = 3)
-                        _animatedCard(
+                        AnimatedCard(
                           index: 3,
+                          selectedIndex: _selectedCardIndex,
+                          onTap: () => setState(() => _selectedCardIndex = 3),
+                          targetCenter: widget.targetCenter,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: _buildTaskCard(),
                           ),
-                          onTap: () => widget.onNavigateToTab?.call(3),
+                          onCompleted: () => widget.onNavigateToTab?.call(3),
                         ),
 
                         const SizedBox(height: 12),
@@ -178,33 +158,37 @@ class _MenuScreenState extends State<MenuScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: _animatedCard(
+                              child: AnimatedCard(
                                 index: 4,
+                                selectedIndex: _selectedCardIndex,
+                                onTap: () => setState(() => _selectedCardIndex = 4),
+                                targetCenter: widget.targetCenter,
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 1),
                                   child: _buildCard(
                                     title: '공지사항',
                                     icon: 'notice_icon',
                                     iconSize: 40,
-                                    onTap: () => widget.onNavigateToTab?.call(4),
                                   ),
                                 ),
-                                onTap: () => widget.onNavigateToTab?.call(4),
+                                onCompleted: () => widget.onNavigateToTab?.call(4),
                               ),
                             ),
                             Expanded(
-                              child: _animatedCard(
+                              child: AnimatedCard(
                                 index: 5,
+                                selectedIndex: _selectedCardIndex,
+                                onTap: () => setState(() => _selectedCardIndex = 5),
+                                targetCenter: widget.targetCenter,
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 4),
                                   child: _buildCard(
                                     title: '채팅',
                                     icon: 'chatting_icon',
                                     iconSize: 40,
-                                    onTap: () => widget.onNavigateToTab?.call(5),
                                   ),
                                 ),
-                                onTap: () => widget.onNavigateToTab?.call(5),
+                                onCompleted: () => widget.onNavigateToTab?.call(5),
                               ),
                             ),
                           ],
@@ -216,8 +200,11 @@ class _MenuScreenState extends State<MenuScreen> {
                   const SizedBox(width: 20),
 
                   // 오른쪽 미팅 일정 & 녹음 카드 (index = 2)
-                  _animatedCard(
+                  AnimatedCard(
                     index: 2,
+                    selectedIndex: _selectedCardIndex,
+                    onTap: () => setState(() => _selectedCardIndex = 2),
+                    targetCenter: widget.targetCenter,
                     child: SizedBox(
                       width: cardW + 80,
                       height: w * 0.4 - 10,
@@ -228,7 +215,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         child: MeetingCalendarCard(groupId: widget.groupId),
                       ),
                     ),
-                    onTap: () => widget.onNavigateToTab?.call(2),
+                    onCompleted: () => widget.onNavigateToTab?.call(2),
                   ),
                 ],
               ),
@@ -270,30 +257,29 @@ class _MenuScreenState extends State<MenuScreen> {
     required String title,
     required String icon,
     required double iconSize,
-    required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 120,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset('assets/images/$icon.png', width: iconSize),
-            const SizedBox(height: 10),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ],
-        ),
+    return Container(
+      height: 120,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset('assets/images/$icon.png', width: iconSize),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
+
 
   Widget _buildTaskCard() {
     final width = MediaQuery.of(context).size.width;

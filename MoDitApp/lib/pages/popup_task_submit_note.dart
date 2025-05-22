@@ -26,9 +26,8 @@ Future<bool?> showNoteSubmitPopup({
   required String subId,
   required String groupId,
 }) {
-  return showDialog<bool>(
+  return showAnimatedDialog<bool>(
     context: context,
-    barrierDismissible: false,
     builder: (context) {
       return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -132,6 +131,28 @@ Future<bool?> showNoteSubmitPopup({
               ),
             ],
           ),
+        ),
+      );
+    },
+  );
+}
+
+Future<T?> showAnimatedDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return showGeneralDialog<T>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    transitionDuration: const Duration(milliseconds: 450),
+    pageBuilder: (context, anim1, anim2) => builder(context),
+    transitionBuilder: (context, anim1, anim2, child) {
+      return FadeTransition(
+        opacity: anim1,
+        child: ScaleTransition(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+          child: child,
         ),
       );
     },
