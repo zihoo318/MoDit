@@ -142,18 +142,34 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
       width: 135,
       child: Column(
         children: [
-          Container(
-            width: 54,
-            height: 54,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            width: isStudying ? 60 : 54,
+            height: isStudying ? 60 : 54,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: Color(0xFFE0E0E0), shape: BoxShape.circle),
-            child: Text(name, style: const TextStyle(fontSize: 16)),
+            decoration: BoxDecoration(
+              color: isStudying ? const Color(0xFFB3C7FF) : const Color(0xFFE0E0E0),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              name,
+              style: TextStyle(
+                fontSize: isStudying ? 18 : 16,
+                fontWeight: isStudying ? FontWeight.bold : FontWeight.normal,
+                color: isStudying ? Colors.white : Colors.black87,
+              ),
+            ),
           ),
           const SizedBox(height: 4),
-          Image.asset(
-            isStudying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
-            width: 85,
-            height: 80,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: Image.asset(
+              isStudying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
+              width: 85,
+              height: 80,
+              key: ValueKey(isStudying), // 상태 전환 시 애니메이션 적용
+            ),
           ),
           const SizedBox(height: 4),
           Text(_formatTime(seconds), style: const TextStyle(fontSize: 18)),
@@ -161,6 +177,7 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
