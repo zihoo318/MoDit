@@ -5,12 +5,14 @@ class StudyTimeCard extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
+  final VoidCallback? onDataLoaded;
 
   const StudyTimeCard({
     super.key,
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
+    this.onDataLoaded,
   });
 
   @override
@@ -23,14 +25,28 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
   Map<String, String> memberNames = {}; // 이메일 → 이름 매핑
   Set<String> currentlyStudying = {}; // 공부 중인 사람
 
+  bool _isLoading = true;  // 로딩 플래그 추가
+
   @override
   void initState() {
     super.initState();
-    _loadMembers();
-    _listenToStudyTimes();
+    // _loadMembers();
+    // _listenToStudyTimes();
+    _loadStudyData(); // 비동기 로딩 시작
   }
 
-  void _loadMembers() async {
+  Future<void> _loadStudyData() async {
+    setState(() => _isLoading = true);        // 로딩 시작
+    await _loadMembers();                      // 멤버 불러오기
+    _listenToStudyTimes();                     // 리스너 등록
+    setState(() => _isLoading = false);       // 로딩 끝
+
+    if (widget.onDataLoaded != null) {
+      widget.onDataLoaded!();
+    }
+  }
+
+  Future<void> _loadMembers() async {
     final snap = await db.child('groupStudies').child(widget.groupId).child('members').get();
     if (snap.exists) {
       final members = Map<String, dynamic>.from(snap.value as Map);
@@ -96,6 +112,22 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
 
   @override
   Widget build(BuildContext context) {
+
+    // 로딩 중에는 카드 크기/모양은 그대로 두고 스피너만 중앙에 표시
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        width: MediaQuery.of(context).size.width * 0.42,
+        height: MediaQuery.of(context).size.height * 0.31,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    // 여기까지 추가
+
     final members = memberNames.keys.toList();
 
     return Container(
@@ -105,7 +137,7 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
         borderRadius: BorderRadius.circular(16),
       ),
       width: MediaQuery.of(context).size.width * 0.42,
-      height: 190, // 예시: 세로 높이 고정
+      height: MediaQuery.of(context).size.height * 0.31,
       child: GridView.count(
         physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 3,

@@ -1,9 +1,11 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'friend_add_popup.dart';
 import 'group_create_popup.dart';
 import 'group_main_screen.dart';
 import 'note_screen.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentUserEmail;
@@ -19,11 +21,13 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> groupStudies = [];
   List<Map<String, dynamic>> userNotes = [];
 
+  bool _isNoteLoading = false;
+
   @override
   void initState() {
     super.initState();
     loadGroupStudies();
-    loadUserNotes();  //노트 불러오기
+    listenToUserNotes();  //노트 불러오기
   }
 
   void loadGroupStudies() async {
@@ -64,17 +68,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadUserNotes() async {
+    if (_isNoteLoading) return;
+    _isNoteLoading = true;
+
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    await Future.delayed(Duration(milliseconds: 300));
+
     final snapshot = await db.child('notes').child(userKey).get();
     if (snapshot.exists) {
       final notesMap = Map<String, dynamic>.from(snapshot.value as Map);
       final loadedNotes = notesMap.entries.map((entry) {
         final noteData = Map<String, dynamic>.from(entry.value);
         return {
+          'noteId': entry.key,
           'title': noteData['title'] ?? '제목 없음',
           'imageUrl': noteData['imageUrl'] ?? '',
+          'timestampMillis': noteData['timestampMillis'] ?? 0,
         };
       }).toList();
+
+      loadedNotes.sort((a, b) => (b['timestampMillis'] ?? 0).compareTo(a['timestampMillis'] ?? 0));
 
       setState(() {  // 이 부분이 반드시 있어야 함
         userNotes = loadedNotes;
@@ -85,6 +98,32 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+
+  void listenToUserNotes() {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    db.child('notes').child(userKey).onValue.listen((event) {
+      if (!mounted || event.snapshot.value == null) {
+        setState(() => userNotes = []);
+        return;
+      }
+
+      final notesMap = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final loadedNotes = notesMap.entries.map((entry) {
+        final noteData = Map<String, dynamic>.from(entry.value);
+        return {
+          'noteId': entry.key,
+          'title': noteData['title'] ?? '제목 없음',
+          'imageUrl': noteData['imageUrl'] ?? '',
+          'timestampMillis': noteData['timestampMillis'] ?? 0,
+        };
+      }).toList();
+
+      loadedNotes.sort((a, b) => (b['timestampMillis'] ?? 0).compareTo(a['timestampMillis'] ?? 0));
+
+      setState(() => userNotes = loadedNotes);
+    });
+  }
+
 
 
   Widget _buildGroupStudyCard(Map<String, dynamic> group) {
@@ -111,31 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Center(
           child: Text(group['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        ),
-      ),
-    );
-  }
-
-  // 하드코딩 노트카드
-  Widget _buildNoteCardWithImage(String imagePath, String title) {
-    return AspectRatio(
-      aspectRatio: 14 / 9,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Expanded(
-              child: Image.asset(imagePath, fit: BoxFit.cover),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(6),
-              child: Text(title, style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
-            ),
-          ],
         ),
       ),
     );
@@ -177,7 +191,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNoteCardFromFirebase(String imageUrl, String title) {
+  Widget _buildNoteCardFromFirebase(String imageUrl, String title, int timestampMillis) {
+    final formattedTime = DateFormat('yyyy.MM.dd HH:mm').format(
+      DateTime.fromMillisecondsSinceEpoch(timestampMillis),
+    );
     return AspectRatio(
       aspectRatio: 14 / 9,
       child: Container(
@@ -198,7 +215,28 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(6),
-              child: Text(title, style: const TextStyle(fontSize: 13), textAlign: TextAlign.center),
+              child: Column(
+                children: [
+                  Text( // 제목
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text( // 날짜
+                    DateFormat('yyyy.MM.dd HH:mm').format(
+                      DateTime.fromMillisecondsSinceEpoch(timestampMillis),
+                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -217,13 +255,34 @@ class _HomeScreenState extends State<HomeScreen> {
     if (snap.exists) {
       final existingSnap = snap.children.first;
       final noteId = existingSnap.key;
+      final safeEmail = widget.currentUserEmail.replaceAll('.', '_');
+      final noteData = Map<String, dynamic>.from(existingSnap.value as Map);
 
-      // Firebase에서 삭제
+      // 1. FirebaseDatabase에서 삭제
       await db.child('notes').child(userKey).child(noteId!).remove();
+
+      // 2. FirebaseStorage에서 해당 노트 폴더 내 파일 전체 삭제
+      try {
+        final folderRef = FirebaseStorage.instance
+            .ref()
+            .child('notes/$safeEmail/$title');
+
+        final ListResult result = await folderRef.listAll();
+        if (result.items.isEmpty) {
+          print('⚠️ 삭제할 파일이 없습니다. 경로 확인 필요: ${folderRef.fullPath}');
+        }
+        for (final item in result.items) {
+          print('🔍 삭제 시도 중: ${item.fullPath}');
+          await item.delete();
+          print('🗑️ 삭제된 파일: ${item.fullPath}');
+        }
+
+        print('✅ Firebase Storage 노트 폴더 내 이미지 전체 삭제 완료');
+      } catch (e) {
+        print('⚠️ Firebase Storage 이미지 삭제 실패: $e');
+      }
     }
   }
-
-
 
 
   @override
@@ -244,8 +303,8 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Transform.translate(
-                  offset: const Offset(-20, 0),
-                  child: Image.asset('assets/images/logo.png', height: 40),
+                  offset: const Offset(-10, 0),
+                  child: Image.asset('assets/images/logo.png', height: 45),
                 ),
                 GestureDetector(
                   onTap: _showFriendAddPopup,
@@ -375,7 +434,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
 
 
-                      child: _buildNoteCardFromFirebase(note['imageUrl'], note['title']),
+                      child: _buildNoteCardFromFirebase(
+                        note['imageUrl'],
+                        note['title'],
+                        note['timestampMillis'],),
                     )
                 ),
               ],

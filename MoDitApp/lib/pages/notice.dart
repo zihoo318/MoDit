@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'notice_view_popup.dart';
+import 'dart:ui';
 
 class NoticePage extends StatefulWidget {
   final String groupId;
@@ -66,41 +67,105 @@ class _NoticePageState extends State<NoticePage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFFECE6F0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        title: const Text('공지사항 등록'),
-        content: SizedBox(
-          width: 300,
-          height: 180,
-          child: Column(
-            children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: '공지사항 제목')),
-              TextField(controller: bodyController, decoration: const InputDecoration(labelText: '공지사항 내용'), maxLines: 3),
-            ],
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 500,
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '📢 공지사항 등록',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // 제목 입력
+                      TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(
+                          labelText: '공지사항 제목',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 17),
+
+                      // 내용 입력
+                      TextField(
+                        controller: bodyController,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          labelText: '공지사항 내용',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // 버튼
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                              foregroundColor: const Color(0xFF0D0A64),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text("취소"),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
+                              await newRef.set({
+                                'title': titleController.text,
+                                'body': bodyController.text,
+                                'name': widget.currentUserName,
+                                'createdAt': DateTime.now().millisecondsSinceEpoch,
+                                'pinned': false,
+                              });
+                              Navigator.pop(context);
+                              loadNotices();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                              foregroundColor: const Color(0xFF0D0A64),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text("등록"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-          TextButton(
-            onPressed: () async {
-              final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
-              await newRef.set({
-                'title': titleController.text,
-                'body': bodyController.text,
-                'name': widget.currentUserName,
-                'createdAt': DateTime.now().millisecondsSinceEpoch,
-                'pinned': false,
-              });
-              Navigator.pop(context);
-              loadNotices();
-            },
-            child: const Text('등록'),
-          )
-        ],
       ),
     );
   }
+
 
   String _formatDate(int timestamp) {
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
@@ -127,7 +192,7 @@ class _NoticePageState extends State<NoticePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('공지사항', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                const Text('공지사항', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 GestureDetector(
                   onTap: _showNoticeDialog,
                   child: Row(

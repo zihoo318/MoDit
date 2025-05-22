@@ -85,13 +85,12 @@ class MoDitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // ✅ 추가
       debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(
-        fontFamily: 'nanum_round',
+        fontFamily: 'nanum_round', // 전체 폰트 지정
       ),
-      localizationsDelegates: const [
+      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

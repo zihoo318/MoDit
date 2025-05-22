@@ -1,13 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"> <!-- ✅ tools 네임스페이스 추가 -->
+    xmlns:tools="http://schemas.android.com/tools">
 
+    <supports-screens
+        android:smallScreens="false"
+        android:normalScreens="true"
+        android:largeScreens="true"
+        android:xlargeScreens="true"
+        android:anyDensity="true" />
+
+    <!-- ✅ 인터넷 권한 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- 🟡 FCM 푸시 알림 권한 추가 (Android 13 이상) -->
+    <!-- ✅ Android 13 이상 권한 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- 🔵 파일 접근 권한 -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- ✅ Android 12 이하 파일 접근 권한 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
@@ -24,7 +32,7 @@
         <service
             android:name="com.google.firebase.messaging.FirebaseMessagingService"
             android:exported="true"
-            tools:replace="android:exported"> <!-- ✅ 충돌 해결 -->
+            tools:replace="android:exported">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
@@ -49,17 +57,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Don't delete the meta-data below -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- ✅ Flutter 텍스트 공유 관련 쿼리 유지 -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
     </queries>
-
 </manifest>

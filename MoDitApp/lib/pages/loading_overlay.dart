@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 class LoadingOverlay {
   static final _key = GlobalKey<_LoadingOverlayState>();
   static OverlayEntry? _overlayEntry;
+  static bool _isVisible = false;
+
+  static bool get isVisible => _isVisible;
 
   static void show(BuildContext context, {String message = '로딩 중입니다...'}) {
     if (_overlayEntry != null) return;
+    _isVisible = true;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => _LoadingOverlay(key: _key, message: message),
@@ -18,6 +22,7 @@ class LoadingOverlay {
   static void hide() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+    _isVisible = false;
   }
 }
 
@@ -62,12 +67,7 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
         children: [
           // 배경 흐림 + 어둡게
           Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0),
-              child: Container(
-                color: Colors.black.withOpacity(0.4),
-              ),
-            ),
+            child: Container(color: Colors.black.withOpacity(0.6)),
           ),
           // 로딩 인디케이터 + 텍스트
           Center(

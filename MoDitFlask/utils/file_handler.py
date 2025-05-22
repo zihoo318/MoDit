@@ -3,6 +3,7 @@ import os
 import boto3
 from config import config_env
 from urllib.parse import quote
+from urllib.parse import urlparse, unquote
 
 
 TEMP_DIR = "temp_files"  # 임시 디렉토리 (원하는 경로로 지정 가능)
@@ -93,3 +94,24 @@ def delete_all_files_in_prefix(prefix):
             Delete={'Objects': objects}
         )
         print(f"🧹 {len(objects)}개 파일 삭제됨: {prefix}")
+
+
+def delete_object_by_url(url): #URL에서 버킷 Key를 파싱하고 오브젝트 스토리지에서 삭제
+    parsed = urlparse(url)
+    path = unquote(parsed.path)  # "/bucket-name/key" 형식
+
+    # path = /bucket/key -> key만 추출
+    key = "/".join(path.split("/")[2:])
+
+    print(f"[삭제 요청] key={key}")
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=config_env.NCLOUD_ACCESS_KEY,
+        aws_secret_access_key=config_env.NCLOUD_SECRET_KEY,
+        endpoint_url=config_env.NCLOUD_ENDPOINT
+    )
+
+    s3.delete_object(
+        Bucket=config_env.NCLOUD_BUCKET_NAME,
+        Key=key
+    )

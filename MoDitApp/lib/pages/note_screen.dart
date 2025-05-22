@@ -1,18 +1,18 @@
-import 'dart:convert';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:image/image.dart' as img;
-import 'dart:typed_data';
-import 'package:http/http.dart' as http;
+import 'firebase_utils.dart';
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'loading_overlay.dart'; // 추가
-
-
+import 'loading_overlay.dart';
+import 'note_summary_popup.dart';
+import 'note_utils.dart';
+import 'note_models.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class NoteScreen extends StatefulWidget {
   final String currentUserEmail;
@@ -26,7 +26,6 @@ class NoteScreen extends StatefulWidget {
   _NoteScreenState createState() => _NoteScreenState();
 }
 
-
 class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateMixin {
   // 모드
   bool isDrawingMode = false;
@@ -36,20 +35,20 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   bool showSaveButton = false;
   final GlobalKey _repaintKey = GlobalKey();
-  int imageCount = 1;
   double fontSize = 16.0;
   bool isStrokePopupVisible = false;
   late final Ticker _ticker;
 
   List<Stroke> strokes = [];
   List<Offset?> currentPoints = [];
-  List<_TextNote> textNotes = [];
+  List<TextNote> textNotes = [];
 
   Rect? selectedRect;
   Offset? dragStart;
   Offset? dragEnd;
 
-  Color selectedColor = Colors.black;
+  Color selectedStrokeColor = Colors.black;  // 손글씨용
+  Color selectedTextColor = Colors.black;    // 텍스트용
   double strokeWidth = 2.0;
   bool isEraser = false;
 
@@ -58,7 +57,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   List<Stroke> redoStack = [];
 
   // 이미지 기능 추가
-  List<_ImageNote> imageNotes = [];
+  List<ImageNote> imageNotes = [];
 
   final GlobalKey _stackKey = GlobalKey();
 
@@ -70,6 +69,17 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   bool _isEditingTitle = false; // 사용자가 텍스트 수정할 때 사용
 
   bool isSaving = false;
+
+  bool isNoteMenuVisible = false;
+  Offset? noteMenuPosition;
+
+  Color? customColor;
+
+  bool _isStrokeButtonTapped = false;
+
+  final GlobalKey _drawingKey = GlobalKey();
+
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -86,12 +96,12 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       final data = widget.existingNoteData!['data'];
       if (data != null) {
-        // ✅ null-safe 처리 추가
+        // null-safe 처리 추가
         final strokesData = data['strokes'] as List?;
         final textsData = data['texts'] as List?;
         final imagesData = data['images'] as List?;
 
-        // 🔁 strokes 복원
+        // strokes 복원
         if (strokesData != null) {
           strokes = strokesData.map((s) {
             final points = (s['points'] as List)
@@ -102,10 +112,10 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           }).toList();
         }
 
-        // 🔁 textNotes 복원
+        // textNotes 복원
         if (textsData != null) {
-          textNotes = textsData.map<_TextNote>((t) {
-            return _TextNote(
+          textNotes = textsData.map<TextNote>((t) {
+            return TextNote(
               position: Offset(t['x'] * 1.0, t['y'] * 1.0),
               fontSize: t['fontSize'] * 1.0,
               color: Color(int.parse(t['color'].substring(1), radix: 16)),
@@ -115,18 +125,32 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           }).toList();
         }
 
-        // 🔁 imageNotes 복원
+        // imageNotes 복원
         if (imagesData != null) {
-          imageNotes = imagesData.map<_ImageNote>((i) {
-            return _ImageNote(
+          imageNotes = imagesData.map<ImageNote>((i) {
+            double width = i['width'] * 1.0;
+            double height = i['height'] * 1.0;
+            return ImageNote(
               position: Offset(i['x'] * 1.0, i['y'] * 1.0),
               file: File(i['filePath']),
-              size: Size(i['width'] * 1.0, i['height'] * 1.0),
+              size: Size(width, height),
+              aspectRatio: width / height,
             );
           }).toList();
         }
       }
     }
+    // 손글씨 모드로 시작
+    _setMode(drawing: true);
+
+    // 제목 입력란 포커스 해제 시 편집 종료
+    _titleFocusNode.addListener(() {
+      if (!_titleFocusNode.hasFocus) {
+        setState(() {
+          _isEditingTitle = false;
+        });
+      }
+    });
   }
 
   @override
@@ -152,7 +176,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     if (event.kind == ui.PointerDeviceKind.stylus) {
       strokes.add(Stroke(
         points: List.from(currentPoints),
-        color: selectedColor,
+        color: selectedStrokeColor,
         strokeWidth: strokeWidth,
       ));
       currentPoints.clear();
@@ -190,7 +214,6 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       _pickImage();
     }
   }
-
 
   // 노트 이름 설정을 위한 함수
   void _toggleNoteTitleEditing() {
@@ -241,104 +264,57 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
+  // 이미지를 선택하고, imageNotes 리스트에 저장
   void _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
 
+    final decoded = await decodeImageFromList(await File(image.path).readAsBytes());
+
+    double maxWidth = 450;
+    double maxHeight = 450;
+
+    double originalWidth = decoded.width.toDouble();
+    double originalHeight = decoded.height.toDouble();
+
+    // 비율 유지하며 크기 축소
+    double widthRatio = maxWidth / originalWidth;
+    double heightRatio = maxHeight / originalHeight;
+    double scale = widthRatio < heightRatio ? widthRatio : heightRatio;
+
+    // 비율 유지한 축소된 크기
+    double scaledWidth = originalWidth * scale;
+    double scaledHeight = originalHeight * scale;
+
     setState(() {
-      imageNotes.add(_ImageNote(
+      imageNotes.add(ImageNote(
         position: const Offset(100, 100),
         file: File(image.path),
+        size: Size(scaledWidth, scaledHeight),
+        aspectRatio: originalWidth / originalHeight,
       ));
     });
+
   }
-
-
-  Future<void> sendToFlaskOCR() async {
-    if (_repaintKey.currentContext == null || selectedRect == null) return;
-
-    print("[🖼️] 선택된 영역 캡처 시작");
-
-    await WidgetsBinding.instance.endOfFrame;
-
-    final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    final pixelRatio = 3.0;
-    final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) {
-      print("[⚠️] 이미지 캡처 실패 - byteData null");
-      return;
-    }
-
-    final buffer = byteData.buffer.asUint8List();
-    final fullImage = img.decodeImage(buffer);
-    if (fullImage == null) {
-      print("[⚠️] 이미지 디코딩 실패");
-      return;
-    }
-
-    final cropX = (selectedRect!.left * pixelRatio).clamp(0, fullImage.width - 1).toInt();
-    final cropY = (selectedRect!.top * pixelRatio).clamp(0, fullImage.height - 1).toInt();
-    final cropWidth = (selectedRect!.width * pixelRatio).clamp(1, fullImage.width - cropX).toInt();
-    final cropHeight = (selectedRect!.height * pixelRatio).clamp(1, fullImage.height - cropY).toInt();
-
-    print("[✂️] 선택 영역 자르기: x=$cropX, y=$cropY, w=$cropWidth, h=$cropHeight");
-
-    final cropped = img.copyCrop(fullImage, x: cropX, y: cropY, width: cropWidth, height: cropHeight);
-    final imageBytes = Uint8List.fromList(img.encodeJpg(cropped));
-
-    print("[🚀] Flask 서버로 전송 시작");
-
-    final uri = Uri.parse('http://192.168.219.106:8080/ocr/upload');
-    final request = http.MultipartRequest('POST', uri)
-      ..files.add(http.MultipartFile.fromBytes('image', imageBytes, filename: 'note.jpg'));
-
-    try {
-      final response = await request.send();
-      final respStr = await response.stream.bytesToString();
-
-      print("[📨] Flask 응답 상태코드: ${response.statusCode}");
-      print("[📨] Flask 응답 내용: $respStr");
-
-      final result = jsonDecode(respStr);
-      if (response.statusCode == 200) {
-        final text = result['text'] ?? '';
-        print("[✅] 텍스트 추출 완료: $text");
-
-        setState(() {
-          textNotes.add(_TextNote(
-            position: Offset(selectedRect!.left, selectedRect!.top),
-            initialText: text,
-          ));
-          strokes = strokes.where((stroke) {
-            return !stroke.points.any((point) => point != null && selectedRect!.contains(point!));
-          }).toList();
-          canUndo = strokes.isNotEmpty;
-          selectedRect = null;
-          showSaveButton = false;
-        });
-      } else {
-        print("[❌] 서버 오류 발생: 상태코드 ${response.statusCode}");
-      }
-    } catch (e) {
-      print("[❗] 예외 발생: $e");
-    }
-  }
-
 
   Future<void> _captureAndUploadNote() async {
+    if (_isUploading) return;
+    _isUploading = true;
     String title = '';
-    String fileUrl = '';
+    String? fileUrl = '';
 
     try {
-      final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final boundary = _repaintKey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
       final tempDir = Directory.systemTemp;
-      final file = await File('${tempDir.path}/note_capture_${DateTime.now().millisecondsSinceEpoch}.png').create();
+      final file = await File('${tempDir.path}/note_capture_${DateTime
+          .now()
+          .millisecondsSinceEpoch}.png').create();
       await file.writeAsBytes(pngBytes);
 
       title = _noteTitleController.text.trim();
@@ -355,22 +331,40 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       final db = FirebaseDatabase.instance.ref();
       final userKey = widget.currentUserEmail.replaceAll('.', '_');
-      final api = Api();
 
-      final isExistingNote = widget.existingNoteData != null && widget.existingNoteData!['noteId'] != null;
+      final isExistingNote = widget.existingNoteData != null &&
+          widget.existingNoteData!['noteId'] != null;
       final originalTitle = widget.existingNoteData?['title'];
       final isTitleChanged = title != originalTitle;
 
+      if (isExistingNote && originalTitle != null) {
+        try {
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$originalTitle');
+
+          final ListResult result = await storageRef.listAll();
+          for (final item in result.items) {
+            await item.delete();
+          }
+          print("✅ 기존 썸네일 이미지 전체 삭제 완료");
+        } catch (e) {
+          print("⚠️ 기존 썸네일 삭제 실패: $e");
+        }
+      }
+
+
+
       // 새 제목이면 중복 검사 후 갱신
-      if (isTitleChanged) {
+      if (!isExistingNote && isTitleChanged) {
         title = await getUniqueNoteTitle(title, widget.currentUserEmail);
         _noteTitleController.text = title;
       }
 
-      // 이미지 업로드
-      final result = await api.uploadNoteFile(file, widget.currentUserEmail, title);
-      if (result != null && result['file_url'] != null) {
-        fileUrl = result['file_url'];
+      // FirebaseStorage 업로드
+      fileUrl = await uploadNoteToFirebaseStorage(file, widget.currentUserEmail, title);
+
+      if (fileUrl != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("노트가 저장되었습니다"),
@@ -390,13 +384,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       }
 
       // JSON 데이터 준비
-      final strokeJson = strokes.map((s) => {
-        'points': s.points.whereType<Offset>().map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+      final strokeJson = strokes.map((s) =>
+      {
+        'points': s.points.whereType<Offset>().map((p) =>
+        {
+          'x': p.dx,
+          'y': p.dy
+        }).toList(),
         'color': '#${s.color.value.toRadixString(16).padLeft(8, '0')}',
         'width': s.strokeWidth,
       }).toList();
 
-      final textJson = textNotes.map((t) => {
+      final textJson = textNotes.map((t) =>
+      {
         'x': t.position.dx,
         'y': t.position.dy,
         'text': t.controller.text,
@@ -406,7 +406,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         'height': t.size.height,
       }).toList();
 
-      final imageJson = imageNotes.map((i) => {
+      final imageJson = imageNotes.map((i) =>
+      {
         'x': i.position.dx,
         'y': i.position.dy,
         'filePath': i.file.path,
@@ -414,36 +415,22 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         'height': i.size.height,
       }).toList();
 
-      // 기존 노트 삭제 조건
-      if (isExistingNote && isTitleChanged) {
-        final oldNoteId = widget.existingNoteData!['noteId'];
-        if (oldNoteId != null) {
-          await db.child('notes').child(userKey).child(oldNoteId).remove();
-          await api.deleteNoteFile(widget.currentUserEmail, originalTitle ?? '');
-        }
-      }
-
-      // 새 노트 저장
-      String noteId;
-      if (isExistingNote && !isTitleChanged) {
-        // 덮어쓰기
-        noteId = widget.existingNoteData!['noteId'];
-      } else {
-        // 새로 push
-        noteId = db.child('notes').child(userKey).push().key!;
-      }
+      // 기존 노트는 덮어쓰기, 새 노트는 새로 생성
+      final noteId = isExistingNote
+          ? widget.existingNoteData!['noteId']
+          : db.child('notes').child(userKey).push().key!;
 
       await db.child('notes').child(userKey).child(noteId).set({
         'title': title,
         'imageUrl': fileUrl,
         'timestamp': DateTime.now().toIso8601String(),
+        'timestampMillis': ServerValue.timestamp,
         'data': {
           'strokes': strokeJson,
           'texts': textJson,
           'images': imageJson,
         }
       });
-
 
     } catch (e) {
       print("❌ 노트 저장 중 오류 발생: $e");
@@ -454,51 +441,125 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           duration: Duration(seconds: 2),
         ),
       );
+    } finally {
+      _isUploading = false;
     }
   }
 
+  Future<void> _handleBackNavigation() async {
+    if (isSaving || _isUploading) return; // 중복 방지
+    isSaving = true;
 
-  // 제목이 중복되면 자동으로 (1), (2) ... 붙여주는 함수
-  Future<String> getUniqueNoteTitle(String baseTitle, String userEmail) async {
-    final db = FirebaseDatabase.instance.ref();
-    final userKey = userEmail.replaceAll('.', '_');
+    final title = _noteTitleController.text.trim();
+    final hasContent = strokes.isNotEmpty || textNotes.isNotEmpty || imageNotes.isNotEmpty;
 
-    final snapshot = await db.child('notes').child(userKey).get();
-    if (!snapshot.exists) return baseTitle;
+    if (!hasContent) {
+      isSaving = false;
+      Navigator.pop(context); // 내용 없으면 그냥 나가기
+      return;
+    }
 
-    final existingTitles = <String>{};
-    final notesMap = Map<String, dynamic>.from(snapshot.value as Map);
-    for (var note in notesMap.values) {
-      if (note is Map && note['title'] is String) {
-        existingTitles.add(note['title']);
+    if (title.isEmpty || title == '노트 이름 설정') {
+      isSaving = false;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('저장 전'),
+          content: const Text('노트 이름을 먼저 설정해주세요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    LoadingOverlay.show(context, message: '노트 저장 중...');
+    try {
+      await _captureAndUploadNote();
+    } finally {
+      LoadingOverlay.hide();
+      isSaving = false;
+      if (mounted) {
+        Navigator.pop(context, true);
       }
     }
-
-    // 중복 검사
-    if (!existingTitles.contains(baseTitle)) return baseTitle;
-
-    int counter = 1;
-    String newTitle;
-    do {
-      newTitle = '$baseTitle ($counter)';
-      counter++;
-    } while (existingTitles.contains(newTitle));
-
-    return newTitle;
   }
 
 
+  //노트 삭제
+  Future<void> _handleDeleteNote() async {
+    setState(() => isNoteMenuVisible = false);
 
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('정말 삭제하시겠습니까?'),
+        content: const Text('삭제한 노트는 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
 
-  Widget _buildDraggableNote(_TextNote note) {
+    if (confirm == true) {
+      final db = FirebaseDatabase.instance.ref();
+      final userKey = widget.currentUserEmail.replaceAll('.', '_');
+      final noteId = widget.existingNoteData?['noteId'];
+      final title = widget.existingNoteData?['title'];
+
+      if (noteId != null && title != null) {
+        // ✅ 저장된 노트 삭제
+        await db.child('notes').child(userKey).child(noteId).remove();
+
+        // Firebase Storage 이미지 삭제
+        try {
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$title');
+
+          final ListResult result = await storageRef.listAll();
+          for (final item in result.items) {
+            await item.delete();
+          }
+
+          print('✅ Firebase Storage 이미지 삭제 완료');
+        } catch (e) {
+          print('⚠️ Firebase Storage 이미지 삭제 실패: $e');
+        }
+
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("노트가 삭제되었습니다"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (mounted) Navigator.pop(context, true);
+    }
+  }
+
+  Widget _buildDraggableNote(TextNote note) {
     return Positioned(
       left: note.position.dx,
       top: note.position.dy,
       child: GestureDetector(
-        onPanUpdate: (details) {
-          // 크기 조절 핸들 누른 경우 이동 금지
+        onPanUpdate: (isDrawingMode || isSelectMode) ? null : (details) {
           if (_isInResizeHandle(details.localPosition, note)) return;
-
           setState(() {
             note.position += details.delta;
           });
@@ -519,31 +580,119 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
-  bool _isInResizeHandle(Offset local, _TextNote note) {
-    // note 내부 좌표 기준으로 핸들 위치 정의
-    const double handleSize = 40;
-    final handleRect = Rect.fromLTWH(
-      note.size.width - handleSize,
-      note.size.height - handleSize,
-      handleSize,
-      handleSize,
+  // 이미지 엑스 버튼, 크기조절
+  Widget _buildDraggableImageNote(ImageNote imgNote) {
+    return Positioned(
+      left: imgNote.position.dx,
+      top: imgNote.position.dy,
+      child: GestureDetector(
+        onTap: () {
+          if (isDrawingMode || isSelectMode) return; // 손글씨 모드에서는 무시
+          setState(() {
+            for (var img in imageNotes) img.isSelected = false;
+            imgNote.isSelected = true;
+          });
+        },
+        onPanUpdate: (isDrawingMode || isSelectMode) ? null : (details) {
+          setState(() {
+            imgNote.position += details.delta;
+          });
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: imgNote.size.width,
+              height: imgNote.size.height,
+              decoration: BoxDecoration(
+                border: imgNote.isSelected ? Border.all(color: Colors.grey) : null,
+              ),
+              child: Image.file(
+                imgNote.file,
+                fit: BoxFit.contain,
+              ),
+            ),
+
+            if (imgNote.isSelected)
+              Positioned(
+                top: -12,
+                left: -12,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      imageNotes.remove(imgNote);
+                    });
+                  },
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: const Icon(Icons.close, size: 18),
+                  ),
+                ),
+              ),
+
+            if (imgNote.isSelected)
+              Positioned(
+                bottom: -12,
+                right: -12,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    setState(() {
+                      double newWidth = (imgNote.size.width + details.delta.dx).clamp(20.0, double.infinity);
+                      double newHeight = newWidth / imgNote.aspectRatio;
+                      imgNote.size = Size(newWidth, newHeight);
+                    });
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: const Icon(Icons.open_in_full, size: 18),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
-    return handleRect.contains(local);
   }
 
 
+  bool _isInResizeHandle(Offset local, TextNote note) {
+    const double handleSize = 40;
+    final rect = Rect.fromLTWH(
+      note.position.dx + note.size.width - handleSize,
+      note.position.dy + note.size.height - handleSize,
+      handleSize,
+      handleSize,
+    );
+    return rect.contains(local);
+  }
 
-  Widget _buildResizeHandle(_TextNote note) {
+  Widget _buildResizeHandle(TextNote note) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onPanUpdate: (details) {
         setState(() {
+          note.isSelected = true;
           final newWidth = note.size.width + details.delta.dx;
           final newHeight = note.size.height + details.delta.dy;
 
+          final screenWidth = MediaQuery.of(context).size.width;
+
           note.size = Size(
-            newWidth.clamp(60.0, 500.0),
-            newHeight.clamp(30.0, 500.0),
+            newWidth.clamp(60.0, screenWidth - 80), // 양쪽 여백 고려
+            newHeight.clamp(30.0, screenWidth - 80),
           );
         });
       },
@@ -561,38 +710,24 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
-  //선택 영역 캡쳐
-  Future<Uint8List?> captureSelectedArea() async {
-    if (_repaintKey.currentContext == null || selectedRect == null) return null;
 
-    await WidgetsBinding.instance.endOfFrame;
 
-    final boundary = _repaintKey.currentContext!
-        .findRenderObject() as RenderRepaintBoundary;
-    final ui.Image image = await boundary.toImage(pixelRatio: 5.0); // 또는 6.0까지
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) return null;
-
-    final fullImage = img.decodeImage(byteData.buffer.asUint8List());
-    if (fullImage == null) return null;
-
-    final cropped = img.copyCrop(
-      fullImage,
-      x: selectedRect!.left.toInt(),
-      y: selectedRect!.top.toInt(),
-      width: selectedRect!.width.toInt(),
-      height: selectedRect!.height.toInt(),
-    );
-
-    return Uint8List.fromList(img.encodeJpg(cropped));
-  }
-
-  Widget _buildColorButton(Color color) {
+  Widget _buildColorButton(Color color, {required bool isForText}) {
     return GestureDetector(
       onTap: () {
         setState(() {
-          selectedColor = color;
-          isEraser = false;
+          if (isForText) {
+            selectedTextColor = color;
+            for (var note in textNotes) {
+              if (note.isSelected) {
+                note.color = color;
+              }
+            }
+          } else {
+            selectedStrokeColor = color;
+            isEraser = false;
+          }
+
         });
       },
       child: Container(
@@ -603,7 +738,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           color: color,
           shape: BoxShape.circle,
           border: Border.all(
-            color: selectedColor == color ? Colors.white : Colors.transparent,
+            color: (isForText ? selectedTextColor : selectedStrokeColor) == color
+                ? Colors.white
+                : Colors.transparent,
             width: 2,
           ),
         ),
@@ -611,20 +748,77 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
+  // 사용자 커스텀 색
+  Widget _buildColorPickerButton() {
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('🖊️ 색상 선택'),
+            content: SingleChildScrollView(
+              child: ColorPicker(
+                pickerColor: customColor ?? Colors.black,
+                onColorChanged: (color) {
+                  setState(() {
+                    customColor = color;
+                    selectedStrokeColor = color;
+                    isEraser = false;
+                  });
+                },
+                enableAlpha: false,
+                displayThumbColor: true,
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('확인'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+      },
+      child: Container(
+        width: 30,
+        height: 30,
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          color: customColor ?? Colors.grey.shade300,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: const Icon(Icons.add, size: 16, color: Colors.black),
+      ),
+    );
+  }
+
   Widget _buildStrokeWidthButton() {
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
       onTap: () {
         setState(() {
           isStrokePopupVisible = !isStrokePopupVisible;
+          _isStrokeButtonTapped = true;
+        });
+        // 150ms 후 애니메이션 복귀
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (mounted) {
+            setState(() {
+              _isStrokeButtonTapped = false;
+            });
+          }
         });
       },
-      child: Container(
-        width: 36,
-        height: 36,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: _isStrokeButtonTapped ? 56 : 48,
+        width: _isStrokeButtonTapped ? 56 : 48,
         alignment: Alignment.center,
+        curve: Curves.easeOut,
         child: Container(
-          height: strokeWidth, // 현재 굵기 반영
-          width: 30,
+          height: strokeWidth,
+          width: 24,
           decoration: BoxDecoration(
             color: Colors.black,
             borderRadius: BorderRadius.circular(2),
@@ -634,31 +828,37 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildNoteBox(_TextNote note) {
+
+  Widget _buildNoteBox(TextNote note) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // ✅ TextField를 Positioned로 감싸 Stack 내에서 아래에 위치하게
-        Positioned(
-          child: Container(
+        Container(
+          width: note.size.width,
+          height: note.size.height,
+          decoration: note.isSelected
+              ? BoxDecoration(
+            border: Border.all(color: Colors.grey, width: 1.5),
+          )
+              : null,
+          child: SizedBox(
             width: note.size.width,
             height: note.size.height,
-            decoration: note.isSelected
-                ? BoxDecoration(
-              border: Border.all(color: Colors.grey, width: 1.5),
-            )
-                : null,
             child: TextField(
               controller: note.controller,
               focusNode: note.focusNode,
               maxLines: null,
-              enabled: !isDrawingMode,
+              expands: true, // 🔥 핵심: 텍스트 필드가 부모 크기에 맞춤
+              textAlignVertical: TextAlignVertical.top, // 텍스트를 위쪽 정렬
+              enabled: !(isDrawingMode || isSelectMode || isImageMode),
               onTap: () {
+                if (isSelectMode || isImageMode) return;
                 setState(() {
                   for (var n in textNotes) n.isSelected = false;
                   note.isSelected = true;
                   note.focusNode.requestFocus();
                 });
+                note.focusNode.requestFocus();
               },
               decoration: const InputDecoration(
                 border: InputBorder.none,
@@ -670,7 +870,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           ),
         ),
 
-        // ✅ 삭제 버튼 - Stack 맨 위에 위치
+        // 삭제 버튼
         if (note.isSelected)
           Positioned(
             top: -12,
@@ -678,14 +878,13 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {
-                print("❌ 삭제 버튼 클릭됨");
                 setState(() {
                   textNotes.remove(note);
                 });
               },
               child: Container(
-                width: 30,
-                height: 30,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -703,485 +902,635 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             right: -12,
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onPanStart: (_) {
-                setState(() {
-                  for (var n in textNotes) n.isSelected = false;
-                  note.isSelected = true;
-                });
-              },
               onPanUpdate: (details) {
                 setState(() {
                   final newWidth = note.size.width + details.delta.dx;
                   final newHeight = note.size.height + details.delta.dy;
 
-                  // 크기 제한
-                  final clampedWidth = newWidth.clamp(60.0, 500.0);
-                  final clampedHeight = newHeight.clamp(30.0, 500.0);
-
-                  note.size = Size(clampedWidth, clampedHeight);
+                  note.size = Size(
+                    newWidth.clamp(60.0, 1000.0),
+                    newHeight.clamp(30.0, 1000.0),
+                  );
                 });
               },
               child: Container(
-                width: 40, // 최소한의 터치 영역 확보
+                width: 40,
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.blue),
+                  border: Border.all(color: Colors.grey),
                 ),
                 child: const Icon(Icons.open_in_full, size: 18),
               ),
             ),
           ),
-
-
       ],
     );
   }
 
 
+  // 클릭한 좌표가 이미지나 텍스트 영역에 해당되는지 확인
+  void _handleTapDownForDeselect(TapDownDetails details) {
+    final pos = details.localPosition;
+
+    bool tappedOnText = textNotes.any((note) {
+      final rect = Rect.fromLTWH(note.position.dx, note.position.dy, note.size.width, note.size.height);
+      return rect.contains(pos);
+    });
+
+    bool tappedOnImage = imageNotes.any((img) {
+      final rect = Rect.fromLTWH(img.position.dx, img.position.dy, img.size.width, img.size.height);
+      return rect.contains(pos);
+    });
+
+    if (!tappedOnText && !tappedOnImage) {
+      setState(() {
+        for (var note in textNotes) note.isSelected = false;
+        for (var img in imageNotes) img.isSelected = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PopScope(
+      canPop: false, // 직접 pop을 제어하므로 false
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          await _handleBackNavigation(); // 직접 pop을 제어할 때만 저장 실행
+        }
+      },
+      child: GestureDetector(
         onTap: () {
-      FocusScope.of(context).unfocus(); // 🔴 키보드 내려가면 포커스 해제
-    },
-    child: Scaffold(
-      body: Stack(
-        children: [
-          // 배경 이미지
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/background.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                // 상단 모드 선택바
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        children: [
-                          // 왼쪽: 로고
-                          Row(
+          FocusScope.of(context).unfocus();
+          setState(() {
+            for (var note in textNotes) {
+              note.isSelected = false;
+            }
+            for (var img in imageNotes) {
+              img.isSelected = false;
+            }
+          });
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // 배경 이미지
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/background.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              SafeArea(
+                child: Column(
+                  children: [
+                    // 상단 모드 선택바
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Row(
                             children: [
-                              //뒤로가기 버튼 누르면 노트 저장
-                              GestureDetector(
-                                // NoteScreen.dart 파일의 뒤로가기 버튼 onTap 수정
-                                onTap: () async {
-                                  if (isSaving) return;
-                                  isSaving = true;
-
-                                  final title = _noteTitleController.text.trim();
-
-                                  if (title.isEmpty || title == '노트 이름 설정') {
-                                    isSaving = false;
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        title: const Text('알림'),
-                                        content: const Text('노트 이름을 먼저 설정해주세요.'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('확인'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-
-                                  LoadingOverlay.show(context, message: '노트 저장 중...');
-                                  try {
-                                    await _captureAndUploadNote();
-                                  } finally {
-                                    LoadingOverlay.hide();
-                                    isSaving = false;
-                                    if (mounted) Navigator.pop(context, true);
-                                  }
-                                }
-                                ,
-                                child: Image.asset('assets/images/back_button.png', height: 20),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildNoteTitle(),
-                            ],
-                          ),
-
-                          const Spacer(),
-
-                          // 중앙: 손글씨 아이콘만 (항상 고정 위치)
-                          GestureDetector(
-                            onTap: () => _setMode(drawing: true),
-                            child: Image.asset(
-                              isDrawingMode
-                                  ? 'assets/images/clicked_pen.png'
-                                  : 'assets/images/pen.png',
-                              height: 28,
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          // 오른쪽: 손글씨 모드일 때 도구바 + 나머지 아이콘
-                          if (isDrawingMode) ...[
-                            const SizedBox(width: 16),
-                            _buildColorButton(Colors.black),
-                            _buildColorButton(Colors.red),
-                            _buildColorButton(Colors.blue),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 50,
-                              child: _buildStrokeWidthButton(),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedColor = Colors.white;
-                                  isEraser = true;
-                                });
-                              },
-                              child: Image.asset(
-                                isEraser
-                                    ? 'assets/images/clicked_eraser.png'
-                                    : 'assets/images/eraser.png',
-                                height: 28,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: canUndo
-                                  ? () {
-                                setState(() {
-                                  redoStack.add(strokes.removeLast());
-                                  canUndo = strokes.isNotEmpty;
-                                });
-                              }
-                                  : null,
-                              icon: const Icon(Icons.undo),
-                            ),
-                            IconButton(
-                              onPressed: redoStack.isNotEmpty
-                                  ? () {
-                                setState(() {
-                                  strokes.add(redoStack.removeLast());
-                                  canUndo = true;
-                                });
-                              }
-                                  : null,
-                              icon: const Icon(Icons.redo),
-                            ),
-                          ],
-
-                          if (isTextMode)
-                            Row(
-                              children: [
-                                _buildColorButton(Colors.black),
-                                _buildColorButton(Colors.red),
-                                _buildColorButton(Colors.blue),
-                                const SizedBox(width: 16),
-                                const Text('폰트 크기'),
-                                SizedBox(
-                                  width: 120,
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Slider(
-                                          value: fontSize,
-                                          min: 10,
-                                          max: 32,
-                                          divisions: 11,
-                                          label: fontSize.toStringAsFixed(0),
-                                          onChanged: (value) {
-                                            setState(() {
-                                              fontSize = value;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                      Text(fontSize.toInt().toString()),
-                                    ],
+                              // 왼쪽: 로고
+                              Row(
+                                children: [
+                                  //뒤로가기 버튼 누르면 노트 저장
+                                  GestureDetector(
+                                    // NoteScreen.dart 파일의 뒤로가기 버튼 onTap 수정
+                                    onTap: _handleBackNavigation,
+                                    child: Image.asset('assets/images/back_button.png', height: 20),
                                   ),
+                                  const SizedBox(width: 12),
+                                  _buildNoteTitle(),
+                                ],
+                              ),
+
+                              const Spacer(),
+
+                              // 중앙: 손글씨 아이콘만 (항상 고정 위치)
+                              GestureDetector(
+                                onTap: () => _setMode(drawing: true),
+                                child: Image.asset(
+                                  isDrawingMode
+                                      ? 'assets/images/clicked_pen.png'
+                                      : 'assets/images/pen.png',
+                                  height: 28,
+                                ),
+                              ),
+
+                              const SizedBox(width: 12),
+
+                              // 오른쪽: 손글씨 모드일 때 도구바 + 나머지 아이콘
+                              if (isDrawingMode) ...[
+                                const SizedBox(width: 16),
+                                _buildColorButton(Colors.black, isForText: false),
+                                _buildColorButton(Colors.red, isForText: false),
+                                _buildColorButton(Colors.blue, isForText: false),
+                                _buildColorPickerButton(),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 50,
+                                  child: _buildStrokeWidthButton(),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedStrokeColor = Colors.white;
+                                      isEraser = true;
+                                    });
+                                  },
+                                  child: Image.asset(
+                                    isEraser
+                                        ? 'assets/images/clicked_eraser.png'
+                                        : 'assets/images/eraser.png',
+                                    height: 28,
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: canUndo
+                                      ? () {
+                                    setState(() {
+                                      redoStack.add(strokes.removeLast());
+                                      canUndo = strokes.isNotEmpty;
+                                    });
+                                  }
+                                      : null,
+                                  icon: const Icon(Icons.undo),
+                                ),
+                                IconButton(
+                                  onPressed: redoStack.isNotEmpty
+                                      ? () {
+                                    setState(() {
+                                      strokes.add(redoStack.removeLast());
+                                      canUndo = true;
+                                    });
+                                  }
+                                      : null,
+                                  icon: const Icon(Icons.redo),
                                 ),
                               ],
-                            ),
+
+                              if (isTextMode)
+                                Row(
+                                  children: [
+                                    _buildColorButton(Colors.black, isForText: true),
+                                    _buildColorButton(Colors.red, isForText: true),
+                                    _buildColorButton(Colors.blue, isForText: true),
+                                    const SizedBox(width: 16),
+                                    const Text('폰트 크기'),
+                                    SizedBox(
+                                      width: 250,
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                              child: SliderTheme(
+                                                data: SliderTheme.of(context).copyWith(
+                                                  activeTrackColor: Color(0xFFB8BDF1),                // 활성 바 색상
+                                                  inactiveTrackColor: Color(0xFFB8BDF1).withOpacity(0.3), // 비활성 바 색상
+                                                  thumbColor: Color(0xFFB8BDF1),                      // 동그란 핸들 색상
+                                                  overlayColor: Color(0xFFB8BDF1).withOpacity(0.2),   // 클릭 시 퍼지는 색상
+                                                  valueIndicatorColor: Color(0xFFB8BDF1),             // 말풍선 배경색
+                                                  valueIndicatorTextStyle: TextStyle(color: Colors.black),
+                                                ),
+                                                child: Slider(
+                                                  value: fontSize,
+                                                  min: 10,
+                                                  max: 32,
+                                                  divisions: 11,
+                                                  label: fontSize.toStringAsFixed(0),
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      fontSize = value;
+                                                      for (var note in textNotes) {
+                                                        if (note.isSelected) {
+                                                          note.fontSize = value;
+                                                        }
+                                                      }
+                                                    });
+                                                  },
+                                                ),
+                                              )
+
+                                          ),
+                                          Text(fontSize.toInt().toString()),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
 
 
-                          // 오른쪽 끝: 키보드 + 선택 아이콘
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _setMode(text: true),
-                                child: Image.asset(
-                                  isTextMode
-                                      ? 'assets/images/clicked_keyboard.png'
-                                      : 'assets/images/keyboard.png',
-                                  height: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _setMode(image: true),
-                                child: Image.asset(
-                                  isImageMode
-                                      ? 'assets/images/clicked_image.png'
-                                      : 'assets/images/image.png',
-                                  height: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _setMode(select: true),
-                                child: Image.asset(
-                                  isSelectMode
-                                      ? 'assets/images/clicked_box.png'
-                                      : 'assets/images/box.png',
-                                  height: 28,
-                                ),
+                              // 오른쪽 끝: 키보드 + 선택 아이콘 + 메뉴 아이콘
+                              Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _setMode(text: true),
+                                    child: Image.asset(
+                                      isTextMode
+                                          ? 'assets/images/clicked_keyboard.png'
+                                          : 'assets/images/keyboard.png',
+                                      height: 28,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () => _setMode(image: true),
+                                    child: Image.asset(
+                                      isImageMode
+                                          ? 'assets/images/clicked_image.png'
+                                          : 'assets/images/image.png',
+                                      height: 28,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () => _setMode(select: true),
+                                    child: Image.asset(
+                                      isSelectMode
+                                          ? 'assets/images/clicked_box.png'
+                                          : 'assets/images/box.png',
+                                      height: 28,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTapDown: (details) {
+                                      setState(() {
+                                        isNoteMenuVisible = !isNoteMenuVisible;
+                                        noteMenuPosition = details.globalPosition;
+                                      });
+                                    },
+                                    child: Image.asset(
+                                      'assets/images/menu.png',
+                                      height: 28,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ],
-                      )
-                  ),
-                ),
+                          )
+                      ),
+                    ),
 
-                // 필기 영역
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(32),
-                      child: RepaintBoundary( // ✅ 전체 Stack을 감싸도록 이동
-                        key: _repaintKey,
-                        child: GestureDetector(
-                          onTapUp: _handleTapUp,
-                          behavior: HitTestBehavior.translucent,
-                          child: Stack(
-                            key: _stackKey,
-                            children: [
-                              // 기존 CustomPaint만 감싸던 RepaintBoundary는 삭제
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: DrawingPainter(
-                                    strokes,
-                                    currentPoints,
-                                    selectedColor,
-                                    strokeWidth,
-                                  ),
-                                  child: Container(),
-                                ),
-                              ),
-
-                              if (isDrawingMode)
-                                Positioned.fill(
-                                  child: Listener(
-                                    onPointerDown: _handleStylusDown,
-                                    onPointerMove: _handleStylusMove,
-                                    onPointerUp: _handleStylusUp,
-                                    behavior: HitTestBehavior.translucent,
-                                    child: Container(),
-                                  ),
-                                ),
-
-                              if (isSelectMode)
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    onPanStart: (details) {
-                                      setState(() {
-                                        dragStart = details.localPosition;
-                                        selectedRect = null;
-                                      });
-                                    },
-                                    onPanUpdate: (details) {
-                                      setState(() {
-                                        dragEnd = details.localPosition;
-                                        selectedRect = Rect.fromPoints(dragStart!, dragEnd!);
-                                        showSaveButton = false;
-                                      });
-                                    },
-                                    onPanEnd: (_) {
-                                      setState(() {
-                                        showSaveButton = selectedRect != null;
-                                      });
-                                    },
-                                    behavior: HitTestBehavior.translucent,
-                                  ),
-                                ),
-
-                              ...textNotes.map((note) => _buildDraggableNote(note)),
-
-                              ...imageNotes.map((imgNote) {
-                                return Positioned(
-                                  left: imgNote.position.dx,
-                                  top: imgNote.position.dy,
-                                  child: GestureDetector(
-                                    onPanUpdate: (details) {
-                                      setState(() {
-                                        imgNote.position += details.delta;
-                                      });
-                                    },
-                                    child: Container(
-                                      width: imgNote.size.width,
-                                      height: imgNote.size.height,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey),
-                                      ),
-                                      child: Image.network(
-                                        '${imgNote.file.path}?t=${DateTime.now().millisecondsSinceEpoch}',
-                                        fit: BoxFit.cover,
-                                      ),
+                    // 필기 영역
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: RepaintBoundary( // 전체 Stack을 감싸도록 이동
+                            key: _repaintKey,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onTapDown: (details) {
+                                FocusScope.of(context).unfocus(); // 키보드 내려가게
+                                _handleTapDownForDeselect(details); // 선택 해제도 같이 처리
+                              },
+                              onTapUp: _handleTapUp, // 텍스트 모드일 경우 텍스트 추가 처리
+                              child: Stack(
+                                key: _stackKey,
+                                children: [
+                                  Positioned.fill(
+                                    child: CustomPaint(
+                                      painter: _BackgroundPainter(), // 흰 배경만 그리는 별도 페인터
                                     ),
                                   ),
-                                );
-                              }),
 
-                              if (selectedRect != null)
-                                Positioned(
-                                  left: selectedRect!.left,
-                                  top: selectedRect!.top,
-                                  child: Container(
-                                    width: selectedRect!.width,
-                                    height: selectedRect!.height,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.blue, width: 2),
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                ),
-
-                              if (isSelectMode && selectedRect != null)
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.translucent,
-                                    onTapDown: (details) {
-                                      final buttonRect = Rect.fromLTWH(
-                                        selectedRect!.left,
-                                        selectedRect!.top - 40,
-                                        100,
-                                        40,
-                                      );
-                                      if (!selectedRect!.contains(details.localPosition) &&
-                                          !buttonRect.contains(details.localPosition)) {
-                                        setState(() {
-                                          selectedRect = null;
-                                          showSaveButton = false;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
-
-                              if (showSaveButton && selectedRect != null)
-                                Positioned(
-                                  left: selectedRect!.left,
-                                  top: selectedRect!.top - 40,
-                                  child: Material(
-                                    elevation: 2,
-                                    color: Colors.black87,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: InkWell(
-                                      onTap: () async {
-                                        await Future.delayed(const Duration(milliseconds: 100));
-                                        LoadingOverlay.show(context, message: '텍스트 추출 중...');
-                                        try {
-                                          await sendToFlaskOCR(); // ✅ 텍스트 추출 로직 실행
+                                  if (isSelectMode)
+                                    Positioned.fill(
+                                      child: Listener(
+                                        behavior: HitTestBehavior.opaque, // 이미지나 텍스트 위에서도 드래그 이벤트를 받게 함
+                                        onPointerDown: (event) {
                                           setState(() {
-                                            showSaveButton = false;
+                                            dragStart = event.localPosition;
                                             selectedRect = null;
                                           });
-                                        } catch (e) {
-                                          print("❌ 텍스트 추출 중 오류 발생: $e");
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text("텍스트 추출 중 오류 발생: $e"),
-                                              backgroundColor: Colors.red,
-                                              duration: Duration(seconds: 2),
-                                            ),
-                                          );
-                                        } finally {
-                                          LoadingOverlay.hide();
-                                        }
-                                      },
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        child: Text(
-                                          '텍스트 인식',
-                                          style: TextStyle(color: Colors.white, fontSize: 14),
+                                        },
+                                        onPointerMove: (event) {
+                                          setState(() {
+                                            dragEnd = event.localPosition;
+                                            selectedRect = Rect.fromPoints(dragStart!, dragEnd!);
+                                            showSaveButton = false;
+                                          });
+                                        },
+                                        onPointerUp: (event) {
+                                          setState(() {
+                                            showSaveButton = selectedRect != null;
+                                          });
+                                        },
+                                      ),
+                                    ),
+
+                                  // 이미지 또는 텍스트 외 영역 클릭 시 선택 해제용
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.translucent,
+                                      onTapDown: _handleTapDownForDeselect,
+                                      child: Container(),
+                                    ),
+                                  ),
+
+                                  if (isTextMode)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.translucent,
+                                        onTapUp: (details) {
+                                          FocusScope.of(context).unfocus(); // 키보드 내리기
+                                          _handleTapUp(details); // 기존 동작 유지
+                                        },
+                                        child: Container(),
+                                      ),
+                                    ),
+
+                                  // 이미지
+                                  ...imageNotes.map((imgNote) => _buildDraggableImageNote(imgNote)),
+                                  // 텍스트
+                                  ...textNotes.map((note) => _buildDraggableNote(note)),
+
+
+                                  // 4. 손글씨 (항상 맨 위에서 그리기만 함, 터치 이벤트는 막지 않음)
+                                  Positioned.fill(
+                                    child: RepaintBoundary(
+                                      key: _drawingKey,
+                                      child: IgnorePointer(
+                                        child: CustomPaint(
+                                          painter: DrawingPainter(
+                                            strokes,
+                                            currentPoints,
+                                            selectedStrokeColor,
+                                            strokeWidth,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
 
-
-                              if (isStrokePopupVisible)
-                                Positioned.fill(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.translucent,
-                                    onTap: () {
-                                      setState(() {
-                                        isStrokePopupVisible = false;
-                                      });
-                                    },
-                                    child: Container(),
-                                  ),
-                                ),
-
-                              if (isStrokePopupVisible)
-                                Positioned(
-                                  top: 5,
-                                  right: 50,
-                                  child: Material(
-                                    elevation: 4,
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: SizedBox(
-                                        width: 160,
-                                        child: Slider(
-                                          value: strokeWidth,
-                                          min: 1,
-                                          max: 10,
-                                          divisions: 9,
-                                          label: strokeWidth.toStringAsFixed(1),
-                                          onChanged: (value) {
+                                  // 5. 손글씨 입력 리스너는 실제로 펜 모드일 때만 활성화 (터치 감지)
+                                  if (isDrawingMode)
+                                    Positioned.fill(
+                                      child: Listener(
+                                        onPointerDown: (event) {
+                                          if (isStrokePopupVisible) {
                                             setState(() {
-                                              strokeWidth = value;
+                                              isStrokePopupVisible = false;
                                             });
-                                          },
+                                          }
+                                          _handleStylusDown(event);
+                                        },
+                                        onPointerMove: _handleStylusMove,
+                                        onPointerUp: _handleStylusUp,
+                                        behavior: HitTestBehavior.translucent,
+                                        child: Container(),
+                                      ),
+                                    ),
+
+                                  if (selectedRect != null)
+                                    Positioned(
+                                      left: selectedRect!.left,
+                                      top: selectedRect!.top,
+                                      child: Container(
+                                        width: selectedRect!.width,
+                                        height: selectedRect!.height,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey, width: 2),
+                                          color: Colors.transparent,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                            ],
+
+                                  if (isSelectMode && selectedRect != null)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.translucent,
+                                        onTapDown: (details) {
+                                          final buttonRect = Rect.fromLTWH(
+                                            selectedRect!.left,
+                                            selectedRect!.top - 40,
+                                            100,
+                                            40,
+                                          );
+                                          if (!selectedRect!.contains(details.localPosition) &&
+                                              !buttonRect.contains(details.localPosition)) {
+                                            setState(() {
+                                              selectedRect = null;
+                                              showSaveButton = false;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ),
+
+                                  if (showSaveButton && selectedRect != null)
+                                    Positioned(
+                                      left: selectedRect!.left,
+                                      top: selectedRect!.top - 40,
+                                      child: Material(
+                                        elevation: 2,
+                                        color: Colors.black87,
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: InkWell(
+                                          onTap: () async {
+                                            await Future.delayed(const Duration(milliseconds: 100));
+                                            LoadingOverlay.show(context, message: '텍스트 추출 중...');
+                                            try {
+                                              final ocrText = await sendToFlaskOCR(
+                                                drawingKey: _drawingKey, // 손글씨 전용 키
+                                                selectedRect: selectedRect!,
+                                                pixelRatio: 3.0,
+                                              );
+                                              if (ocrText != null && mounted) {
+                                                setState(() {
+                                                  textNotes.add(TextNote(
+                                                    position: Offset(selectedRect!.left, selectedRect!.top),
+                                                    initialText: ocrText,
+                                                  ));
+                                                  strokes = strokes.where((stroke) {
+                                                    return !stroke.points.any((point) => point != null && selectedRect!.contains(point!));
+                                                  }).toList();
+                                                  canUndo = strokes.isNotEmpty;
+                                                  selectedRect = null;
+                                                  showSaveButton = false;
+                                                });
+                                              }
+                                              setState(() {
+                                                showSaveButton = false;
+                                                selectedRect = null;
+                                              });
+                                            } catch (e) {
+                                              print("❌ 텍스트 추출 중 오류 발생: $e");
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("텍스트 추출 중 오류 발생: $e"),
+                                                  backgroundColor: Colors.red,
+                                                  duration: Duration(seconds: 2),
+                                                ),
+                                              );
+                                            } finally {
+                                              LoadingOverlay.hide();
+                                            }
+                                          },
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            child: Text(
+                                              '텍스트 인식',
+                                              style: TextStyle(color: Colors.white, fontSize: 14),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  if (isNoteMenuVisible)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            isNoteMenuVisible = false;
+                                          });
+                                        },
+                                        child: Container(
+                                          color: Colors.transparent,
+                                        ),
+                                      ),
+                                    ),
+
+                                  if (isNoteMenuVisible && noteMenuPosition != null)
+                                    Positioned(
+                                      left: 900,
+                                      top: 10,
+                                      child: Material(
+                                        elevation: 4,
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            InkWell(
+                                              // 요약 버튼 탭 시 동작
+                                              onTap: () async {
+                                                setState(() => isNoteMenuVisible = false);
+
+                                                await Future.delayed(const Duration(milliseconds: 200)); // 렌더링 대기
+
+                                                try {
+                                                  final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+                                                  if (boundary != null) {
+                                                    final image = await boundary.toImage(pixelRatio: 3.0);
+                                                    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                                                    if (byteData != null) {
+                                                      final tempFile = await File('${Directory.systemTemp.path}/note_summary.png').create();
+                                                      await tempFile.writeAsBytes(byteData.buffer.asUint8List());
+
+                                                      //print("팝업 호출 직전");
+                                                      SummaryPopup.show(context, imageFile: tempFile);
+                                                      //print("팝업 호출 직후");
+                                                    } else {
+                                                      throw Exception("바이트 데이터를 가져올 수 없습니다.");
+                                                    }
+                                                  } else {
+                                                    throw Exception("RepaintBoundary 찾기 실패");
+                                                  }
+                                                } catch (e) {
+                                                  print("요약 처리 중 오류 발생: $e");
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(content: Text('요약 처리 중 오류가 발생했습니다'), backgroundColor: Colors.red),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              child: const Padding(
+                                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                child: Text('요약', style: TextStyle(fontSize: 16)),
+                                              ),
+                                            ),
+                                            const Divider(height: 1),
+                                            InkWell(
+                                              onTap: _handleDeleteNote,
+                                              child: const Padding(
+                                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                child: Text('삭제', style: TextStyle(fontSize: 16, color: Colors.red)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                  if (isStrokePopupVisible)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.translucent,
+                                        onTap: () {
+                                          setState(() {
+                                            isStrokePopupVisible = false;
+                                          });
+                                        },
+                                        child: Container(),
+                                      ),
+                                    ),
+
+                                  if (isStrokePopupVisible)
+                                    Positioned(
+                                      top: 5,
+                                      right: 50,
+                                      child: Material(
+                                        elevation: 4,
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          child: SizedBox(
+                                            width: 250,
+                                            child: SliderTheme(
+                                              data: SliderTheme.of(context).copyWith(
+                                                activeTrackColor: const Color(0xFFB8BDF1),
+                                                inactiveTrackColor: const Color(0xFFB8BDF1).withOpacity(0.3),
+                                                thumbColor: const Color(0xFFB8BDF1),
+                                                overlayColor: const Color(0xFFB8BDF1).withOpacity(0.2),
+                                                valueIndicatorColor: const Color(0xFFB8BDF1),
+                                                valueIndicatorTextStyle: const TextStyle(color: Colors.black),
+                                              ),
+                                              child: Slider(
+                                                value: strokeWidth,
+                                                min: 1,
+                                                max: 10,
+                                                divisions: 9,
+                                                label: strokeWidth.toStringAsFixed(1),
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    strokeWidth = value;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                )
-              ],
-            ),
+                    )
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
     );
   }
 
@@ -1212,11 +1561,12 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       }
 
       // 아무 노트도 선택 안 되어 있고, 노트 영역도 아니라면 → 새 노트 생성
-      late _TextNote newNote;
-      newNote = _TextNote(
+      late TextNote newNote;
+      newNote = TextNote(
         position: tappedPosition,
         fontSize: fontSize,
-        color: selectedColor,
+        color: selectedTextColor,
+        size: Size(300, 100), // 텍스트 기본 영역 크기
         onFocusLost: () {
           setState(() {
             newNote.isSelected = false;
@@ -1235,7 +1585,6 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       });
     }
   }
-
 }
 
 class DrawingPainter extends CustomPainter {
@@ -1248,9 +1597,6 @@ class DrawingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final backgroundPaint = Paint()..color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
-
     for (var stroke in strokes) {
       _drawSmoothStroke(canvas, stroke.points, stroke.color, stroke.strokeWidth);
     }
@@ -1308,71 +1654,17 @@ class DrawingPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-
-
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
 
-
-
-
-class Stroke {
-  final List<Offset?> points;
-  final Color color;
-  final double strokeWidth;
-
-  Stroke({
-    required this.points,
-    required this.color,
-    required this.strokeWidth,
-  });
-}
-
-class _TextNote {
-  Offset position;
-  TextEditingController controller;
-  FocusNode focusNode;
-  double fontSize;
-  Color color;
-  Size size;
-  bool isSelected;
-
-  _TextNote({
-    required this.position,
-    this.fontSize = 16.0,
-    this.color = Colors.black,
-    String initialText = '',
-    this.size = const Size(150, 50),
-    this.isSelected = false,
-    void Function()? onFocusLost,
-  })  : controller = TextEditingController(text: initialText),
-        focusNode = FocusNode() {
-    focusNode.addListener(() {
-      // 포커스를 잃었을 때 드래그 중이면 선택 유지
-      if (!focusNode.hasFocus) {
-        Future.delayed(Duration(milliseconds: 50), () {
-          if (!focusNode.hasFocus) {
-            isSelected = false;
-            if (onFocusLost != null) onFocusLost();
-          }
-        });
-      }
-    });
-
+class _BackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
   }
-}
 
-class _ImageNote {
-  Offset position;
-  File file;
-  Size size;
-  bool isSelected;
-
-  _ImageNote({
-    required this.position,
-    required this.file,
-    this.size = const Size(150, 150),
-    this.isSelected = false,
-  });
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
