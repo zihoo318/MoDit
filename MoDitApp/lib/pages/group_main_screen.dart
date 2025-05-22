@@ -40,6 +40,8 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   String? _meetingId;
   bool isRecordingView = false;
 
+  late Offset _targetCenter;
+
   final List<String> menuTitles = [
     '메뉴', '공부 시간', '미팅 일정 & 녹음', '과제 관리', '공지사항', '채팅'
   ];
@@ -56,6 +58,18 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   void initState() {
     super.initState();
     _loadGroupInfo();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final renderBox = context.findRenderObject() as RenderBox;
+      final offset = renderBox.localToGlobal(Offset.zero);
+      final size = renderBox.size;
+      setState(() {
+        _targetCenter = Offset(
+            offset.dx + size.width * 0.6, // 메뉴 제외한 오른쪽 영역 중앙
+            offset.dy + size.height * 0.55 // 상단바 제외한 중앙
+        );
+      });
+    });
   }
 
   void _loadGroupInfo() async {
@@ -253,32 +267,50 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           child: FadeTransition(opacity: animation, child: child),
         );
       },
-      child: _selectedIndex == 0
+      child: _selectedIndex == 0 && _targetCenter != null
           ? MenuScreen(
-        key: const ValueKey('menu'), // 키 필수
+        key: const ValueKey('menu'),
         groupId: widget.groupId,
         currentUserEmail: widget.currentUserEmail,
         currentUserName: widget.currentUserName,
         onNavigateToTab: (int index) {
           setState(() => _selectedIndex = index);
         },
+        targetCenter: _targetCenter!,
       )
           : _animatedTabWrapper(_selectedIndex),
     );
   }
 
   Widget _animatedTabWrapper(int index) {
-    return Container(
-      key: ValueKey(index), // 꼭 있어야 AnimatedSwitcher가 동작함
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(40),
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(index),
+      tween: Tween(begin: 0.95, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      builder: (context, scale, child) {
+        final opacity = (scale - 0.95) / 0.05 * 0.4 + 0.6; // 0.6 → 1.0 매핑 (=scale: 0.95 → 1.0일 때 opacity: 0.6 → 1.0으로 선형 변화)
+
+        return Opacity(
+          opacity: opacity.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: scale,
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(40),
+        ),
+        child: _getContentForOtherTabs(),
       ),
-      child: _getContentForOtherTabs(),
     );
   }
+
 
 
   Widget _getContentForOtherTabs() {
@@ -325,10 +357,10 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
         return (_recordDate == null || _meetingId == null)
             ? const Center(child: Text('날짜가 선택되지 않았습니다'))
             : MeetingRecordWidget(
-                selectedDate: _recordDate!,
-                groupId: widget.groupId,
-                meetingId: _meetingId!,
-              );
+          selectedDate: _recordDate!,
+          groupId: widget.groupId,
+          meetingId: _meetingId!,
+        );
       default:
         return const SizedBox();
     }
