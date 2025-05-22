@@ -45,3 +45,6 @@ __pycache__/
 # Env & temp
 *.env
 temp_files/
+
+# 🔒 Secret keys
+MoDitFlask/config/serviceAccountKey.json
