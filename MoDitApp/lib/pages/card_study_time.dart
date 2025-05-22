@@ -9,12 +9,14 @@ class StudyTimeCard extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
+  final VoidCallback? onDataLoaded; // ✅ 추가
 
   const StudyTimeCard({
     super.key,
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
+    this.onDataLoaded, // ✅ 추가
   });
 
   @override
@@ -41,21 +43,17 @@ class _StudyTimeCardState extends State<StudyTimeCard> {
     });
   }
 
-/*
-  void _initialize() async {
-    await _loadMembers();      // 여기까진 기다리되
-    _listenToStudyTimes();     // studyTimes 수신 시점에 로딩 해제
-*/
-  Future<void> _loadStudyData() async {
-    setState(() => _isLoading = true);        // 로딩 시작
-    await _loadMembers();                      // 멤버 불러오기
-    _listenToStudyTimes();                     // 리스너 등록
-    setState(() => _isLoading = false);       // 로딩 끝
+void _initialize() async {
+  setState(() => _isLoading = true);          // 로딩 시작
+  await _loadMembers();                       // 멤버 불러오기
+  _listenToStudyTimes();                      // 리스너 등록
+  setState(() => _isLoading = false);         // 로딩 끝
 
-    if (widget.onDataLoaded != null) {
-      widget.onDataLoaded!();
-    }
+  if (widget.onDataLoaded != null) {
+    widget.onDataLoaded!();                   // 콜백 실행
   }
+}
+
 
 
   Future<void> _loadMembers() async {
