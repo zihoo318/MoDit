@@ -1,6 +1,3 @@
-// -----------------------------
-// group_main_screen.dart
-// -----------------------------
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'chatting.dart';
@@ -12,11 +9,7 @@ import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'menu.dart';
 import 'home.dart';
-import 'mypage.dart'; // 맨 위에 추가
-import 'package:moditapp/pages/mypage.dart';
-
-
-import 'home.dart';
+import 'login.dart';
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
@@ -47,31 +40,27 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   late Offset _targetCenter;
 
-  final List<String> menuTitles = [
-    '메뉴', '공부 시간', '미팅 일정 & 녹음', '과제 관리', '공지사항', '채팅'
-  ];
+  bool _isMyPageOpen = false;
+  bool _isEditingName = false;
+  late TextEditingController _nameController;
 
-  final List<String> menuIcons = [
-    'menu_icon', 'study_icon', 'calendar_icon', 'homework_icon', 'notice_icon', 'chatting_icon'
-  ];
-
-  final List<String> menuIconsSelected = [
-    'menu_icon2', 'study_icon2', 'calendar_icon2', 'homework_icon2', 'notice_icon2', 'chatting_icon2'
-  ];
+  final List<String> menuTitles = ['메뉴', '공부 시간', '미팅 일정 & 녹음', '과제 관리', '공지사항', '채팅'];
+  final List<String> menuIcons = ['menu_icon', 'study_icon', 'calendar_icon', 'homework_icon', 'notice_icon', 'chatting_icon'];
+  final List<String> menuIconsSelected = ['menu_icon2', 'study_icon2', 'calendar_icon2', 'homework_icon2', 'notice_icon2', 'chatting_icon2'];
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(text: widget.currentUserName);
     _loadGroupInfo();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final renderBox = context.findRenderObject() as RenderBox;
       final offset = renderBox.localToGlobal(Offset.zero);
       final size = renderBox.size;
       setState(() {
         _targetCenter = Offset(
-            offset.dx + size.width * 0.6, // 메뉴 제외한 오른쪽 영역 중앙
-            offset.dy + size.height * 0.55 // 상단바 제외한 중앙
+          offset.dx + size.width * 0.6,
+          offset.dy + size.height * 0.55,
         );
       });
     });
@@ -99,6 +88,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     }
   }
 
+  Future<void> _updateName() async {
+    final newName = _nameController.text.trim();
+    if (newName.isEmpty) return;
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    await db.child('user').child(userKey).update({'name': newName});
+    setState(() => _isEditingName = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('이름이 수정되었습니다')),
+    );
+  }
+
+  void _logout() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +135,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                     ...List.generate(menuTitles.length, (index) {
                       final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
                       final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
-
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: GestureDetector(
@@ -141,7 +146,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
                             decoration: BoxDecoration(
                               color: selected ? const Color(0xFFB8BDF1).withOpacity(0.3) : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
@@ -154,7 +158,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                     duration: const Duration(milliseconds: 300),
                                     child: Image.asset(
                                       'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
-                                      key: ValueKey(selected), // 상태 변화 감지용 키
+                                      key: ValueKey(selected),
                                       width: 22,
                                     ),
                                   ),
@@ -173,7 +177,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                         ),
                       );
                     }),
-
                   ],
                 ),
               ),
@@ -207,13 +210,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                               const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => MyPagePopup(
-                                      userEmail: widget.currentUserEmail,
-                                      userName: widget.currentUserName,
-                                    )
-                                  );
+                                  setState(() => _isMyPageOpen = !_isMyPageOpen);
                                 },
                                 child: const CircleAvatar(
                                   radius: 16,
@@ -221,7 +218,6 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                   backgroundImage: AssetImage('assets/images/user_icon2.png'),
                                 ),
                               ),
-
                             ],
                           ),
                         ],
@@ -233,6 +229,95 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 ),
               )
             ],
+          ),
+          if (_isMyPageOpen)
+            Positioned(
+              top: 120,
+              right: 40,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  key: const ValueKey("mypage"),
+                width: 280,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))
+                  ],
+                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '내 프로필',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
+                    ),
+                    const SizedBox(height: 18),
+                    const CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.white,
+                      backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                    ),
+                    const SizedBox(height: 10),
+                    _isEditingName
+                        ? TextField(
+                      controller: _nameController,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 17),
+                      decoration: InputDecoration(
+                        hintText: '이름 입력',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      ),
+                    )
+                        : Text(
+                      _nameController.text,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          if (_isEditingName) {
+                            _updateName();
+                          } else {
+                            setState(() => _isEditingName = true);
+                          }
+                        },
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: Text(_isEditingName ? '저장' : '이름 수정'),
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: const Color(0xFFF0F0F0),
+                          foregroundColor: Colors.black87,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _logout,
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('로그아웃'),
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: const Color(0xFFFBE9E9),
+                          foregroundColor: Colors.redAccent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           _buildBackButton(),
         ],
