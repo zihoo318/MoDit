@@ -1,4 +1,5 @@
 # MoDit (2025 캡스톤디자인)
+![logo](https://github.com/user-attachments/assets/60a37c32-10dc-4c77-9921-d06dbd9d7623)
 
 ## MoDitApp (Flutter)
 > 2025 캡스톤디자인 프로젝트의 프론트엔드 앱
