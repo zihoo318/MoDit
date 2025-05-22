@@ -12,23 +12,23 @@
 
 ## [주요 적용 기술 및 구조]
 
-✔️ **주요 기술**:  
+- **주요 기술**:  
   - OpenAI (ChatGPT)  
   - Naver Clova Speech API  
   - Google Cloud Vision OCR API  
 
-✔️ **개발 언어**: Dart, Python  
-✔️ **개발 환경**: Windows  
-✔️ **개발 도구**: Android Studio, VSCode, Firebase, Amazon EC2  
+- **개발 언어**: Dart, Python  
+- **개발 환경**: Windows  
+- **개발 도구**: Android Studio, VSCode, Firebase, Amazon EC2  
 
-✔️ **프레임워크 및 API**:  
+- **프레임워크 및 API**:  
   - Flutter  
   - Flask  
   - OpenAI API  
   - NAVER Cloud Platform (Clova API + Object Storage)  
   - Google Cloud Vision API
  
-✔️ **구조**
+- **구조**
   ![구조](https://github.com/user-attachments/assets/3929c0cb-469d-4392-84c5-197cd16cf5df)
 
 ---
