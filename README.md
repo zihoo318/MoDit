@@ -58,6 +58,7 @@ It integrates with an AI-powered Flask backend for OCR, voice-to-text, and summa
 ## 🧠 MoDitFlask (Python Flask Backend)
 > AI 기능 연산 및 Firebase와 연동되는 서버 백엔드
 
+
 ### 핵심 기능
 - 이미지 파일 -> **Google Cloud Vision OCR Api**를 사용해 손글씨를 텍스트화
 - 음성 파일 -> **Clova speech Api**를 사용해 음성 녹음을 텍스트화
@@ -75,8 +76,10 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
   ## 기대 효과
   **1. 플랫폼 분산 해소**
       - 노션, 밴드 등 여러 앱을 오가는 번거로움을 없애고, 통합된 협업 플랫폼 제공
+  
   **2. 실시간 저장 및 공유**
       - 회의 및 학습 내용을 실시간 저장·공유하여 팀 내 정보 격차 해소
+  
   **3. 지속 가능한 협업 환경 제공**
       - 학습 몰입도와 협업 생산성을 동시에 끌어올리는 스마트 플랫폼
 
