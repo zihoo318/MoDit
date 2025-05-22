@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:ui';
+import 'package:flutter_animate/flutter_animate.dart';
+
 
 class MeetingCalendarWidget extends StatefulWidget {
   final String groupId;
@@ -307,12 +309,17 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                     onTap: () => widget.onRecordDateSelected(meeting['date'], meeting['id']),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildMeetingCard(meeting),
+                      child: _buildMeetingCard(meeting)
+                          .animate(delay: Duration(milliseconds: index * 80)) // ✅ 여기서 delay 직접 전달
+                          .slideY(begin: 0.2, end: 0, duration: 300.ms, curve: Curves.easeOut)
+                          .fadeIn(duration: 300.ms),
                     ),
                   );
                 },
               ),
             ),
+
+
           ),
         ),
       ],
