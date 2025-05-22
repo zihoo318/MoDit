@@ -1,14 +1,16 @@
 # MoDit (2025 캡스톤디자인)
 > 팀명: **사공사**
+
 ![logo](https://github.com/user-attachments/assets/60a37c32-10dc-4c77-9921-d06dbd9d7623)
 
----
+--
 
 ## [작품 개요]
 **그룹스터디 최적화 올인원 협업 플랫폼**
+
 >**모딧(Modit)**은 음성 녹음 텍스트화, 손글씨 인식, AI 요약 기능을 결합해 회의록과 학습 자료를 직접 생성·공유할 수 있는 그룹 스터디 특화 올인원 플랫폼입니다. 앱 내에서 과제를 직접 작성하고 공유할 수 있어 협업 효율이 높고, 반복적인 기록 작업을 줄여 학습과 팀플에 집중할 수 있습니다.
 
----
+--
 
 ## 주요 적용 기술 및 구조
 
@@ -36,7 +38,7 @@
 ## 📱 MoDitApp (Flutter)
 > 2025 캡스톤디자인 프로젝트의 프론트엔드 앱
 
-Flutter 기반의 모바일 앱으로, 사용자 인터페이스와 Firebase 실시간 연동을 통해 그룹별 과제, 회의록, 메모, 채팅, 공부 시간 등을 통합 관리할 수 있습니다.
+Flutter 기반 태블릿 전용 앱으로, 사용자 인터페이스와 Firebase 실시간 연동을 통해 그룹별 과제, 회의록, 메모, 채팅, 공부 시간 등을 통합 관리할 수 있습니다.
 
 ### 핵심 기능
 - 노트
@@ -45,7 +47,7 @@ Flutter 기반의 모바일 앱으로, 사용자 인터페이스와 Firebase 실
 - 공지사항
 - 채팅
 
-### Getting Started
+### 시작하기
 This project is the starting point for the Flutter-based client application for **MoDit**.  
 It integrates with an AI-powered Flask backend for OCR, voice-to-text, and summarization.
 
@@ -53,7 +55,7 @@ It integrates with an AI-powered Flask backend for OCR, voice-to-text, and summa
 - Integrated with Firebase (Auth, Firestore, Storage)  
 - Works with Flask REST API (OCR, STT, NLP)
 
----
+--
 
 ## 🧠 MoDitFlask (Python Flask Backend)
 > AI 기능 연산 및 Firebase와 연동되는 서버 백엔드
@@ -72,7 +74,7 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 - 음성 녹음 파일 업로드 → Flask Naver Clova Speech Recognition API → 결과 텍스트 저장  
 - 메모 or 필기 텍스트 → Flask Summarization → 요약 텍스트 저장
 
-  ---
+---
   ## 기대 효과
   **1. 플랫폼 분산 해소**
       - 노션, 밴드 등 여러 앱을 오가는 번거로움을 없애고, 통합된 협업 플랫폼 제공
@@ -87,4 +89,5 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ## 작품 소개 사진
 
+![작품사진](https://github.com/user-attachments/assets/493190c2-3a59-4bc4-a1fc-f24d8bb53bdc)
 
