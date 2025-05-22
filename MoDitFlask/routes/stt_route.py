@@ -47,6 +47,7 @@ def upload_voice_file():
     finally:
         delete_file(temp_path)
 
+
 # 음성녹음파일. 텍스트화파일,요약본 한번에 삭제 함수
 @stt_bp.route('/delete_audio_text', methods=['POST'])
 def delete_audio_and_text():
