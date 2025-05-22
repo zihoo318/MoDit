@@ -7,9 +7,8 @@
 ## [작품 개요]
 **📚 그룹스터디 최적화 올인원 협업 플랫폼**
 
-**모딧(Modit)**은 음성 녹음 텍스트화, 손글씨 인식, AI 요약 기능을 결합해 회의록과 학습 자료를 직접 생성·공유할 수 있는 그룹 스터디 특화 올인원 플랫폼입니다. 앱 내에서 과제를 직접 작성하고 공유할 수 있어 협업 효율이 높고, 반복적인 기록 작업을 줄여 학습과 팀플에 집중할 수 있습니다.
+> **모딧(Modit)** 은 음성 녹음 텍스트화, 손글씨 인식, AI 요약 기능을 결합해 회의록과 학습 자료를 직접 생성·공유할 수 있는 그룹 스터디 특화 올인원 플랫폼입니다. 앱 내에서 과제를 직접 작성하고 공유할 수 있어 협업 효율이 높고, 반복적인 기록 작업을 줄여 학습과 팀플에 집중할 수 있습니다.
 
----
 
 ## [주요 적용 기술 및 구조]
 
@@ -46,13 +45,12 @@ Flutter 기반 태블릿 전용 앱으로, 사용자 인터페이스와 Firebase
 - 공지사항
 - 채팅
 
-### 시작하기
-This project is the starting point for the Flutter-based client application for **MoDit**.  
-It integrates with an AI-powered Flask backend for OCR, voice-to-text, and summarization.
+### 🚀 시작하기
+AI 기능이 탑재된 Flask 백엔드와 연동되어, **손글씨 OCR**, **음성 텍스트 변환**, **텍스트 요약** 기능을 수행합니다.
 
-- Built with Flutter 3.x  
-- Integrated with Firebase (Auth, Firestore, Storage)  
-- Works with Flask REST API (OCR, STT, NLP)
+- Flutter 3.x 기반으로 개발  
+- Firebase 연동 (인증, 실시간 데이터베이스, 저장소)  
+- Flask REST API와 통신 (OCR, 음성 인식, 자연어 처리)
 
 ---
 
