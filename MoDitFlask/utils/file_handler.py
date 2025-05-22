@@ -95,7 +95,7 @@ def delete_all_files_in_prefix(prefix):
         )
         print(f"🧹 {len(objects)}개 파일 삭제됨: {prefix}")
 
-        
+
 def delete_object_by_url(url): #URL에서 버킷 Key를 파싱하고 오브젝트 스토리지에서 삭제
     parsed = urlparse(url)
     path = unquote(parsed.path)  # "/bucket-name/key" 형식

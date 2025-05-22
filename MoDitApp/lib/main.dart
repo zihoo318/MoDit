@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:moditapp/pages/group_main_screen.dart';
-import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
-import 'pages/logo_screen.dart';
-import 'pages/meeting_calendar.dart';
-import 'pages/meeting_record.dart';
-import 'pages/notice.dart';
-import 'pages/study_first_page.dart';
-import 'pages/study_time.dart';
-import 'package:moditapp/pages/chatting.dart';
-import 'package:moditapp/pages/join.dart';
-import 'pages/home.dart';
-import 'pages/login.dart'; // 👈 login.dart 임포트 추가
-import 'pages/note_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'firebase_options.dart';
+import 'pages/home.dart';
+
+// ✅ 백그라운드 푸시 알림 수신 핸들러
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('💬 백그라운드 메시지 수신됨: ${message.messageId}');
+}
+
+// ✅ navigatorKey를 사용해 어디서든 context 접근 가능하게 함
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// ✅ 로컬 알림 플러그인 전역 초기화
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +27,52 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
+  await FirebaseAuth.instance.signInAnonymously();
+
+  // 🔔 로컬 알림 초기화
+  const AndroidInitializationSettings initializationSettingsAndroid =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print("📬 포그라운드 메시지 수신됨: ${message.notification?.title}");
+
+    final notification = message.notification;
+    final android = notification?.android;
+
+    if (notification != null && android != null) {
+      flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'modit_channel_id', // 고유 채널 ID
+            'MoDit 알림',
+            channelDescription: '앱 실행 중에도 알림을 보여줍니다',
+            importance: Importance.max,
+            priority: Priority.high,
+            color: const Color(0xFFB8BDF1),
+          ),
+        ),
+      );
+    }
+  });
+
+  runApp(const MoDitApp());
 }
 
 class MoDitApp extends StatelessWidget {
@@ -31,12 +81,13 @@ class MoDitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(
-        fontFamily: 'nanum_round', // 전체 폰트 지정
+        fontFamily: 'nanum_round',
       ),
-      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
+      localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -45,12 +96,7 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: HomeScreen(
-      //   groupId: '-OPqe387N6zi4K4UK3IT',
-         currentUserEmail: 'ga@naver.com',
-        currentUserName: 'ga',
-       ),
+      home: const Home(),
     );
-    //home: NoteScreen());
   }
 }
