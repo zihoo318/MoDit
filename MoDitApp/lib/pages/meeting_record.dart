@@ -28,6 +28,42 @@ class MeetingRecordWidget extends StatefulWidget {
   State<MeetingRecordWidget> createState() => _MeetingRecordWidgetState();
 }
 
+class FadeTransitionTab extends StatefulWidget {
+  final Widget child;
+  const FadeTransitionTab({Key? key, required this.child}) : super(key: key);
+
+  @override
+  State<FadeTransitionTab> createState() => _FadeTransitionTabState();
+}
+
+class _FadeTransitionTabState extends State<FadeTransitionTab> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: widget.child,
+    );
+  }
+}
+
+
 class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   final AudioPlayer _player = AudioPlayer();
@@ -405,117 +441,130 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                     itemCount: recordings.length,
                     itemBuilder: (context, index) {
                       final r = recordings[index];
-                      return Card(
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.mic),
-                              title: Text(r['name']),
-                              subtitle: Text(
-                                  DateFormat('yyyy.MM.dd HH:mm:ss').format(
-                                      r['timestamp'])),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      _playingIndex == index && _isPlaying ? Icons.stop : Icons.play_arrow,
-                                    ),
-                                    onPressed: () async {
-                                      if (_isPlaying && _playingIndex == index) {
-                                        await _player.stop();
+                      return Animate(
+                        effects: [
+                          SlideEffect(
+                            begin: const Offset(0, 0.2), // 아래에서 위로 등장
+                            end: Offset.zero,
+                            duration: Duration(milliseconds: 400 + index * 80),
+                            curve: Curves.easeOut,
+                          ),
+                          FadeEffect(
+                            duration: Duration(milliseconds: 400 + index * 80),
+                            curve: Curves.easeOut,
+                          ),
+                        ],
+                        child: Card(
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.mic),
+                                title: Text(r['name']),
+                                subtitle: Text(
+                                  DateFormat('yyyy.MM.dd HH:mm:ss').format(r['timestamp']),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        _playingIndex == index && _isPlaying
+                                            ? Icons.stop
+                                            : Icons.play_arrow,
+                                      ),
+                                      onPressed: () async {
+                                        if (_isPlaying && _playingIndex == index) {
+                                          await _player.stop();
+                                          await _progressSubscription?.cancel();
+                                          setState(() {
+                                            _isPlaying = false;
+                                            _playingIndex = null;
+                                            _currentPosition = Duration.zero;
+                                            _totalDuration = Duration.zero;
+                                          });
+                                          return;
+                                        }
+
                                         await _progressSubscription?.cancel();
+                                        await _player.setUrl(r['url']);
+                                        await _player.load();
+
+                                        await Future.delayed(const Duration(milliseconds: 100));
+                                        final duration = _player.duration;
+
                                         setState(() {
-                                          _isPlaying = false;
-                                          _playingIndex = null;
+                                          _totalDuration = duration ?? Duration.zero;
                                           _currentPosition = Duration.zero;
-                                          _totalDuration = Duration.zero;
+                                          _isPlaying = true;
+                                          _playingIndex = index;
                                         });
-                                        return;
-                                      }
 
-                                      await _progressSubscription?.cancel();
-                                      await _player.setUrl(r['url']);
-                                      await _player.load();
-
-                                      // delay를 주고 duration을 수동으로 다시 fetch
-                                      await Future.delayed(const Duration(milliseconds: 100));
-                                      final duration = _player.duration;
-
-                                      setState(() {
-                                        _totalDuration = duration ?? Duration.zero;
-                                        _currentPosition = Duration.zero;
-                                        _isPlaying = true;
-                                        _playingIndex = index;
-                                      });
-
-                                      _progressSubscription = _player.positionStream.listen((position) {
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _currentPosition = position;
+                                        _progressSubscription =
+                                            _player.positionStream.listen((position) {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _currentPosition = position;
+                                          });
                                         });
-                                      });
 
-                                      await _player.play();
-                                    },
-                                  ),
-
-
-                                  IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () {
-                                      _deleteRecording(index);
-                                    },
-                                  ),
-                                ],
-                              ),
-
-                              onTap: () {
-                                if (r.containsKey('text_url')) {
-                                  final textUrl = r['text_url'];
-                                  if (_cachedTextUrl != textUrl) {
-                                    _cachedTextUrl = textUrl;
-                                    _textFuture = http.get(Uri.parse(textUrl));
-                                  }
-
-                                  _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
-
-                                  setState(() {
-                                    _selectedTextUrl = textUrl;
-                                  });
-                                }
-                              },
-                            ),
-                            if (_playingIndex == index && _isPlaying)
-                              Column(
-                                children: [
-                                  Slider(
-                                    value: _currentPosition.inMilliseconds
-                                        .clamp(0, _totalDuration.inMilliseconds)
-                                        .toDouble(),
-                                    max: _totalDuration.inMilliseconds
-                                        .toDouble().clamp(1.0, double.infinity),
-                                    onChanged: (value) {
-                                      final newPosition = Duration(
-                                          milliseconds: value.toInt());
-                                      _player.seek(newPosition);
-                                    },
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment
-                                          .spaceBetween,
-                                      children: [
-                                        Text(_formatDuration(_currentPosition)),
-                                        Text(_formatDuration(_totalDuration)),
-                                      ],
+                                        await _player.play();
+                                      },
                                     ),
-                                  ),
-                                ],
+                                    IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      onPressed: () {
+                                        _deleteRecording(index);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  if (r.containsKey('text_url')) {
+                                    final textUrl = r['text_url'];
+                                    if (_cachedTextUrl != textUrl) {
+                                      _cachedTextUrl = textUrl;
+                                      _textFuture = http.get(Uri.parse(textUrl));
+                                    }
+
+                                    _summaryFuture =
+                                        Api().requestSummary(textUrl, widget.groupId);
+
+                                    setState(() {
+                                      _selectedTextUrl = textUrl;
+                                    });
+                                  }
+                                },
                               ),
-                          ],
+                              if (_playingIndex == index && _isPlaying)
+                                Column(
+                                  children: [
+                                    Slider(
+                                      value: _currentPosition.inMilliseconds
+                                          .clamp(0, _totalDuration.inMilliseconds)
+                                          .toDouble(),
+                                      max: _totalDuration.inMilliseconds
+                                          .toDouble()
+                                          .clamp(1.0, double.infinity),
+                                      onChanged: (value) {
+                                        final newPosition =
+                                            Duration(milliseconds: value.toInt());
+                                        _player.seek(newPosition);
+                                      },
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(_formatDuration(_currentPosition)),
+                                          Text(_formatDuration(_totalDuration)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -548,45 +597,43 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                         Expanded(
                           child: TabBarView(
                             children: [
-                              FutureBuilder<http.Response>(
-                                future: _textFuture,
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData ||
-                                      snapshot.data!.statusCode != 200) {
-                                    return const Text("전체 텍스트를 불러오는 데 실패했습니다.");
-                                  } else {
-                                    return SingleChildScrollView(
-                                      child: Text(snapshot.data!.body,
-                                          style: const TextStyle(fontSize: 14)),
-                                    );
-                                  }
-                                },
+                              FadeTransitionTab(
+                                child: FutureBuilder<http.Response>(
+                                  future: _textFuture,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Center(child: CircularProgressIndicator());
+                                    } else if (!snapshot.hasData || snapshot.data!.statusCode != 200) {
+                                      return const Text("전체 텍스트를 불러오는 데 실패했습니다.");
+                                    } else {
+                                      return SingleChildScrollView(
+                                        child: Text(snapshot.data!.body, style: const TextStyle(fontSize: 14)),
+                                      );
+                                    }
+                                  },
+                                ),
                               ),
-                              FutureBuilder<Map<String, dynamic>?>(
-                                future: _summaryFuture,
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Center(child: CircularProgressIndicator());
-                                  } else if (!snapshot.hasData || snapshot.data!['summary_text'] == null) {
-                                    return const Text("요약본을 불러오는 데 실패했습니다.");
-                                  } else {
-                                    final summaryText = snapshot.data!['summary_text'];
-                                    return SingleChildScrollView(
-                                      child: Text(
-                                        summaryText,
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    );
-                                  }
-                                },
+                              FadeTransitionTab(
+                                child: FutureBuilder<Map<String, dynamic>?>(
+                                  future: _summaryFuture,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Center(child: CircularProgressIndicator());
+                                    } else if (!snapshot.hasData || snapshot.data!['summary_text'] == null) {
+                                      return const Text("요약본을 불러오는 데 실패했습니다.");
+                                    } else {
+                                      final summaryText = snapshot.data!['summary_text'];
+                                      return SingleChildScrollView(
+                                        child: Text(summaryText, style: const TextStyle(fontSize: 14)),
+                                      );
+                                    }
+                                  },
+                                ),
                               ),
                             ],
                           ),
                         ),
+
                       ],
                     ),
                   ),

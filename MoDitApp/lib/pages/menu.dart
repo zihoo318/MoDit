@@ -154,7 +154,7 @@ class _MenuScreenState extends State<MenuScreen> {
                               groupId: widget.groupId,
                               currentUserEmail: widget.currentUserEmail,
                               currentUserName: widget.currentUserName,
-                              onDataLoaded: _onStudyTimeLoaded,
+                              //onDataLoaded: _onStudyTimeLoaded,
                             ),
                           ),
                           onTap: () => widget.onNavigateToTab?.call(1),
