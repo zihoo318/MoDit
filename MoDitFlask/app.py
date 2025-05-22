@@ -6,6 +6,7 @@ from routes.summary_route import summary_bp
 from routes.task_route import task_bp
 from routes.note_route import note_bp
 from flask_cors import CORS
+from routes.push_route import push_bp  # ✅ 추가
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -17,6 +18,9 @@ app.register_blueprint(ocr_bp)
 app.register_blueprint(summary_bp)
 app.register_blueprint(task_bp)
 app.register_blueprint(note_bp)
+app.register_blueprint(push_bp)  # ✅ 추가
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
+

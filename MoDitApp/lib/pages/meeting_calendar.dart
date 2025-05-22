@@ -1,3 +1,5 @@
+// ✅ 통합 버전: meeting_calendar.dart (사이드바 & 상단바 유지형)
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';

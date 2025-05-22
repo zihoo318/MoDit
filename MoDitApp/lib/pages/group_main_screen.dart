@@ -12,6 +12,11 @@ import 'study_time.dart';
 import 'taskManageScreen.dart';
 import 'menu.dart';
 import 'home.dart';
+import 'mypage.dart'; // 맨 위에 추가
+import 'package:moditapp/pages/mypage.dart';
+
+
+import 'home.dart';
 
 class GroupMainScreen extends StatefulWidget {
   final String groupId;
@@ -186,11 +191,23 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                                 child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
                               )),
                               const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                              )
+                              GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => MyPagePopup(
+                                      userEmail: widget.currentUserEmail,
+                                      userName: widget.currentUserName,
+                                    )
+                                  );
+                                },
+                                child: const CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                                ),
+                              ),
+
                             ],
                           ),
                         ],

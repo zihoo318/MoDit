@@ -32,7 +32,7 @@ def upload_ocr_image():
 
     finally:
         delete_file(temp_path)  # ⬅️ 필요시 파일 삭제 (주석 처리)
-    
+        pass
 
 
 # 노트 전체 요약 함수
