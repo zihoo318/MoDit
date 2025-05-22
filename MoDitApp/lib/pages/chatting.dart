@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_animate/flutter_animate.dart';
+
+
 
 class ChattingPage extends StatefulWidget {
   final String groupId;
@@ -26,11 +29,29 @@ class _ChattingPageState extends State<ChattingPage> {
   List<Map<String, dynamic>> groupMembers = [];
   List<Map<String, dynamic>> chatMessages = [];
   StreamSubscription<DatabaseEvent>? _messageSubscription;
+  final ScrollController _scrollController = ScrollController();
+
 
   @override
   void initState() {
     super.initState();
     _loadGroupMembers();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChattingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 새 메시지 추가 시 자동 스크롤
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -86,6 +107,17 @@ class _ChattingPageState extends State<ChattingPage> {
           ..sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
 
         setState(() => chatMessages = loaded);
+
+        // ✅ 메시지 추가 후 자동 스크롤
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
       }
     });
   }
@@ -128,19 +160,46 @@ class _ChattingPageState extends State<ChattingPage> {
     await _sendPushNotification("공부하세요!", targetUserEmail);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFECE6F0),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 2),
-          content: const Text(
-            "상대방에게 '공부하세요!' 알림을 보냈습니다.",
-            style: TextStyle(color: Color(0xFF404040)),
+      showDialog(
+        context: context,
+        barrierDismissible: false, // 팝업 바깥 클릭으로 닫히지 않도록
+        builder: (_) => Center(
+          child: Animate(
+            effects: const [
+              ScaleEffect(curve: Curves.elasticOut, duration: Duration(milliseconds: 500)),
+              FadeEffect(duration: Duration(milliseconds: 300)),
+            ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECE6F0), // ✅ 여기 배경색 변경!
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  )
+                ],
+              ),
+              child: const Text(
+                "상대방에게 '공부하세요!' 알림을 보냈습니다.",
+                style: TextStyle(fontSize: 16, color: Color(0xFF404040)),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ),
         ),
       );
+
+      // 팝업 자동 닫기
+      Future.delayed(const Duration(seconds: 2), () {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      });
     }
+
   }
 
   Future<void> _sendPushNotification(String message, String toEmail) async {
@@ -175,7 +234,29 @@ class _ChattingPageState extends State<ChattingPage> {
       body: SafeArea(
         child: Row(
           children: [
-            _buildUserList(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🔼 채팅 텍스트 위로 조금 올리기
+                Transform.translate(
+                  offset: const Offset(0, -18),
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 20),
+                    child: Text(
+                      "채팅",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 0),
+                Expanded(child: _buildUserList()),
+              ],
+            ),
+
+            // 오른쪽 채팅 UI
             _buildChatArea(),
           ],
         ),
@@ -183,23 +264,20 @@ class _ChattingPageState extends State<ChattingPage> {
     );
   }
 
+
   Widget _buildUserList() {
     return Container(
       width: 180,
       margin: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(15)),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(15),
+      ),
       child: ListView.builder(
         itemCount: groupMembers.length,
         itemBuilder: (context, index) {
           final member = groupMembers[index];
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 0),
-            title: Center(
-              child: CircleAvatar(
-                backgroundColor: const Color(0xFFD9D9D9),
-                child: Text(member['name']!, style: const TextStyle(color: Colors.black87)),
-              ),
-            ),
+          return GestureDetector(
             onTap: () {
               setState(() {
                 targetUserEmail = member['email']!;
@@ -207,11 +285,35 @@ class _ChattingPageState extends State<ChattingPage> {
               });
               _listenToMessages(targetUserEmail);
             },
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1.0, end: 1.0),
+              duration: const Duration(milliseconds: 300),
+              builder: (context, scale, child) {
+                return AnimatedScale(
+                  scale: 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+                    title: Center(
+                      child: CircleAvatar(
+                        backgroundColor: const Color(0xFFD9D9D9),
+                        child: Text(
+                          member['name']!,
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
     );
   }
+
+
 
   Widget _buildChatArea() {
     return Expanded(
@@ -231,7 +333,7 @@ class _ChattingPageState extends State<ChattingPage> {
 
   Widget _buildTopBar() {
     return Container(
-      height: 80,
+      height: 90,
       decoration: BoxDecoration(
         color: const Color(0xFFB8BDF1).withOpacity(0.3),
         borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), topRight: Radius.circular(15)),
@@ -240,20 +342,27 @@ class _ChattingPageState extends State<ChattingPage> {
       child: Row(
         children: [
           const CircleAvatar(
-            backgroundColor: Color(0xFFD9D9D9),
+            backgroundColor: Color(0xFFFFFFFF),
             backgroundImage: AssetImage('assets/images/user_icon2.png'),
           ),
           const SizedBox(width: 10),
           Text(targetUserName.isEmpty ? '' : targetUserName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
           const Spacer(),
           GestureDetector(
-            onTap: _sendReminderMessage,
-            child: Row(
-              children: [
-                Image.asset('assets/images/hand_icon.png', width: 40),
-                const SizedBox(width: 8),
-                const Text('찌르기'),
-              ],
+            onTap: () {
+              _sendReminderMessage();
+              setState(() {}); // 트리거용
+            },
+            child: Animate(
+              effects: const [ShakeEffect()],
+              key: ValueKey(DateTime.now().millisecondsSinceEpoch), // 매번 새로 흔들림
+              child: Row(
+                children: [
+                  Image.asset('assets/images/hand_icon.png', width: 40),
+                  const SizedBox(width: 8),
+                  const Text('찌르기'),
+                ],
+              ),
             ),
           ),
         ],
@@ -264,11 +373,13 @@ class _ChattingPageState extends State<ChattingPage> {
   Widget _buildMessages() {
     return Expanded(
       child: ListView.builder(
+        controller: _scrollController,
         reverse: false,
         itemCount: chatMessages.length,
         itemBuilder: (context, index) {
           final chat = chatMessages[index];
           final isSender = chat['senderId'] == widget.currentUserEmail;
+
           return Align(
             alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
@@ -278,13 +389,23 @@ class _ChattingPageState extends State<ChattingPage> {
                 color: const Color(0xFFB8BDF1).withOpacity(0.3),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text(chat['message'], style: const TextStyle(color: Color(0xFF404040))),
+              child: Animate(
+                effects: const [
+                  FadeEffect(duration: Duration(milliseconds: 300)),
+                  SlideEffect(begin: Offset(0, 0.1), end: Offset(0, 0)),
+                ],
+                child: Text(
+                  chat['message'],
+                  style: const TextStyle(color: Color(0xFF404040)),
+                ),
+              ),
             ),
           );
         },
       ),
     );
   }
+
 
   Widget _buildInputBar() {
     return Padding(

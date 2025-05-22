@@ -18,6 +18,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+
+        // 🔥 여기를 추가!
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -52,5 +55,8 @@ flutter {
 dependencies {
     // ✅ Firebase Cloud Messaging (FCM) 라이브러리 추가
     implementation("com.google.firebase:firebase-messaging:23.4.1")
+
+    // 🔥 여기를 추가!
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
