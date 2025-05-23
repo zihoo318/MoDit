@@ -102,16 +102,7 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-<<<<<<< HEAD
       home: const SplashScreen(),
-=======
-      //home: const Home(),
-      home: HomeScreen(
-        //   groupId: '-OPqe387N6zi4K4UK3IT',
-        currentUserEmail: 'ga@naver.com',
-        currentUserName: 'ga',
-      ),
->>>>>>> 9516f3a (merge)
     );
   }
 }
