@@ -4,9 +4,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+<<<<<<< HEAD
 import 'package:moditapp/pages/login.dart';
 import 'package:moditapp/pages/splash_screen.dart';
 
+=======
+import 'pages/first_page.dart';
+>>>>>>> 9516f3a (merge)
 import 'firebase_options.dart';
 import 'pages/home.dart';
 
@@ -98,7 +102,16 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
+<<<<<<< HEAD
       home: const SplashScreen(),
+=======
+      //home: const Home(),
+      home: HomeScreen(
+        //   groupId: '-OPqe387N6zi4K4UK3IT',
+        currentUserEmail: 'ga@naver.com',
+        currentUserName: 'ga',
+      ),
+>>>>>>> 9516f3a (merge)
     );
   }
 }
