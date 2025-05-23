@@ -10,10 +10,11 @@ class Home extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // 배경 이미지
+          // 배경 이미지 변경
           Positioned.fill(
             child: Image.asset(
-              'assets/images/background_logo.png',
+              'assets/images/background.png',
+              width: 180,
               fit: BoxFit.cover,
               alignment: Alignment.topLeft,
             ),
@@ -21,8 +22,8 @@ class Home extends StatelessWidget {
           // 가운데 카드
           Center(
             child: Container(
-              width: 600,
-              padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 30),
+              width: 500,
+              padding: const EdgeInsets.symmetric(vertical: 120, horizontal: 30),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(60),
@@ -30,8 +31,11 @@ class Home extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildRoundedButton(context, '로그인'),
+                  // 상단 로고 삽입
+                  Image.asset('assets/images/logo.png', width: 180),
                   const SizedBox(height: 60),
+                  _buildRoundedButton(context, '로그인'),
+                  const SizedBox(height: 40),
                   _buildRoundedButton(context, '회원가입'),
                 ],
               ),
