@@ -15,13 +15,27 @@ class GroupMainScreen extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
   final String currentUserName;
+  final int initialTabIndex;
 
   const GroupMainScreen({
     required this.groupId,
     required this.currentUserEmail,
     required this.currentUserName,
+    this.initialTabIndex = 0,
     super.key,
   });
+
+  // 별도 목적(녹음에서 캘린더로 돌아가기)의 네임드 생성자 추가
+  GroupMainScreen.forCalendar({
+    required String groupId,
+    required String currentUserEmail,
+    required String currentUserName,
+  }) : this(
+    groupId: groupId,
+    currentUserEmail: currentUserEmail,
+    currentUserName: currentUserName,
+    initialTabIndex: 2, // 미팅 일정 탭으로 시작
+  );
 
   @override
   State<GroupMainScreen> createState() => _GroupMainScreenState();
@@ -51,6 +65,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialTabIndex;
     _nameController = TextEditingController(text: widget.currentUserName);
     _loadGroupInfo();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -238,87 +253,87 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                 duration: const Duration(milliseconds: 300),
                 child: Container(
                   key: const ValueKey("mypage"),
-                width: 280,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.92),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))
-                  ],
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      '내 프로필',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
-                    ),
-                    const SizedBox(height: 18),
-                    const CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white,
-                      backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                    ),
-                    const SizedBox(height: 10),
-                    _isEditingName
-                        ? TextField(
-                      controller: _nameController,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 17),
-                      decoration: InputDecoration(
-                        hintText: '이름 입력',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  width: 280,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.92),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))
+                    ],
+                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '내 프로필',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
                       ),
-                    )
-                        : Text(
-                      _nameController.text,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          if (_isEditingName) {
-                            _updateName();
-                          } else {
-                            setState(() => _isEditingName = true);
-                          }
-                        },
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: Text(_isEditingName ? '저장' : '이름 수정'),
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          backgroundColor: const Color(0xFFF0F0F0),
-                          foregroundColor: Colors.black87,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 18),
+                      const CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white,
+                        backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                      ),
+                      const SizedBox(height: 10),
+                      _isEditingName
+                          ? TextField(
+                        controller: _nameController,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 17),
+                        decoration: InputDecoration(
+                          hintText: '이름 입력',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        ),
+                      )
+                          : Text(
+                        _nameController.text,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            if (_isEditingName) {
+                              _updateName();
+                            } else {
+                              setState(() => _isEditingName = true);
+                            }
+                          },
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: Text(_isEditingName ? '저장' : '이름 수정'),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFFF0F0F0),
+                            foregroundColor: Colors.black87,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _logout,
-                        icon: const Icon(Icons.logout, size: 18),
-                        label: const Text('로그아웃'),
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          backgroundColor: const Color(0xFFFBE9E9),
-                          foregroundColor: Colors.redAccent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.logout, size: 18),
+                          label: const Text('로그아웃'),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFFFBE9E9),
+                            foregroundColor: Colors.redAccent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
           _buildBackButton(),
         ],
       ),
@@ -462,6 +477,14 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
           selectedDate: _recordDate!,
           groupId: widget.groupId,
           meetingId: _meetingId!,
+          currentUserEmail: widget.currentUserEmail,
+          currentUserName: widget.currentUserName,
+          onBackToCalendar: () {
+            setState(() {
+              _selectedIndex = 2; // 캘린더 탭 인덱스로 돌아가기
+              isRecordingView = false;
+            });
+          },
         );
       default:
         return const SizedBox();
