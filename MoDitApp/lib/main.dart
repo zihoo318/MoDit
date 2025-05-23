@@ -4,6 +4,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:moditapp/pages/login.dart';
+import 'package:moditapp/pages/splash_screen.dart';
 
 import 'firebase_options.dart';
 import 'pages/home.dart';
@@ -96,7 +98,7 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: const Home(),
+      home: const SplashScreen(),
     );
   }
 }

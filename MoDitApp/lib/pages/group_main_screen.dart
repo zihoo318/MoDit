@@ -109,219 +109,222 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset('assets/images/background.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
-          ),
-          Row(
+        resizeToAvoidBottomInset: false,
+        body: Hero(
+          tag: widget.groupId, // ✅ Hero 태그는 그룹 ID와 일치시킴
+          child: Stack(
             children: [
-              Container(
-                width: 250,
-                margin: const EdgeInsets.only(left: 20, top: 40, bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(40),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 25),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 110),
-                      child: Image.asset('assets/images/logo.png', height: 40),
-                    ),
-                    const SizedBox(height: 50),
-                    ...List.generate(menuTitles.length, (index) {
-                      final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
-                      final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedIndex = index;
-                              isRecordingView = false;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            decoration: BoxDecoration(
-                              color: selected ? const Color(0xFFB8BDF1).withOpacity(0.3) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 300),
-                                    child: Image.asset(
-                                      'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
-                                      key: ValueKey(selected),
-                                      width: 22,
-                                    ),
-                                  ),
-                                ),
-                                AnimatedDefaultTextStyle(
-                                  duration: const Duration(milliseconds: 300),
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: selected ? const Color(0xFF6495ED) : Colors.black54,
-                                  ),
-                                  child: Text(menuTitles[index]),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+              Positioned.fill(
+                child: Image.asset('assets/images/background.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 60),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(groupName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          Row(
-                            children: [
-                              ...memberNames.map((name) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFD9D9D9),
-                                  shape: BoxShape.circle,
+              Row(
+                children: [
+                  Container(
+                    width: 250,
+                    margin: const EdgeInsets.only(left: 20, top: 40, bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 25),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 110),
+                          child: Image.asset('assets/images/logo.png', height: 40),
+                        ),
+                        const SizedBox(height: 50),
+                        ...List.generate(menuTitles.length, (index) {
+                          final bool isCalendarSection = _selectedIndex == 2 || (_selectedIndex == 6 && isRecordingView);
+                          final selected = index == 2 ? isCalendarSection : _selectedIndex == index;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedIndex = index;
+                                  isRecordingView = false;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                decoration: BoxDecoration(
+                                  color: selected ? const Color(0xFFB8BDF1).withOpacity(0.3) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
-                              )),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() => _isMyPageOpen = !_isMyPageOpen);
-                                },
-                                child: const CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: Colors.white,
-                                  backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: AnimatedSwitcher(
+                                        duration: const Duration(milliseconds: 300),
+                                        child: Image.asset(
+                                          'assets/images/${selected ? menuIconsSelected[index] : menuIcons[index]}.png',
+                                          key: ValueKey(selected),
+                                          width: 22,
+                                        ),
+                                      ),
+                                    ),
+                                    AnimatedDefaultTextStyle(
+                                      duration: const Duration(milliseconds: 300),
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: selected ? const Color(0xFF6495ED) : Colors.black54,
+                                      ),
+                                      child: Text(menuTitles[index]),
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 60),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(groupName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              Row(
+                                children: [
+                                  ...memberNames.map((name) => Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFD9D9D9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
+                                  )),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() => _isMyPageOpen = !_isMyPageOpen);
+                                    },
+                                    child: const CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Colors.white,
+                                      backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Expanded(child: _buildSelectedContent()),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+              if (_isMyPageOpen)
+                Positioned(
+                  top: 120,
+                  right: 40,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      key: const ValueKey("mypage"),
+                      width: 280,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))
+                        ],
+                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '내 프로필',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
+                          ),
+                          const SizedBox(height: 18),
+                          const CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.white,
+                            backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                          ),
+                          const SizedBox(height: 10),
+                          _isEditingName
+                              ? TextField(
+                            controller: _nameController,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 17),
+                            decoration: InputDecoration(
+                              hintText: '이름 입력',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                            ),
+                          )
+                              : Text(
+                            _nameController.text,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (_isEditingName) {
+                                  _updateName();
+                                } else {
+                                  setState(() => _isEditingName = true);
+                                }
+                              },
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: Text(_isEditingName ? '저장' : '이름 수정'),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFF0F0F0),
+                                foregroundColor: Colors.black87,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _logout,
+                              icon: const Icon(Icons.logout, size: 18),
+                              label: const Text('로그아웃'),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFFBE9E9),
+                                foregroundColor: Colors.redAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Expanded(child: _buildSelectedContent()),
-                  ],
+                  ),
                 ),
-              )
+              _buildBackButton(),
             ],
           ),
-          if (_isMyPageOpen)
-            Positioned(
-              top: 120,
-              right: 40,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  key: const ValueKey("mypage"),
-                width: 280,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.92),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))
-                  ],
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      '내 프로필',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
-                    ),
-                    const SizedBox(height: 18),
-                    const CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white,
-                      backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                    ),
-                    const SizedBox(height: 10),
-                    _isEditingName
-                        ? TextField(
-                      controller: _nameController,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 17),
-                      decoration: InputDecoration(
-                        hintText: '이름 입력',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      ),
-                    )
-                        : Text(
-                      _nameController.text,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          if (_isEditingName) {
-                            _updateName();
-                          } else {
-                            setState(() => _isEditingName = true);
-                          }
-                        },
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: Text(_isEditingName ? '저장' : '이름 수정'),
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          backgroundColor: const Color(0xFFF0F0F0),
-                          foregroundColor: Colors.black87,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _logout,
-                        icon: const Icon(Icons.logout, size: 18),
-                        label: const Text('로그아웃'),
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          backgroundColor: const Color(0xFFFBE9E9),
-                          foregroundColor: Colors.redAccent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          _buildBackButton(),
-        ],
-      ),
+        )
     );
   }
 
@@ -331,13 +334,26 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       left: 30,
       child: GestureDetector(
         onTap: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 500),
+              pageBuilder: (_, animation, secondaryAnimation) => HomeScreen(
                 currentUserEmail: widget.currentUserEmail,
                 currentUserName: widget.currentUserName,
               ),
+              transitionsBuilder: (_, animation, __, child) {
+                final scaleTween = Tween(begin: 0.95, end: 1.0)
+                    .chain(CurveTween(curve: Curves.easeOutCubic));
+                final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+                return FadeTransition(
+                  opacity: fade,
+                  child: ScaleTransition(
+                    scale: animation.drive(scaleTween),
+                    child: child,
+                  ),
+                );
+              },
             ),
           );
         },
