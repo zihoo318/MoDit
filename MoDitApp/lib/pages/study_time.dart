@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
-import 'loading_overlay.dart';
 
 class StudyTimeWidget extends StatefulWidget {
   final String groupId;
@@ -24,15 +23,12 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
   Map<String, String> memberNames = {};
   Map<String, dynamic> studyTimes = {};
   Timer? _refreshTimer;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeData();
-    });
-
-    // 실시간 반영을 위해 1초마다 setState
+    _initializeData();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -45,13 +41,8 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
   }
 
   Future<void> _initializeData() async {
-    LoadingOverlay.show(context, message: "공부 시간 불러오는 중...");
-    try {
-      await _loadMemberNames();
-      _listenToStudyTimes();
-    } finally {
-      LoadingOverlay.hide();
-    }
+    await _loadMemberNames();
+    _listenToStudyTimes();
   }
 
   Future<void> _loadMemberNames() async {
@@ -75,6 +66,7 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
         setState(() {
           studyTimes = data;
+          _isLoading = false; // ✅ 최초 수신 시 로딩 종료
         });
       }
     });
@@ -168,7 +160,7 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
               isStudying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
               width: 85,
               height: 80,
-              key: ValueKey(isStudying), // 상태 전환 시 애니메이션 적용
+              key: ValueKey(isStudying),
             ),
           ),
           const SizedBox(height: 4),
@@ -177,7 +169,6 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -241,14 +232,19 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
               color: Colors.white.withOpacity(0.4),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: Center(
-              child: Wrap(
-                spacing: 100,
-                runSpacing: 45,
-                alignment: WrapAlignment.center,
-                children: allKeys.map(_buildStudent).toList(),
-              ),
-            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 390,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Center(
+                    child: Wrap(
+                      spacing: 100,
+                      runSpacing: 45,
+                      alignment: WrapAlignment.center,
+                      children: allKeys.map(_buildStudent).toList(),
+                    ),
+                  ),
           ),
         ),
       ],
