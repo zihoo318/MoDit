@@ -206,7 +206,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     onTap: () => setState(() => _selectedCardIndex = 2),
                     targetCenter: widget.targetCenter,
                     child: SizedBox(
-                      width: cardW + 80,
+                      width: cardW + 150,
                       height: w * 0.4 - 10,
                       child: _buildCardContainer(
                         title: '미팅 일정 & 녹음',

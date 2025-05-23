@@ -606,7 +606,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.only(top: 35),
+              padding: const EdgeInsets.only(top: 0),
               child: SizedBox(
                 height: 500,
                 child: Container(

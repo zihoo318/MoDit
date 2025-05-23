@@ -12,7 +12,7 @@ android {
     ndkVersion = "27.0.12077973"  // 이 줄 추가!
     namespace = "com.example.moditapp"
     compileSdk = flutter.compileSdkVersion
-    
+
     //ndkVersion = flutter.ndkVersion
 
     compileOptions {

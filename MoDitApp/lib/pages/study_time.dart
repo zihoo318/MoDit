@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
-import 'loading_overlay.dart';
 
 class StudyTimeWidget extends StatefulWidget {
   final String groupId;
@@ -24,15 +23,12 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
   Map<String, String> memberNames = {};
   Map<String, dynamic> studyTimes = {};
   Timer? _refreshTimer;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeData();
-    });
-
-    // 실시간 반영을 위해 1초마다 setState
+    _initializeData();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -45,13 +41,8 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
   }
 
   Future<void> _initializeData() async {
-    LoadingOverlay.show(context, message: "공부 시간 불러오는 중...");
-    try {
-      await _loadMemberNames();
-      _listenToStudyTimes();
-    } finally {
-      LoadingOverlay.hide();
-    }
+    await _loadMemberNames();
+    _listenToStudyTimes();
   }
 
   Future<void> _loadMemberNames() async {
@@ -75,6 +66,7 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
         setState(() {
           studyTimes = data;
+          _isLoading = false; // ✅ 최초 수신 시 로딩 종료
         });
       }
     });
@@ -142,18 +134,34 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
       width: 135,
       child: Column(
         children: [
-          Container(
-            width: 54,
-            height: 54,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            width: isStudying ? 60 : 54,
+            height: isStudying ? 60 : 54,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: Color(0xFFE0E0E0), shape: BoxShape.circle),
-            child: Text(name, style: const TextStyle(fontSize: 16)),
+            decoration: BoxDecoration(
+              color: isStudying ? const Color(0xFFB3C7FF) : const Color(0xFFE0E0E0),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              name,
+              style: TextStyle(
+                fontSize: isStudying ? 18 : 16,
+                fontWeight: isStudying ? FontWeight.bold : FontWeight.normal,
+                color: isStudying ? Colors.white : Colors.black87,
+              ),
+            ),
           ),
           const SizedBox(height: 4),
-          Image.asset(
-            isStudying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
-            width: 85,
-            height: 80,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: Image.asset(
+              isStudying ? 'assets/images/study_icon2.png' : 'assets/images/study_icon.png',
+              width: 85,
+              height: 80,
+              key: ValueKey(isStudying),
+            ),
           ),
           const SizedBox(height: 4),
           Text(_formatTime(seconds), style: const TextStyle(fontSize: 18)),
@@ -224,14 +232,19 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
               color: Colors.white.withOpacity(0.4),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: Center(
-              child: Wrap(
-                spacing: 100,
-                runSpacing: 45,
-                alignment: WrapAlignment.center,
-                children: allKeys.map(_buildStudent).toList(),
-              ),
-            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 390,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Center(
+                    child: Wrap(
+                      spacing: 100,
+                      runSpacing: 45,
+                      alignment: WrapAlignment.center,
+                      children: allKeys.map(_buildStudent).toList(),
+                    ),
+                  ),
           ),
         ),
       ],

@@ -372,13 +372,26 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       left: 30,
       child: GestureDetector(
         onTap: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 500),
+              pageBuilder: (_, animation, secondaryAnimation) => HomeScreen(
                 currentUserEmail: widget.currentUserEmail,
                 currentUserName: widget.currentUserName,
               ),
+              transitionsBuilder: (_, animation, __, child) {
+                final scaleTween = Tween(begin: 0.95, end: 1.0)
+                    .chain(CurveTween(curve: Curves.easeOutCubic));
+                final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+                return FadeTransition(
+                  opacity: fade,
+                  child: ScaleTransition(
+                    scale: animation.drive(scaleTween),
+                    child: child,
+                  ),
+                );
+              },
             ),
           );
         },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'home.dart';
+import 'login.dart';
 
 class JoinScreen extends StatefulWidget {
   const JoinScreen({super.key});
@@ -15,6 +16,11 @@ class _JoinScreenState extends State<JoinScreen> {
   final TextEditingController password = TextEditingController();
   final TextEditingController confirmPassword = TextEditingController();
   final TextEditingController name = TextEditingController();
+
+  // 비밀번호 확인 상태 변수 추가
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
 
   void registerUser() {
     if (password.text != confirmPassword.text) {
@@ -38,43 +44,61 @@ class _JoinScreenState extends State<JoinScreen> {
     });
   }
 
+  // ...생략된 import와 class 정의...
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/background_logo.png', fit: BoxFit.cover, alignment: Alignment.topLeft),
+            child: Image.asset('assets/images/background.png', fit: BoxFit.cover, alignment: Alignment.topLeft), // ✅ 변경
           ),
           Positioned(
             left: 30,
             bottom: 30,
             child: IconButton(
               icon: const Icon(Icons.arrow_back, size: 30),
-              onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const Home())),
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              ),
             ),
           ),
           Center(
-            child: Container(
-              width: 750,
-              padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 60),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(60),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 30,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildField('이메일', 'ex) abc@gmail.com', false, email),
-                  const SizedBox(height: 20),
-                  _buildField('비밀번호', '영문, 숫자 포함 8~16자', true, password),
-                  const SizedBox(height: 20),
-                  _buildField('비밀번호 확인', '비밀번호를 한번 더 입력해주세요.', true, confirmPassword),
-                  const SizedBox(height: 20),
-                  _buildField('이름', 'ex) 홍길동', false, name),
-                  const SizedBox(height: 40),
-                  _buildRoundedButton(context, '회원가입', registerUser),
-                ],
+              child: Container(
+                width: 750,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(60),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/logo.png',
+                      width: 160,
+                      height: 160,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildField('이메일', 'ex) abc@gmail.com', false, email),
+                    const SizedBox(height: 20),
+                    _buildField('비밀번호', '영문, 숫자 포함 8~16자', true, password),
+                    const SizedBox(height: 20),
+                    _buildField('비밀번호 확인', '비밀번호를 한번 더 입력해주세요.', true, confirmPassword),
+                    const SizedBox(height: 20),
+                    _buildField('이름', 'ex) 홍길동', false, name),
+                    const SizedBox(height: 40),
+                    _buildRoundedButton(context, '회원가입', registerUser),
+                  ],
+                ),
               ),
             ),
           ),
@@ -83,29 +107,73 @@ class _JoinScreenState extends State<JoinScreen> {
     );
   }
 
+
   Widget _buildField(String label, String hint, bool obscure, TextEditingController controller) {
+    bool isPassword = controller == password;
+    bool isConfirm = controller == confirmPassword;
+
     return SizedBox(
       width: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF404040), fontSize: 16, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF404040),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: controller,
-            obscureText: obscure,
+            obscureText: obscure
+                ? isPassword
+                ? !_isPasswordVisible
+                : !_isConfirmPasswordVisible
+                : false,
+            cursorColor: Colors.black26, // ✅ 커서 색 변경
             decoration: InputDecoration(
               hintText: hint,
-              border: const OutlineInputBorder(),
               isDense: true,
               contentPadding: const EdgeInsets.all(12),
-              suffixIcon: obscure ? const Icon(Icons.visibility_off) : null,
+              border: const OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder( // ✅ 비활성 테두리
+                borderSide: BorderSide(color: Colors.black26),
+              ),
+              focusedBorder: OutlineInputBorder( // ✅ 포커스 테두리
+                borderSide: BorderSide(color: Colors.black26, width: 2.0),
+              ),
+              suffixIcon: obscure
+                  ? IconButton(
+                icon: Icon(
+                  (isPassword
+                      ? _isPasswordVisible
+                      : _isConfirmPasswordVisible)
+                      ? Icons.visibility
+                      : Icons.visibility_off,
+                  color: Colors.black38,
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (isPassword) {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    } else {
+                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                    }
+                  });
+                },
+              )
+                  : null,
             ),
           ),
         ],
       ),
     );
   }
+
+
 
   Widget _buildRoundedButton(BuildContext context, String text, VoidCallback onPressed) {
     return SizedBox(
