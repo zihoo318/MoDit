@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
+
 import 'package:file_selector/file_selector.dart';
-import 'package:moditapp/pages/popup_task_submit_choice.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
 import 'package:moditapp/pages/popup_task_edit.dart';
 import 'package:moditapp/pages/popup_task_submit_note.dart';
 
@@ -71,68 +71,76 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   }
 
   void listenToTasks() {
-    _tasksSubscription = db.child('tasks').child(widget.groupId).onValue.listen((event) {
-      final data = event.snapshot.value;
-      if (data == null || data is! Map) {
-        setState(() {
-          tasks.clear();
-          submissions.clear();
-        });
-        return;
-      }
-
-      final Map<String, dynamic> taskMap = Map<String, dynamic>.from(data);
-      final List<Map<String, dynamic>> loadedTasks = [];
-
-      taskMap.forEach((taskId, taskValue) {
-        if (taskValue is! Map) return;
-        final taskData = Map<String, dynamic>.from(taskValue);
-        final subTaskList = <Map<String, dynamic>>[];
-
-        if (taskData['subTasks'] is Map) {
-          final subTaskMap = Map<String, dynamic>.from(taskData['subTasks']);
-          subTaskMap.forEach((subId, subData) {
-            if (subData is! Map) return;
-            final subMap = Map<String, dynamic>.from(subData);
-            Map<String, dynamic> submissionsMap = {};
-            if (subMap['submissions'] is Map) {
-              submissionsMap = Map<String, dynamic>.from(subMap['submissions']);
-            }
-
-            subTaskList.add({
-              "subId": subId,
-              "subtitle": subMap["subtitle"] ?? '',
-              "description": subMap["description"] ?? '',
-              "submissions": submissionsMap,
-            });
+    _tasksSubscription = db.child('tasks').child(widget.groupId).onValue.listen(
+      (event) {
+        final data = event.snapshot.value;
+        if (data == null || data is! Map) {
+          setState(() {
+            tasks.clear();
+            submissions.clear();
           });
+          return;
         }
 
-        loadedTasks.add({
-          "taskId": taskId,
-          "title": taskData['title'] ?? '',
-          "deadline": taskData['deadline'] ?? '',
-          "subTasks": subTaskList,
+        final Map<String, dynamic> taskMap = Map<String, dynamic>.from(data);
+        final List<Map<String, dynamic>> loadedTasks = [];
+
+        taskMap.forEach((taskId, taskValue) {
+          if (taskValue is! Map) return;
+          final taskData = Map<String, dynamic>.from(taskValue);
+          final subTaskList = <Map<String, dynamic>>[];
+
+          if (taskData['subTasks'] is Map) {
+            final subTaskMap = Map<String, dynamic>.from(taskData['subTasks']);
+            subTaskMap.forEach((subId, subData) {
+              if (subData is! Map) return;
+              final subMap = Map<String, dynamic>.from(subData);
+              Map<String, dynamic> submissionsMap = {};
+              if (subMap['submissions'] is Map) {
+                submissionsMap = Map<String, dynamic>.from(
+                  subMap['submissions'],
+                );
+              }
+
+              subTaskList.add({
+                "subId": subId,
+                "subtitle": subMap["subtitle"] ?? '',
+                "description": subMap["description"] ?? '',
+                "submissions": submissionsMap,
+              });
+            });
+          }
+
+          loadedTasks.add({
+            "taskId": taskId,
+            "title": taskData['title'] ?? '',
+            "deadline": taskData['deadline'] ?? '',
+            "subTasks": subTaskList,
+          });
         });
-      });
 
-      int newSelectedIndex = 0;
-      if (loadedTasks.isNotEmpty) {
-        final sortedTasks = List<Map<String, dynamic>>.from(loadedTasks)
-          ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
-        final firstSorted = sortedTasks.first;
-        newSelectedIndex = loadedTasks.indexOf(firstSorted);
-      }
+        int newSelectedIndex = 0;
+        if (loadedTasks.isNotEmpty) {
+          final sortedTasks = List<Map<String, dynamic>>.from(loadedTasks)
+            ..sort(
+              (a, b) => DateTime.parse(
+                a['deadline'],
+              ).compareTo(DateTime.parse(b['deadline'])),
+            );
+          final firstSorted = sortedTasks.first;
+          newSelectedIndex = loadedTasks.indexOf(firstSorted);
+        }
 
-      setState(() {
-        tasks
-          ..clear()
-          ..addAll(loadedTasks);
-        selectedTaskIndex = newSelectedIndex;
-      });
+        setState(() {
+          tasks
+            ..clear()
+            ..addAll(loadedTasks);
+          selectedTaskIndex = newSelectedIndex;
+        });
 
-      parseSubmissionsFromTasks(taskMap);
-    });
+        parseSubmissionsFromTasks(taskMap);
+      },
+    );
   }
 
   void parseSubmissionsFromTasks(Map<String, dynamic> taskMap) {
@@ -161,6 +169,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       submissions = newSubmissions;
     });
   }
+
   Future<String> _loadTextFromUrl(String url) async {
     final uri = Uri.parse(url);
     final response = await HttpClient().getUrl(uri).then((req) => req.close());
@@ -168,32 +177,44 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     return contents;
   }
 
-  Future<void> loadSubmissionFile(String user, String taskTitle, String subTaskTitle) async {
-    final task = tasks.firstWhere((t) => t['title'] == taskTitle, orElse: () => {});
+  Future<void> loadSubmissionFile(
+    String user,
+    String taskTitle,
+    String subTaskTitle,
+  ) async {
+    final task = tasks.firstWhere(
+      (t) => t['title'] == taskTitle,
+      orElse: () => {},
+    );
     if (task.isEmpty) return;
 
-    final sub = (task['subTasks'] as List<Map<String, dynamic>>)
-        .firstWhere((s) => s['subtitle'] == subTaskTitle, orElse: () => {});
+    final sub = (task['subTasks'] as List<Map<String, dynamic>>).firstWhere(
+      (s) => s['subtitle'] == subTaskTitle,
+      orElse: () => {},
+    );
     if (sub.isEmpty) return;
 
     final taskId = task['taskId'];
     final subId = sub['subId'];
     final sanitizedUser = sanitizeKey(user);
 
-    final snapshot = await db
-        .child('tasks')
-        .child(widget.groupId)
-        .child(taskId)
-        .child('subTasks')
-        .child(subId)
-        .child('submissions')
-        .child(sanitizedUser)
-        .get();
+    final snapshot =
+        await db
+            .child('tasks')
+            .child(widget.groupId)
+            .child(taskId)
+            .child('subTasks')
+            .child(subId)
+            .child('submissions')
+            .child(sanitizedUser)
+            .get();
 
     if (snapshot.exists) {
       final data = Map<String, dynamic>.from(snapshot.value as Map);
-      final nameSnapshot = await db.child('user').child(sanitizeKey(user)).child('name').get();
-      final userName = nameSnapshot.exists ? nameSnapshot.value as String : user;
+      final nameSnapshot =
+          await db.child('user').child(sanitizeKey(user)).child('name').get();
+      final userName =
+          nameSnapshot.exists ? nameSnapshot.value as String : user;
 
       setState(() {
         selectedUser = userName;
@@ -215,13 +236,24 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         .replaceAll('/', '_');
   }
 
-  Future<void> registerTask(String title, String deadline, List<Map<String, String>> subTasks) async {
+  Future<void> registerTask(
+    String title,
+    String deadline,
+    List<Map<String, String>> subTasks,
+  ) async {
     final taskId = db.child('tasks').child(widget.groupId).push().key;
     if (taskId == null) return;
 
     final subTaskMap = <String, Map<String, String>>{};
     for (var sub in subTasks) {
-      final subId = db.child('tasks').child(widget.groupId).child(taskId).child('subTasks').push().key;
+      final subId =
+          db
+              .child('tasks')
+              .child(widget.groupId)
+              .child(taskId)
+              .child('subTasks')
+              .push()
+              .key;
       if (subId != null) subTaskMap[subId] = sub;
     }
 
@@ -235,17 +267,17 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   }
 
   Future<void> updateTask(
-      String taskId,
-      String newTitle,
-      String newDeadline,
-      List<Map<String, String>> updatedSubTasks,
-      ) async {
+    String taskId,
+    String newTitle,
+    String newDeadline,
+    List<Map<String, String>> updatedSubTasks,
+  ) async {
     final taskRef = db.child('tasks').child(widget.groupId).child(taskId);
     final subTasksRef = taskRef.child('subTasks');
 
     final snapshot = await subTasksRef.get();
     final Map<String, dynamic> existingSubTaskData =
-    snapshot.exists ? Map<String, dynamic>.from(snapshot.value as Map) : {};
+        snapshot.exists ? Map<String, dynamic>.from(snapshot.value as Map) : {};
 
     final newSubTaskMap = <String, Map<String, dynamic>>{};
     final existingSubTaskIds = existingSubTaskData.keys.toList();
@@ -286,11 +318,11 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   }
 
   Future<void> _pickAndUploadExternalFile(
-      String taskId,
-      String subId,
-      String userEmail,
-      String groupId,
-      ) async {
+    String taskId,
+    String subId,
+    String userEmail,
+    String groupId,
+  ) async {
     final XFile? file = await openFile();
     if (file != null) {
       final uploaded = await Api().uploadTaskFile(
@@ -302,9 +334,9 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       );
 
       if (uploaded != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("파일이 성공적으로 업로드되었습니다!")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("파일이 성공적으로 업로드되었습니다!")));
 
         final encodedEmail = sanitizeKey(userEmail);
 
@@ -317,22 +349,24 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             .child('submissions')
             .child(encodedEmail)
             .set({
-          "fileUrl": uploaded['file_url'],
-          "submittedAt": DateTime.now().toIso8601String(),
-          "fileType": uploaded['file_url'].toString().endsWith('.txt') ? 'text' : 'image',
-        });
+              "fileUrl": uploaded['file_url'],
+              "submittedAt": DateTime.now().toIso8601String(),
+              "fileType":
+                  uploaded['file_url'].toString().endsWith('.txt')
+                      ? 'text'
+                      : 'image',
+            });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("파일 업로드 실패.")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("파일 업로드 실패.")));
       }
     }
   }
 
   void _showTaskEditDialog(int index) async {
     final task = tasks[index];
-
-    final result = await showDialog<bool>(
+    final result = await showAnimatedDialog<bool>(
       context: context,
       builder: (context) => TaskEditPopup(
         groupId: widget.groupId,
@@ -355,13 +389,12 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       ),
     );
 
-    if (result == true) {
-      setState(() {});
-    }
+    if (result == true) setState(() {});
   }
 
+
   void _showTaskRegisterDialog() {
-    showDialog(
+    showAnimatedDialog(
       context: context,
       builder: (context) => TaskRegisterPopup(
         groupId: widget.groupId,
@@ -369,6 +402,33 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           await registerTask(title, deadline, subTasks);
         },
       ),
+    );
+  }
+
+
+  // 팝업 띄우는 애니메이션
+  Future<T?> showAnimatedDialog<T>({
+    required BuildContext context,
+    required WidgetBuilder builder,
+  }) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      transitionDuration: const Duration(milliseconds: 450),
+      pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            ),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -384,18 +444,18 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        width: 14,
-        height: 14,
+        width: _homeworkTabIndex == index ? 16 : 14,
+        height: _homeworkTabIndex == index ? 16 : 14,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _homeworkTabIndex == index
-              ? const Color(0xFFB0B8FC)
-              : const Color(0xFFD3D0EA),
+          color:
+              _homeworkTabIndex == index
+                  ? const Color(0xFFB0B8FC)
+                  : const Color(0xFFD3D0EA),
         ),
       ),
     );
   }
-
 
   Widget _buildManageTab() {
     final task = tasks.isNotEmpty ? tasks[selectedTaskIndex] : null;
@@ -418,14 +478,23 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('과제 목록', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      const Text(
+                        '과제 목록',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       GestureDetector(
                         onTap: _showTaskRegisterDialog,
                         child: Row(
                           children: [
                             const Text('과제 등록', style: TextStyle(fontSize: 18)),
                             const SizedBox(width: 4),
-                            Image.asset('assets/images/plus_icon2.png', width: 24),
+                            Image.asset(
+                              'assets/images/plus_icon2.png',
+                              width: 24,
+                            ),
                           ],
                         ),
                       ),
@@ -437,14 +506,21 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                     child: Scrollbar(
                       child: Builder(
                         builder: (context) {
-                          final sortedTasks = List<Map<String, dynamic>>.from(tasks)
-                            ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
+                          final sortedTasks = List<Map<String, dynamic>>.from(
+                            tasks,
+                          )..sort(
+                            (a, b) => DateTime.parse(
+                              a['deadline'],
+                            ).compareTo(DateTime.parse(b['deadline'])),
+                          );
 
                           return ListView.builder(
                             itemCount: sortedTasks.length,
                             itemBuilder: (context, index) {
                               final task = sortedTasks[index];
-                              final originalIndex = tasks.indexOf(task); // 정렬 전 index 찾기
+                              final originalIndex = tasks.indexOf(
+                                task,
+                              ); // 정렬 전 index 찾기
 
                               return GestureDetector(
                                 onTap: () {
@@ -456,44 +532,62 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                   margin: const EdgeInsets.only(bottom: 12),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: selectedTaskIndex == originalIndex
-                                        ? const Color(0xFF0D0A64).withOpacity(0.2)
-                                        : const Color(0xFFB8BDF1).withOpacity(0.3),
+                                    color:
+                                        selectedTaskIndex == originalIndex
+                                            ? const Color(
+                                              0xFF0D0A64,
+                                            ).withOpacity(0.2)
+                                            : const Color(
+                                              0xFFB8BDF1,
+                                            ).withOpacity(0.3),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           Expanded(
                                             child: Text(
                                               task['title'],
-                                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                           GestureDetector(
                                             onTap: () {
-                                              _showTaskEditDialog(originalIndex); // 수정 팝업 호출
+                                              _showTaskEditDialog(
+                                                originalIndex,
+                                              ); // 수정 팝업 호출
                                             },
                                             child: const Text(
                                               '수정',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: Color(0xFF0D0A64),
-                                                decoration: TextDecoration.underline,
+                                                decoration:
+                                                    TextDecoration.underline,
                                               ),
                                             ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
-                                      Text("마감일: ${task['deadline']}", style: const TextStyle(fontSize: 14)),
-                                      Text("소과제 ${task['subTasks'].length}개", style: const TextStyle(fontSize: 14)),
+                                      Text(
+                                        "마감일: ${task['deadline']}",
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      Text(
+                                        "소과제 ${task['subTasks'].length}개",
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
                                     ],
                                   ),
-
                                 ),
                               );
                             },
@@ -512,7 +606,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.only(top: 35),
+              padding: const EdgeInsets.only(top: 0),
               child: SizedBox(
                 height: 500,
                 child: Container(
@@ -521,180 +615,264 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                     color: const Color(0xFFB8BDF1).withOpacity(0.3),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: task == null
-                      ? const Center(child: Text("과제를 선택하세요."))
-                      : Scrollbar(
-                    controller: _scrollController, // ✅ 여기
-                    thumbVisibility: true,
-                    radius: const Radius.circular(8),
-                    thickness: 6,
-                    child: SingleChildScrollView(
-                      controller: _scrollController, // ✅ 여기
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ...List.generate(task['subTasks'].length, (index) {
-                            final sub = task['subTasks'][index];
-                            final LayerLink layerLink = LayerLink();
-                            OverlayEntry? localOverlay;
+                  child:
+                      task == null
+                          ? const Center(child: Text("과제를 선택하세요."))
+                          : Scrollbar(
+                            controller: _scrollController,
+                            // ✅ 여기
+                            thumbVisibility: true,
+                            radius: const Radius.circular(8),
+                            thickness: 6,
+                            child: SingleChildScrollView(
+                              controller: _scrollController, // ✅ 여기
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ...List.generate(task['subTasks'].length, (
+                                    index,
+                                  ) {
+                                    final sub = task['subTasks'][index];
+                                    final LayerLink layerLink = LayerLink();
+                                    OverlayEntry? localOverlay;
 
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        "${index + 1}. ${sub['subtitle']}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 19),
-                                    CompositedTransformTarget(
-                                      link: layerLink,
-                                      child: TextButton(
-                                        onPressed: () {
-                                          if (localOverlay != null) {
-                                            localOverlay!.remove();
-                                            localOverlay = null;
-                                          } else {
-                                            final overlay = Overlay.of(context);
-                                            localOverlay = OverlayEntry(
-                                              builder: (context) => Stack(
-                                                children: [
-                                                  Positioned.fill(
-                                                    child: GestureDetector(
-                                                      onTap: () {
-                                                        localOverlay?.remove();
-                                                        localOverlay = null;
-                                                      },
-                                                      behavior: HitTestBehavior.translucent,
-                                                    ),
-                                                  ),
-                                                  Positioned(
-                                                    width: 200,
-                                                    child: CompositedTransformFollower(
-                                                      link: layerLink,
-                                                      showWhenUnlinked: false,
-                                                      offset: const Offset(3, 1),
-                                                      followerAnchor: Alignment.topRight,
-                                                      targetAnchor: Alignment.bottomRight,
-                                                      child: Material(
-                                                        elevation: 0,
-                                                        borderRadius: BorderRadius.circular(12),
-                                                        child: Container(
-                                                          decoration: BoxDecoration(
-                                                            color: const Color(0xFFF9F9FD),
-                                                            borderRadius: BorderRadius.circular(12),
-                                                          ),
-                                                          child: Column(
-                                                            mainAxisSize: MainAxisSize.min,
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                "${index + 1}. ${sub['subtitle']}",
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 20,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 19),
+                                            CompositedTransformTarget(
+                                              link: layerLink,
+                                              child: TextButton(
+                                                onPressed: () {
+                                                  if (localOverlay != null) {
+                                                    localOverlay!.remove();
+                                                    localOverlay = null;
+                                                  } else {
+                                                    final overlay = Overlay.of(
+                                                      context,
+                                                    );
+                                                    localOverlay = OverlayEntry(
+                                                      builder:
+                                                          (context) => Stack(
                                                             children: [
-                                                              InkWell(
-                                                                onTap: () async {
-                                                                  localOverlay?.remove();
-                                                                  localOverlay = null;
-
-                                                                  final result = await showNoteSubmitPopup(
-                                                                    context: context,
-                                                                    userEmail: widget.currentUserEmail,
-                                                                    taskId: task['taskId'],
-                                                                    subId: sub['subId'],
-                                                                    groupId: widget.groupId,
-                                                                  );
-
-                                                                  if (result == true) {
-                                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                                      const SnackBar(
-                                                                        content: Text('노트가 성공적으로 제출되었습니다'),
-                                                                      ),
-                                                                    );
-                                                                  } else if (result == false) {
-                                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                                      const SnackBar(
-                                                                        content: Text('노트 제출에 실패했습니다'),
-                                                                        backgroundColor: Colors.red,
-                                                                      ),
-                                                                    );
-                                                                  }
-                                                                },
-                                                                child: const Padding(
-                                                                  padding: EdgeInsets.all(12),
-                                                                  child: Text("📓 모딧 노트 제출",
-                                                                      style: TextStyle(color: Color(0xFF0D0A64))),
+                                                              Positioned.fill(
+                                                                child: GestureDetector(
+                                                                  onTap: () {
+                                                                    localOverlay
+                                                                        ?.remove();
+                                                                    localOverlay =
+                                                                        null;
+                                                                  },
+                                                                  behavior:
+                                                                      HitTestBehavior
+                                                                          .translucent,
                                                                 ),
                                                               ),
-                                                              Container(height: 1, color: const Color(0xFF0D0A64)),
-                                                              InkWell(
-                                                                onTap: () async {
-                                                                  await _pickAndUploadExternalFile(
-                                                                    task['taskId'],
-                                                                    sub['subId'],
-                                                                    widget.currentUserEmail,
-                                                                    widget.groupId,
-                                                                  );
-                                                                  localOverlay?.remove();
-                                                                  localOverlay = null;
-                                                                },
-                                                                child: const Padding(
-                                                                  padding: EdgeInsets.all(12),
-                                                                  child: Text("📁 외부 파일 선택",
-                                                                      style: TextStyle(color: Color(0xFF0D0A64))),
+                                                              Positioned(
+                                                                width: 200,
+                                                                child: CompositedTransformFollower(
+                                                                  link:
+                                                                      layerLink,
+                                                                  showWhenUnlinked:
+                                                                      false,
+                                                                  offset:
+                                                                      const Offset(
+                                                                        3,
+                                                                        1,
+                                                                      ),
+                                                                  followerAnchor:
+                                                                      Alignment
+                                                                          .topRight,
+                                                                  targetAnchor:
+                                                                      Alignment
+                                                                          .bottomRight,
+                                                                  child: Material(
+                                                                    elevation:
+                                                                        0,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          12,
+                                                                        ),
+                                                                    child: Container(
+                                                                      decoration: BoxDecoration(
+                                                                        color: const Color(
+                                                                          0xFFF9F9FD,
+                                                                        ),
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(
+                                                                              12,
+                                                                            ),
+                                                                      ),
+                                                                      child: Column(
+                                                                        mainAxisSize:
+                                                                            MainAxisSize.min,
+                                                                        children: [
+                                                                          InkWell(
+                                                                            onTap: () async {
+                                                                              localOverlay?.remove();
+                                                                              localOverlay =
+                                                                                  null;
+
+                                                                              final result = await showNoteSubmitPopup(
+                                                                                context:
+                                                                                    context,
+                                                                                userEmail:
+                                                                                    widget.currentUserEmail,
+                                                                                taskId:
+                                                                                    task['taskId'],
+                                                                                subId:
+                                                                                    sub['subId'],
+                                                                                groupId:
+                                                                                    widget.groupId,
+                                                                              );
+
+                                                                              if (result ==
+                                                                                  true) {
+                                                                                ScaffoldMessenger.of(
+                                                                                  context,
+                                                                                ).showSnackBar(
+                                                                                  const SnackBar(
+                                                                                    content: Text(
+                                                                                      '노트가 성공적으로 제출되었습니다',
+                                                                                    ),
+                                                                                  ),
+                                                                                );
+                                                                              } else if (result ==
+                                                                                  false) {
+                                                                                ScaffoldMessenger.of(
+                                                                                  context,
+                                                                                ).showSnackBar(
+                                                                                  const SnackBar(
+                                                                                    content: Text(
+                                                                                      '노트 제출에 실패했습니다',
+                                                                                    ),
+                                                                                    backgroundColor:
+                                                                                        Colors.red,
+                                                                                  ),
+                                                                                );
+                                                                              }
+                                                                            },
+                                                                            child: const Padding(
+                                                                              padding: EdgeInsets.all(
+                                                                                12,
+                                                                              ),
+                                                                              child: Text(
+                                                                                "📓 모딧 노트 제출",
+                                                                                style: TextStyle(
+                                                                                  color: Color(
+                                                                                    0xFF0D0A64,
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                          Container(
+                                                                            height:
+                                                                                1,
+                                                                            color: const Color(
+                                                                              0xFF0D0A64,
+                                                                            ),
+                                                                          ),
+                                                                          InkWell(
+                                                                            onTap: () async {
+                                                                              await _pickAndUploadExternalFile(
+                                                                                task['taskId'],
+                                                                                sub['subId'],
+                                                                                widget.currentUserEmail,
+                                                                                widget.groupId,
+                                                                              );
+                                                                              localOverlay?.remove();
+                                                                              localOverlay =
+                                                                                  null;
+                                                                            },
+                                                                            child: const Padding(
+                                                                              padding: EdgeInsets.all(
+                                                                                12,
+                                                                              ),
+                                                                              child: Text(
+                                                                                "📁 외부 파일 선택",
+                                                                                style: TextStyle(
+                                                                                  color: Color(
+                                                                                    0xFF0D0A64,
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                    ),
+                                                                  ),
                                                                 ),
                                                               ),
                                                             ],
                                                           ),
+                                                    );
+                                                    overlay.insert(
+                                                      localOverlay!,
+                                                    );
+                                                  }
+                                                },
+                                                style: TextButton.styleFrom(
+                                                  backgroundColor: Colors.white
+                                                      .withOpacity(0.6),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          24,
                                                         ),
-                                                      ),
-                                                    ),
                                                   ),
-                                                ],
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 1,
+                                                      ),
+                                                ),
+                                                child: const Text(
+                                                  "제출",
+                                                  style: TextStyle(
+                                                    color: Color(0xFF0D0A64),
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
                                               ),
-                                            );
-                                            overlay.insert(localOverlay!);
-                                          }
-                                        },
-                                        style: TextButton.styleFrom(
-                                          backgroundColor: Colors.white.withOpacity(0.6),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(24),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+                                            ),
+                                          ],
                                         ),
-                                        child: const Text(
-                                          "제출",
-                                          style: TextStyle(
-                                            color: Color(0xFF0D0A64),
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                          ),
+                                        Text(
+                                          "${sub['description']}",
+                                          style: const TextStyle(fontSize: 19),
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  "${sub['description']}",
-                                  style: const TextStyle(fontSize: 19),
-                                ),
-                                const SizedBox(height: 12),
-                                if (index != task['subTasks'].length - 1)
-                                  const Divider(
-                                    thickness: 1.2,
-                                    color: Colors.grey,
-                                    height: 24,
-                                  ),
-                              ],
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
+                                        const SizedBox(height: 12),
+                                        if (index !=
+                                            task['subTasks'].length - 1)
+                                          const Divider(
+                                            thickness: 1.2,
+                                            color: Colors.grey,
+                                            height: 24,
+                                          ),
+                                      ],
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ),
                 ),
               ),
             ),
@@ -715,21 +893,30 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('과제물 확인', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const Text(
+                  '과제물 확인',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 2),
                 Expanded(
                   child: Scrollbar(
                     child: Builder(
                       builder: (context) {
-                        final sortedTasks = List<Map<String, dynamic>>.from(tasks)
-                          ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
+                        final sortedTasks = List<Map<String, dynamic>>.from(
+                          tasks,
+                        )..sort(
+                          (a, b) => DateTime.parse(
+                            a['deadline'],
+                          ).compareTo(DateTime.parse(b['deadline'])),
+                        );
 
                         return ListView.builder(
                           itemCount: sortedTasks.length,
                           itemBuilder: (context, taskIndex) {
                             final task = sortedTasks[taskIndex];
                             final taskTitle = task['title'];
-                            final subTasks = task['subTasks'] as List<Map<String, dynamic>>;
+                            final subTasks =
+                                task['subTasks'] as List<Map<String, dynamic>>;
 
                             return Container(
                               width: double.infinity,
@@ -742,80 +929,169 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(taskTitle,
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text(
+                                    taskTitle,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                   const SizedBox(height: 12),
                                   ...subTasks.asMap().entries.map((entry) {
                                     final index = entry.key;
                                     final subTask = entry.value;
                                     final subTitle = subTask['subtitle'] ?? '';
-                                    final submitUsers = submissions[taskTitle]?[subTitle] ?? [];
+                                    final submitUsers =
+                                        submissions[taskTitle]?[subTitle] ?? [];
 
                                     return Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text("  ${index + 1}. $subTitle",
-                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                          Text(
+                                            "  ${index + 1}. $subTitle",
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                           const SizedBox(height: 8),
                                           Padding(
-                                            padding: const EdgeInsets.only(left: 11),
-                                            child: submitUsers.isEmpty
-                                                ? const Text("제출자 없음", style: TextStyle(color: Colors.grey))
-                                                : Wrap(
-                                              spacing: 8,
-                                              runSpacing: 4,
-                                              children: submitUsers.map((userEmail) {
-                                                final sanitizedEmail = sanitizeKey(userEmail);
-                                                return FutureBuilder<DataSnapshot>(
-                                                  future: db.child('user').child(sanitizedEmail).get(),
-                                                  builder: (context, snapshot) {
-                                                    if (snapshot.connectionState ==
-                                                        ConnectionState.waiting) {
-                                                      return const SizedBox(
-                                                        width: 80,
-                                                        height: 40,
-                                                        child: CircularProgressIndicator(),
-                                                      );
-                                                    } else if (snapshot.hasError ||
-                                                        !snapshot.hasData ||
-                                                        !snapshot.data!.exists) {
-                                                      return const SizedBox(
-                                                        width: 80,
-                                                        height: 40,
-                                                        child: Text("이름 오류"),
-                                                      );
-                                                    }
-
-                                                    final userData = Map<String, dynamic>.from(
-                                                        snapshot.data!.value as Map);
-                                                    final userName = userData['name'] ?? userEmail;
-
-                                                    return OutlinedButton(
-                                                      onPressed: () => loadSubmissionFile(
-                                                          userEmail, taskTitle, subTitle),
-                                                      style: OutlinedButton.styleFrom(
-                                                        side: const BorderSide(
-                                                            color: Color(0xFF0D0A64), width: 1.2),
-                                                        foregroundColor: const Color(0xFF0D0A64),
-                                                        padding: const EdgeInsets.symmetric(
-                                                            horizontal: 8, vertical: 1),
-                                                        visualDensity: const VisualDensity(
-                                                            horizontal: 0, vertical: -2),
-                                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                        shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(8)),
-                                                      ),
-                                                      child: Text(
-                                                        userName,
-                                                        style: const TextStyle(fontSize: 13),
-                                                      ),
-                                                    );
-                                                  },
-                                                );
-                                              }).toList(),
+                                            padding: const EdgeInsets.only(
+                                              left: 11,
                                             ),
+                                            child:
+                                                submitUsers.isEmpty
+                                                    ? const Text(
+                                                      "제출자 없음",
+                                                      style: TextStyle(
+                                                        color: Colors.grey,
+                                                      ),
+                                                    )
+                                                    : Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 4,
+                                                      children:
+                                                          submitUsers.map((
+                                                            userEmail,
+                                                          ) {
+                                                            final sanitizedEmail =
+                                                                sanitizeKey(
+                                                                  userEmail,
+                                                                );
+                                                            return FutureBuilder<
+                                                              DataSnapshot
+                                                            >(
+                                                              future:
+                                                                  db
+                                                                      .child(
+                                                                        'user',
+                                                                      )
+                                                                      .child(
+                                                                        sanitizedEmail,
+                                                                      )
+                                                                      .get(),
+                                                              builder: (
+                                                                context,
+                                                                snapshot,
+                                                              ) {
+                                                                if (snapshot
+                                                                        .connectionState ==
+                                                                    ConnectionState
+                                                                        .waiting) {
+                                                                  return const SizedBox(
+                                                                    width: 80,
+                                                                    height: 40,
+                                                                    child:
+                                                                        CircularProgressIndicator(),
+                                                                  );
+                                                                } else if (snapshot
+                                                                        .hasError ||
+                                                                    !snapshot
+                                                                        .hasData ||
+                                                                    !snapshot
+                                                                        .data!
+                                                                        .exists) {
+                                                                  return const SizedBox(
+                                                                    width: 80,
+                                                                    height: 40,
+                                                                    child: Text(
+                                                                      "이름 오류",
+                                                                    ),
+                                                                  );
+                                                                }
+
+                                                                final userData = Map<
+                                                                  String,
+                                                                  dynamic
+                                                                >.from(
+                                                                  snapshot
+                                                                          .data!
+                                                                          .value
+                                                                      as Map,
+                                                                );
+                                                                final userName =
+                                                                    userData['name'] ??
+                                                                    userEmail;
+
+                                                                return OutlinedButton(
+                                                                  onPressed:
+                                                                      () => loadSubmissionFile(
+                                                                        userEmail,
+                                                                        taskTitle,
+                                                                        subTitle,
+                                                                      ),
+                                                                  style: OutlinedButton.styleFrom(
+                                                                    side: const BorderSide(
+                                                                      color: Color(
+                                                                        0xFF0D0A64,
+                                                                      ),
+                                                                      width:
+                                                                          1.2,
+                                                                    ),
+                                                                    foregroundColor:
+                                                                        const Color(
+                                                                          0xFF0D0A64,
+                                                                        ),
+                                                                    padding: const EdgeInsets.symmetric(
+                                                                      horizontal:
+                                                                          8,
+                                                                      vertical:
+                                                                          1,
+                                                                    ),
+                                                                    visualDensity:
+                                                                        const VisualDensity(
+                                                                          horizontal:
+                                                                              0,
+                                                                          vertical:
+                                                                              -2,
+                                                                        ),
+                                                                    tapTargetSize:
+                                                                        MaterialTapTargetSize
+                                                                            .shrinkWrap,
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            8,
+                                                                          ),
+                                                                    ),
+                                                                  ),
+                                                                  child: Text(
+                                                                    userName,
+                                                                    style: const TextStyle(
+                                                                      fontSize:
+                                                                          13,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              },
+                                                            );
+                                                          }).toList(),
+                                                    ),
                                           ),
                                         ],
                                       ),
@@ -847,65 +1123,126 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                   color: const Color(0xFFB8BDF1).withOpacity(0.3),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: selectedUser == null
-                    ? const Center(child: Text("제출된 과제를 선택하세요."))
-                    : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(selectedUser!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    Text("$selectedTaskTitle - $selectedSubTaskTitle", style: const TextStyle(fontSize: 18)),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final boxWidth = constraints.maxWidth;
-                          final boxHeight = constraints.maxHeight;
-
-                          return Center(
-                            child: SizedBox(
-                              width: boxWidth,
-                              height: boxHeight,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.shade400),
-                                ),
-                                child: InteractiveViewer(
-                                  panEnabled: true,
-                                  minScale: 0.5,
-                                  maxScale: 3.0,
-                                  child: selectedFileType == 'image'
-                                      ? Image.network(
-                                    selectedFileUrl!,
-                                    fit: BoxFit.fill, // 또는 BoxFit.fill
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  )
-                                      : FutureBuilder<String>(
-                                    future: _loadTextFromUrl(selectedFileUrl!),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState == ConnectionState.waiting) {
-                                        return const Center(child: CircularProgressIndicator());
-                                      } else if (snapshot.hasError) {
-                                        return const Center(child: Text("오류 발생"));
-                                      } else {
-                                        return Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(snapshot.data ?? "", style: const TextStyle(fontSize: 16)),
-                                        );
-                                      }
-                                    },
-                                  ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 450),
+                  transitionBuilder: (
+                    Widget child,
+                    Animation<double> animation,
+                  ) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.1, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: FadeTransition(opacity: animation, child: child),
+                    );
+                  },
+                  child:
+                      selectedUser == null
+                          ? const Center(
+                            key: ValueKey("no_user"),
+                            child: Text("제출된 과제를 선택하세요."),
+                          )
+                          : Column(
+                            key: ValueKey(selectedUser),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedUser!,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                              const SizedBox(height: 12),
+                              Text(
+                                "$selectedTaskTitle - $selectedSubTaskTitle",
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                              const SizedBox(height: 12),
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final boxWidth = constraints.maxWidth;
+                                    final boxHeight = constraints.maxHeight;
+
+                                    return Center(
+                                      child: SizedBox(
+                                        width: boxWidth,
+                                        height: boxHeight,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.grey.shade400,
+                                            ),
+                                          ),
+                                          child: InteractiveViewer(
+                                            panEnabled: true,
+                                            minScale: 0.5,
+                                            maxScale: 3.0,
+                                            child:
+                                                selectedFileType == 'image'
+                                                    ? Image.network(
+                                                      selectedFileUrl!,
+                                                      fit: BoxFit.fill,
+                                                      width: double.infinity,
+                                                      height: double.infinity,
+                                                    )
+                                                    : FutureBuilder<String>(
+                                                      future: _loadTextFromUrl(
+                                                        selectedFileUrl!,
+                                                      ),
+                                                      builder: (
+                                                        context,
+                                                        snapshot,
+                                                      ) {
+                                                        if (snapshot
+                                                                .connectionState ==
+                                                            ConnectionState
+                                                                .waiting) {
+                                                          return const Center(
+                                                            child:
+                                                                CircularProgressIndicator(),
+                                                          );
+                                                        } else if (snapshot
+                                                            .hasError) {
+                                                          return const Center(
+                                                            child: Text(
+                                                              "오류 발생",
+                                                            ),
+                                                          );
+                                                        } else {
+                                                          return Padding(
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  8.0,
+                                                                ),
+                                                            child: Text(
+                                                              snapshot.data ??
+                                                                  "",
+                                                              style:
+                                                                  const TextStyle(
+                                                                    fontSize:
+                                                                        16,
+                                                                  ),
+                                                            ),
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                 ),
               ),
             ),
@@ -938,14 +1275,10 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                 _homeworkTabIndex = index;
               });
             },
-            children: [
-              _buildManageTab(),
-              _buildConfirmTab(),
-            ],
+            children: [_buildManageTab(), _buildConfirmTab()],
           ),
         ),
       ],
     );
   }
 }
-
