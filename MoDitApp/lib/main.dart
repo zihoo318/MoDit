@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'pages/first_page.dart';
 import 'package:moditapp/pages/login.dart';
 import 'package:moditapp/pages/splash_screen.dart';
 
