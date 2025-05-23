@@ -175,15 +175,67 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   void _handleStylusUp(PointerUpEvent event) {
     if (event.kind == ui.PointerDeviceKind.stylus) {
-      strokes.add(Stroke(
-        points: List.from(currentPoints),
-        color: selectedStrokeColor,
-        strokeWidth: strokeWidth,
-      ));
+      if (isEraser) {
+        const double eraserRadius = 12.0;
+        final erasePath = currentPoints.whereType<Offset>().toList();
+
+        List<Stroke> updatedStrokes = [];
+
+        for (final stroke in strokes) {
+          final List<Offset?> originalPoints = stroke.points;
+          final List<List<Offset?>> segments = [];
+
+          List<Offset?> currentSegment = [];
+
+          for (int i = 0; i < originalPoints.length; i++) {
+            final point = originalPoints[i];
+            if (point == null) continue;
+
+            final isErased = erasePath.any((e) => (e - point).distance <= eraserRadius);
+            if (isErased) {
+              // 현재 segment를 잘라냄
+              if (currentSegment.length > 1) {
+                segments.add(List.from(currentSegment));
+              }
+              currentSegment.clear();
+            } else {
+              currentSegment.add(point);
+            }
+          }
+
+          if (currentSegment.length > 1) {
+            segments.add(currentSegment);
+          }
+
+          for (final segment in segments) {
+            updatedStrokes.add(Stroke(
+              points: segment,
+              color: stroke.color,
+              strokeWidth: stroke.strokeWidth,
+            ));
+          }
+        }
+
+        setState(() {
+          strokes = updatedStrokes;
+          canUndo = strokes.isNotEmpty;
+        });
+
+      } else {
+        strokes.add(Stroke(
+          points: List.from(currentPoints),
+          color: selectedStrokeColor,
+          strokeWidth: strokeWidth,
+        ));
+        setState(() {
+          canUndo = strokes.isNotEmpty;
+        });
+      }
       currentPoints.clear();
-      canUndo = strokes.isNotEmpty;
     }
   }
+
+
 
   void _setMode({
     bool drawing = false,
@@ -207,6 +259,11 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       if (!select) {
         selectedRect = null;
         showSaveButton = false;
+      }
+
+      // 이미지 모드가 아니면 선택 해제
+      if (!image) {
+        for (var img in imageNotes) img.isSelected = false;
       }
     });
 
@@ -388,7 +445,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 fontWeight: FontWeight.w600,
               ),
             ),
-              backgroundColor: Color(0xFFEAEAFF),
+            backgroundColor: Color(0xFFEAEAFF),
             duration: Duration(seconds: 2),
           ),
         );
@@ -644,8 +701,34 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       left: note.position.dx,
       top: note.position.dy,
       child: GestureDetector(
-        onPanUpdate: (isDrawingMode || isSelectMode) ? null : (details) {
-          if (_isInResizeHandle(details.localPosition, note)) return;
+        onTapUp: (_) {
+          if (isDrawingMode || isSelectMode || isImageMode) return;
+
+          if (note.isSelected) {
+            if (!note.isEditing) {
+              setState(() {
+                note.isEditing = true;
+              });
+
+              // 지연 호출하여 키보드 정상 호출 보장
+              Future.microtask(() {
+                note.focusNode.requestFocus();
+              });
+            }
+          } else {
+            setState(() {
+              for (var n in textNotes) {
+                n.isSelected = false;
+                n.isEditing = false;
+              }
+              note.isSelected = true;
+            });
+          }
+        },
+
+
+
+        onPanUpdate: (isDrawingMode || isSelectMode || isImageMode) ? null : (details) {
           setState(() {
             note.position += details.delta;
           });
@@ -653,12 +736,96 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            _buildNoteBox(note),
+            Container(
+              width: note.size.width,
+              height: note.size.height,
+              decoration: BoxDecoration(
+                border: note.isSelected ? Border.all(color: Colors.grey) : null,
+                color: Colors.white,
+              ),
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                // onPointerDown: (_) {
+                //   if (note.isSelected && !note.isEditing) {
+                //     setState(() {
+                //       note.isEditing = true;
+                //       note.focusNode.requestFocus();
+                //     });
+                //   }
+                // },
+                child: TextField(
+                  controller: note.controller,
+                  focusNode: note.focusNode,
+                  maxLines: null,
+                  expands: true,
+                  enabled: note.isEditing,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.all(4),
+                  ),
+                  style: TextStyle(fontSize: note.fontSize, color: note.color),
+                  onEditingComplete: () {
+                    setState(() {
+                      note.isEditing = false;
+                      note.focusNode.unfocus();
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            // 삭제 버튼
+            if (note.isSelected)
+              Positioned(
+                top: -12,
+                left: -12,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      textNotes.remove(note);
+                    });
+                  },
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: const Icon(Icons.close, size: 18),
+                  ),
+                ),
+              ),
+
+            // 크기 조절 핸들
             if (note.isSelected)
               Positioned(
                 bottom: -12,
                 right: -12,
-                child: _buildResizeHandle(note),
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    setState(() {
+                      double newWidth = (note.size.width + details.delta.dx)
+                          .clamp(60.0, MediaQuery.of(context).size.width - note.position.dx);
+                      double newHeight = (note.size.height + details.delta.dy)
+                          .clamp(30.0, MediaQuery.of(context).size.height - note.position.dy);
+                      note.size = Size(newWidth, newHeight);
+                    });
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: const Icon(Icons.open_in_full, size: 18),
+                  ),
+                ),
               ),
           ],
         ),
@@ -666,20 +833,22 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
-  // 이미지 엑스 버튼, 크기조절
+
+
+  // 이미지 엑스 버튼, 크기 조절
   Widget _buildDraggableImageNote(ImageNote imgNote) {
     return Positioned(
       left: imgNote.position.dx,
       top: imgNote.position.dy,
       child: GestureDetector(
         onTap: () {
-          if (isDrawingMode || isSelectMode) return; // 손글씨 모드에서는 무시
+          if (isDrawingMode || isSelectMode || isTextMode) return; // 손글씨 모드에서는 무시
           setState(() {
             for (var img in imageNotes) img.isSelected = false;
             imgNote.isSelected = true;
           });
         },
-        onPanUpdate: (isDrawingMode || isSelectMode) ? null : (details) {
+        onPanUpdate: (isDrawingMode || isSelectMode || isTextMode) ? null : (details) {
           setState(() {
             imgNote.position += details.delta;
           });
@@ -722,6 +891,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 ),
               ),
 
+            //이미지 크기 조절
             if (imgNote.isSelected)
               Positioned(
                 bottom: -12,
@@ -756,13 +926,11 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   bool _isInResizeHandle(Offset local, TextNote note) {
     const double handleSize = 40;
-    final rect = Rect.fromLTWH(
-      note.position.dx + note.size.width - handleSize,
-      note.position.dy + note.size.height - handleSize,
-      handleSize,
-      handleSize,
+    final handleCenter = Offset(
+      note.position.dx + note.size.width,
+      note.position.dy + note.size.height,
     );
-    return rect.contains(local);
+    return (local - handleCenter).distance <= handleSize / 2;
   }
 
   Widget _buildResizeHandle(TextNote note) {
@@ -774,11 +942,9 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           final newWidth = note.size.width + details.delta.dx;
           final newHeight = note.size.height + details.delta.dy;
 
-          final screenWidth = MediaQuery.of(context).size.width;
-
           note.size = Size(
-            newWidth.clamp(60.0, screenWidth - 80), // 양쪽 여백 고려
-            newHeight.clamp(30.0, screenWidth - 80),
+            newWidth.clamp(60.0, MediaQuery.of(context).size.width - note.position.dx),
+            newHeight.clamp(30.0, MediaQuery.of(context).size.height - note.position.dy),
           );
         });
       },
@@ -913,109 +1079,6 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       ),
     );
   }
-
-
-  Widget _buildNoteBox(TextNote note) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: note.size.width,
-          height: note.size.height,
-          decoration: note.isSelected
-              ? BoxDecoration(
-            border: Border.all(color: Colors.grey, width: 1.5),
-          )
-              : null,
-          child: SizedBox(
-            width: note.size.width,
-            height: note.size.height,
-            child: TextField(
-              controller: note.controller,
-              focusNode: note.focusNode,
-              maxLines: null,
-              expands: true, // 🔥 핵심: 텍스트 필드가 부모 크기에 맞춤
-              textAlignVertical: TextAlignVertical.top, // 텍스트를 위쪽 정렬
-              enabled: !(isDrawingMode || isSelectMode || isImageMode),
-              onTap: () {
-                if (isSelectMode || isImageMode) return;
-                setState(() {
-                  for (var n in textNotes) n.isSelected = false;
-                  note.isSelected = true;
-                  note.focusNode.requestFocus();
-                });
-                note.focusNode.requestFocus();
-              },
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.all(4),
-              ),
-              style: TextStyle(fontSize: note.fontSize, color: note.color),
-            ),
-          ),
-        ),
-
-        // 삭제 버튼
-        if (note.isSelected)
-          Positioned(
-            top: -12,
-            left: -12,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                setState(() {
-                  textNotes.remove(note);
-                });
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey, width: 1.5),
-                ),
-                child: const Icon(Icons.close, size: 18),
-              ),
-            ),
-          ),
-
-        // 크기 조절 핸들
-        if (note.isSelected)
-          Positioned(
-            bottom: -12,
-            right: -12,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onPanUpdate: (details) {
-                setState(() {
-                  final newWidth = note.size.width + details.delta.dx;
-                  final newHeight = note.size.height + details.delta.dy;
-
-                  note.size = Size(
-                    newWidth.clamp(60.0, 1000.0),
-                    newHeight.clamp(30.0, 1000.0),
-                  );
-                });
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey),
-                ),
-                child: const Icon(Icons.open_in_full, size: 18),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
 
   // 클릭한 좌표가 이미지나 텍스트 영역에 해당되는지 확인
   void _handleTapDownForDeselect(TapDownDetails details) {
@@ -1654,14 +1717,18 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       // 아무 노트도 선택 안 되어 있고, 노트 영역도 아니라면 → 새 노트 생성
       late TextNote newNote;
+      // 새 텍스트 노트 생성 시
       newNote = TextNote(
         position: tappedPosition,
         fontSize: fontSize,
         color: selectedTextColor,
-        size: Size(300, 100), // 텍스트 기본 영역 크기
+        size: Size(300, 100),
+        initialText: '', // 비어 있음
+        isEditing: true, // 글이 없으면 바로 편집
         onFocusLost: () {
           setState(() {
             newNote.isSelected = false;
+            newNote.isEditing = false;
           });
         },
       );
@@ -1672,9 +1739,11 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         textNotes.add(newNote);
       });
 
+      // 키보드 자동 포커싱
       Future.delayed(const Duration(milliseconds: 50), () {
         newNote.focusNode.requestFocus();
       });
+
     }
   }
 }

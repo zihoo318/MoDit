@@ -1,4 +1,3 @@
-// note_screen에서 데이터 모델 분리
 import 'package:flutter/material.dart';
 import 'dart:io';
 
@@ -16,12 +15,14 @@ class Stroke {
 
 class TextNote {
   Offset position;
-  TextEditingController controller;
-  FocusNode focusNode;
+  Size size;
   double fontSize;
   Color color;
-  Size size;
+  TextEditingController controller;
+  FocusNode focusNode;
   bool isSelected;
+  bool isEditing;
+  VoidCallback? onFocusLost;
 
   TextNote({
     required this.position,
@@ -30,6 +31,7 @@ class TextNote {
     String initialText = '',
     this.size = const Size(150, 50),
     this.isSelected = false,
+    this.isEditing = false, // ✅ 추가
     void Function()? onFocusLost,
   })  : controller = TextEditingController(text: initialText),
         focusNode = FocusNode() {
@@ -38,6 +40,7 @@ class TextNote {
         Future.delayed(Duration(milliseconds: 50), () {
           if (!focusNode.hasFocus) {
             isSelected = false;
+            isEditing = false; // ✅ 포커스 잃으면 편집 종료
             if (onFocusLost != null) onFocusLost();
           }
         });
