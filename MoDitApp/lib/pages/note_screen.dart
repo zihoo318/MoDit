@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'firebase_utils.dart';
+import 'first_page.dart';
 import 'flask_api.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'loading_overlay.dart';
@@ -367,16 +368,27 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       if (fileUrl != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("노트가 저장되었습니다"),
-            backgroundColor: Colors.green,
+            content: Text(
+              "노트가 저장되었습니다",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: Color(0xFFEAEAFF),
             duration: Duration(seconds: 2),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("노트 업로드 실패"),
-            backgroundColor: Colors.red,
+            content: Text("노트 업로드 실패",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+              backgroundColor: Color(0xFFEAEAFF),
             duration: Duration(seconds: 2),
           ),
         );
@@ -459,6 +471,50 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       return;
     }
 
+    // 기존 노트와 동일한 경우 저장 생략
+    if (widget.existingNoteData != null) {
+      final oldTitle = widget.existingNoteData!['title'];
+      final oldData = widget.existingNoteData!['data'];
+
+      final isSameTitle = title == oldTitle;
+
+      bool isSameContent = true;
+      try {
+        final currentJson = {
+          'strokes': strokes.map((s) => {
+            'points': s.points.whereType<Offset>().map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+            'color': '#${s.color.value.toRadixString(16).padLeft(8, '0')}',
+            'width': s.strokeWidth,
+          }).toList(),
+          'texts': textNotes.map((t) => {
+            'x': t.position.dx,
+            'y': t.position.dy,
+            'text': t.controller.text,
+            'fontSize': t.fontSize,
+            'color': '#${t.color.value.toRadixString(16).padLeft(8, '0')}',
+            'width': t.size.width,
+            'height': t.size.height,
+          }).toList(),
+          'images': imageNotes.map((i) => {
+            'x': i.position.dx,
+            'y': i.position.dy,
+            'width': i.size.width,
+            'height': i.size.height,
+          }).toList(),
+        };
+
+        isSameContent = currentJson.toString() == oldData.toString();
+      } catch (e) {
+        isSameContent = false;
+      }
+
+      if (isSameTitle && isSameContent) {
+        Navigator.pop(context); // 변경사항 없으면 그냥 나가기
+        isSaving = false;
+        return;
+      }
+    }
+
     if (title.isEmpty || title == '노트 이름 설정') {
       isSaving = false;
       showDialog(
@@ -482,9 +538,34 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       await _captureAndUploadNote();
     } finally {
       LoadingOverlay.hide();
+      await Future.delayed(const Duration(milliseconds: 100)); // 최소한 한 프레임 쉬기
+
       isSaving = false;
       if (mounted) {
-        Navigator.pop(context, true);
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 500),
+            pageBuilder: (_, animation, __) => HomeScreen(
+              currentUserEmail: widget.currentUserEmail,
+              currentUserName: widget.currentUserEmail.split('@')[0], // 또는 적절한 이름
+            ),
+            transitionsBuilder: (_, animation, __, child) {
+              final scaleTween = Tween(begin: 0.95, end: 1.0)
+                  .chain(CurveTween(curve: Curves.easeOutCubic));
+              final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+              return FadeTransition(
+                opacity: fadeTween,
+                child: ScaleTransition(
+                  scale: animation.drive(scaleTween),
+                  child: child,
+                ),
+              );
+            },
+          ),
+        );
       }
     }
   }
@@ -542,8 +623,13 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("노트가 삭제되었습니다"),
-          backgroundColor: Colors.red,
+          content: Text("노트가 삭제되었습니다",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: Color(0xFFEAEAFF),
           duration: Duration(seconds: 2),
         ),
       );
@@ -987,6 +1073,12 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
               SafeArea(
                 child: Column(
                   children: [
+                    if (widget.existingNoteData != null &&
+                        widget.existingNoteData!['title'] != null)
+                      Hero(
+                        tag: 'note_${widget.existingNoteData!['title']}',
+                        child: SizedBox.shrink(), // 내용은 없지만 Hero 연결 용도
+                      ),
                     // 상단 모드 선택바
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -1404,7 +1496,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
                                   if (isNoteMenuVisible && noteMenuPosition != null)
                                     Positioned(
-                                      left: 900,
+                                      left: 1390,
                                       top: 10,
                                       child: Material(
                                         elevation: 4,

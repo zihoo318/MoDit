@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'friend_add_popup.dart';
 import 'group_create_popup.dart';
 import 'group_main_screen.dart';
+import 'login.dart';
 import 'note_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -16,18 +17,57 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final db = FirebaseDatabase.instance.ref();
   List<Map<String, dynamic>> groupStudies = [];
   List<Map<String, dynamic>> userNotes = [];
 
   bool _isNoteLoading = false;
 
+  // 선택된 그룹 id 저장(애니메이션)
+  String? _animatingGroupId;
+
+  late AnimationController _groupAnimController;
+  late Animation<double> _groupScaleAnimation;
+  late Animation<double> _groupFadeAnimation;
+
+  // 마이페이지 변수
+  bool _isMyPageOpen = false;
+  bool _isEditingName = false;
+  late TextEditingController _nameController;
+
+
   @override
   void initState() {
     super.initState();
+    _groupAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _groupScaleAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _groupAnimController, curve: Curves.easeOut),
+    );
+    _groupFadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _groupAnimController, curve: Curves.easeOut),
+    );
+
     loadGroupStudies();
-    listenToUserNotes();  //노트 불러오기
+    loadUserNotes();
+    _nameController = TextEditingController(text: widget.currentUserName);
+
+  }
+
+  @override
+  void dispose() {
+    _groupAnimController.dispose();
+    super.dispose();
+  }
+
+  void _logout() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+    );
   }
 
   void loadGroupStudies() async {
@@ -54,18 +94,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showFriendAddPopup() {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) => FriendAddPopup(currentUserEmail: widget.currentUserEmail),
+      barrierDismissible: true,
+      barrierLabel: "친구 추가",
+      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return Transform.scale(
+          scale: Curves.easeOutBack.transform(anim1.value),
+          child: Opacity(
+            opacity: anim1.value,
+            child: FriendAddPopup(currentUserEmail: widget.currentUserEmail),
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 400),
     );
   }
 
+
   void _showGroupCreatePopup() {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) => GroupCreatePopup(currentUserEmail: widget.currentUserEmail),
+      barrierDismissible: true,
+      barrierLabel: "그룹 생성",
+      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return Transform.scale(
+          scale: Curves.easeOutBack.transform(anim1.value),
+          child: Opacity(
+            opacity: anim1.value,
+            child: GroupCreatePopup(currentUserEmail: widget.currentUserEmail),
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 400),
     ).then((_) => loadGroupStudies());
   }
+
 
   Future<void> loadUserNotes() async {
     if (_isNoteLoading) return;
@@ -87,9 +153,10 @@ class _HomeScreenState extends State<HomeScreen> {
         };
       }).toList();
 
-      loadedNotes.sort((a, b) => (b['timestampMillis'] ?? 0).compareTo(a['timestampMillis'] ?? 0));
+      loadedNotes.sort((a, b) =>
+          (b['timestampMillis'] ?? 0).compareTo(a['timestampMillis'] ?? 0));
 
-      setState(() {  // 이 부분이 반드시 있어야 함
+      setState(() { // 이 부분이 반드시 있어야 함
         userNotes = loadedNotes;
       });
     } else {
@@ -101,7 +168,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void listenToUserNotes() {
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
-    db.child('notes').child(userKey).onValue.listen((event) {
+    db
+        .child('notes')
+        .child(userKey)
+        .onValue
+        .listen((event) {
       if (!mounted || event.snapshot.value == null) {
         setState(() => userNotes = []);
         return;
@@ -118,42 +189,77 @@ class _HomeScreenState extends State<HomeScreen> {
         };
       }).toList();
 
-      loadedNotes.sort((a, b) => (b['timestampMillis'] ?? 0).compareTo(a['timestampMillis'] ?? 0));
+      loadedNotes.sort((a, b) =>
+          (b['timestampMillis'] ?? 0).compareTo(a['timestampMillis'] ?? 0));
 
       setState(() => userNotes = loadedNotes);
     });
   }
 
 
-
   Widget _buildGroupStudyCard(Map<String, dynamic> group) {
+    final isSelected = _animatingGroupId == group['id'];
+
+    if (isSelected) {
+      _groupAnimController.forward(from: 0.0);
+    }
+
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GroupMainScreen(
-              groupId: group['id'],
-              currentUserEmail: widget.currentUserEmail,
-              currentUserName: widget.currentUserName,
+        setState(() => _animatingGroupId = group['id']);
+        _groupAnimController.forward(from: 0.0);
+
+        Future.delayed(const Duration(milliseconds: 200), () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  GroupMainScreen(
+                    groupId: group['id'],
+                    currentUserEmail: widget.currentUserEmail,
+                    currentUserName: widget.currentUserName,
+                  ),
             ),
-          ),
-        );
+          ).then((_) => setState(() => _animatingGroupId = null));
+        });
       },
-      child: Container(
-        width: 120,
-        height: 50,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE1E6FB),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Center(
-          child: Text(group['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      child: AnimatedBuilder(
+        animation: _groupAnimController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: isSelected ? _groupScaleAnimation.value : 1.0,
+            child: Opacity(
+              opacity: isSelected ? _groupFadeAnimation.value : 1.0,
+              child: Hero( // ✅ 여기 Hero로 감쌈
+                tag: group['id'], // 고유 tag
+                child: child!,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          width: 120,
+          height: 50,
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE1E6FB),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(group['name'], style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w500)),
+          ),
         ),
       ),
     );
   }
+
 
   Widget _buildNoteAddCard(VoidCallback onTap) {
     return GestureDetector(
@@ -164,6 +270,13 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [ // 그림자 추가
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
           child: const Center(
             child: Icon(Icons.add, size: 30, color: Colors.grey),
@@ -191,56 +304,67 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNoteCardFromFirebase(String imageUrl, String title, int timestampMillis) {
+  Widget _buildNoteCardFromFirebase(String imageUrl, String title,
+      int timestampMillis) {
     final formattedTime = DateFormat('yyyy.MM.dd HH:mm').format(
       DateTime.fromMillisecondsSinceEpoch(timestampMillis),
     );
     return AspectRatio(
       aspectRatio: 14 / 9,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Expanded(
-              child: Image.network(
-                '$imageUrl?t=${DateTime.now().millisecondsSinceEpoch}', // ✅ 캐시 무력화
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                const Center(child: Icon(Icons.broken_image)),
+      child: Hero(
+        tag: 'note_${title}',
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(6),
-              child: Column(
-                children: [
-                  Text( // 제목
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text( // 날짜
-                    DateFormat('yyyy.MM.dd HH:mm').format(
-                      DateTime.fromMillisecondsSinceEpoch(timestampMillis),
-                    ),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Expanded(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                  const Center(child: Icon(Icons.broken_image)),
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('yyyy.MM.dd HH:mm').format(
+                        DateTime.fromMillisecondsSinceEpoch(timestampMillis),
+                      ),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      )
     );
   }
 
@@ -284,6 +408,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  //이름 수정 함수
+  Future<void> _updateName() async {
+    final newName = _nameController.text.trim();
+    if (newName.isEmpty) return;
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    await FirebaseDatabase.instance.ref().child('user').child(userKey).update({'name': newName});
+    setState(() => _isEditingName = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('이름이 수정되었습니다')),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +427,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/background.png', fit: BoxFit.cover),
+            child: Image.asset(
+                'assets/images/background.png', fit: BoxFit.cover),
           ),
 
           // 상단바
@@ -313,6 +450,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Text('친구 추가', style: TextStyle(fontSize: 16)),
                       const SizedBox(width: 4),
                       Image.asset('assets/images/plus_icon2.png', width: 24),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _isMyPageOpen = !_isMyPageOpen);
+                        },
+                        child: const CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -329,15 +477,95 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 80,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(40),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,     // 그림자 색상
+                    blurRadius: 10,            // 흐림 정도
+                    offset: Offset(0, 4),      // 그림자 위치 (x, y)
+                  ),
+                ],
               ),
               child: Center(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      ...groupStudies.map((g) => _buildGroupStudyCard(g)).toList(),
+                      ...groupStudies.map((g) {
+                        final isSelected = _animatingGroupId == g['id'];
+
+                        if (isSelected) {
+                          _groupAnimController.forward(from: 0.0);
+                        }
+
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() => _animatingGroupId = g['id']);
+                            _groupAnimController.forward(from: 0.0);
+
+                            Future.delayed(
+                                const Duration(milliseconds: 200), () {
+                              Navigator.of(context).push(
+                                PageRouteBuilder(
+                                  transitionDuration: const Duration(milliseconds: 500),
+                                  pageBuilder: (_, animation, secondaryAnimation) => GroupMainScreen(
+                                    groupId: g['id'],
+                                    currentUserEmail: widget.currentUserEmail,
+                                    currentUserName: widget.currentUserName,
+                                  ),
+                                  transitionsBuilder: (_, animation, __, child) {
+                                    final tween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
+                                    final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
+                                    return FadeTransition(
+                                      opacity: fade,
+                                      child: ScaleTransition(
+                                        scale: animation.drive(tween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ).then((_) =>
+                                  setState(() => _animatingGroupId = null));
+                            });
+                          },
+                          child: AnimatedBuilder(
+                            animation: _groupAnimController,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: isSelected
+                                    ? _groupScaleAnimation.value
+                                    : 1.0,
+                                child: Opacity(
+                                  opacity: isSelected ? _groupFadeAnimation
+                                      .value : 1.0,
+                                  child: Hero(
+                                    tag: g['id'],
+                                    child: child!,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 120,
+                              height: 50,
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE1E6FB),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  g['name'],
+                                  style: const TextStyle(fontSize: 14,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                       _buildGroupStudyAddCard(_showGroupCreatePopup),
                     ],
                   ),
@@ -352,98 +580,204 @@ class _HomeScreenState extends State<HomeScreen> {
             left: 30,
             right: 30,
             bottom: 30,
-            child: GridView.count(
-              crossAxisCount: 4,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.5), // ✅ 배경 색상 및 투명도
+                borderRadius: BorderRadius.circular(30), // ✅ 라운드 처리
+              ),
               padding: const EdgeInsets.all(20),
-              childAspectRatio: 14 / 9,
-              children: [
-                _buildNoteAddCard(() {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NoteScreen(currentUserEmail: widget.currentUserEmail),
-                    ),
-                  ).then((value) {
-                    if (value == true) {
-                      loadUserNotes();
-                    }
-                  });
-                  return; // ✅ 명시적으로 void 반환
-                }),
-
-
-
-                ...userNotes.map((note) =>
-                    GestureDetector(
-                      onTap: () async {
-                        final userKey = widget.currentUserEmail.replaceAll('.', '_');
-                        final snap = await db.child('notes').child(userKey)
-                            .orderByChild('title').equalTo(note['title'])
-                            .limitToFirst(1).get();
-                        final existingSnap = snap.children.first;
-                        final existingNote = existingSnap.value as Map;
-
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NoteScreen(
-                              currentUserEmail: widget.currentUserEmail,
-                              existingNoteData: {
-                                ...existingNote,
-                                'noteId': existingSnap.key,
-                                'title': note['title'],
-                              },
+              child: GridView.count(
+                crossAxisCount: 4,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+                childAspectRatio: 14 / 9,
+                children: [
+                  _buildNoteAddCard(() {
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        transitionDuration: const Duration(milliseconds: 500),
+                        pageBuilder: (_, animation, __) => NoteScreen(currentUserEmail: widget.currentUserEmail),
+                        transitionsBuilder: (_, animation, __, child) {
+                          final scaleTween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic));
+                          final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
+                          return FadeTransition(
+                            opacity: fadeTween,
+                            child: ScaleTransition(
+                              scale: animation.drive(scaleTween),
+                              child: child,
                             ),
-                          ),
-                        );
-
-                        if (result == true) loadUserNotes();
-                      },
-
-                      onLongPress: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('노트 삭제'),
-                            content: Text("‘${note['title']}’ 노트를 삭제하시겠습니까?"),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('취소'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text('삭제', style: TextStyle(color: Colors.red)),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        if (confirm == true) {
-                          await _deleteNote(note['title']);
-                          await loadUserNotes();  // 데이터 다시 불러오기
-                          setState(() {});        // ✅ 강제로 UI 다시 그리기
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('노트가 삭제되었습니다')),
                           );
-                        }
+                        },
+                      ),
+                    ).then((value) {
+                      if (value == true) loadUserNotes();
+                    });
+                  }),
 
-                      },
+                  ...userNotes.map((note) => GestureDetector(
+                    onTap: () async {
+                      final userKey = widget.currentUserEmail.replaceAll('.', '_');
+                      final snap = await db
+                          .child('notes')
+                          .child(userKey)
+                          .orderByChild('title')
+                          .equalTo(note['title'])
+                          .limitToFirst(1)
+                          .get();
+                      final existingSnap = snap.children.first;
+                      final existingNote = existingSnap.value as Map;
+
+                      final result = await Navigator.of(context).push(
+                        PageRouteBuilder(
+                          transitionDuration: const Duration(milliseconds: 500),
+                          pageBuilder: (_, animation, secondaryAnimation) => NoteScreen(
+                            currentUserEmail: widget.currentUserEmail,
+                            existingNoteData: {
+                              ...existingNote,
+                              'noteId': existingSnap.key,
+                              'title': note['title'],
+                            },
+                          ),
+                          transitionsBuilder: (_, animation, __, child) {
+                            final scaleTween = Tween(begin: 0.95, end: 1.0)
+                                .chain(CurveTween(curve: Curves.easeOutCubic));
+                            final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+                            return FadeTransition(
+                              opacity: fadeTween,
+                              child: ScaleTransition(
+                                scale: animation.drive(scaleTween),
+                                child: child,
+                              ),
+                            );
+                          },
+                        ),
+                      ).then((value) {
+                        if (value == true) loadUserNotes();
+                      });
 
 
-                      child: _buildNoteCardFromFirebase(
-                        note['imageUrl'],
-                        note['title'],
-                        note['timestampMillis'],),
-                    )
-                ),
-              ],
+                      if (result == true) loadUserNotes();
+                    },
+                    onLongPress: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('노트 삭제'),
+                          content: Text("‘${note['title']}’ 노트를 삭제하시겠습니까?"),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('삭제', style: TextStyle(color: Colors.red))),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        await _deleteNote(note['title']);
+                        await loadUserNotes();
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('노트가 삭제되었습니다')));
+                      }
+
+                    },
+                    child: _buildNoteCardFromFirebase(
+                      note['imageUrl'],
+                      note['title'],
+                      note['timestampMillis'],
+                    ),
+                  )),
+                ],
+              ),
             ),
           ),
+          if (_isMyPageOpen)
+            Positioned(
+              top: 100,
+              right: 40,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  key: const ValueKey("mypage_home"),
+                  width: 280,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.92),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))],
+                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('내 프로필',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64))),
+                      const SizedBox(height: 18),
+                      const CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white,
+                        backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                      ),
+                      const SizedBox(height: 10),
+                      _isEditingName
+                          ? TextField(
+                        controller: _nameController,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 17),
+                        decoration: InputDecoration(
+                          hintText: '이름 입력',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        ),
+                      )
+                          : Text(_nameController.text,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            if (_isEditingName) {
+                              _updateName();
+                            } else {
+                              setState(() => _isEditingName = true);
+                            }
+                          },
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: Text(_isEditingName ? '저장' : '이름 수정'),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFFF0F0F0),
+                            foregroundColor: Colors.black87,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.logout, size: 18),
+                          label: const Text('로그아웃'),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFFFBE9E9),
+                            foregroundColor: Colors.redAccent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
+
       ),
     );
   }
