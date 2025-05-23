@@ -246,90 +246,116 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             ],
           ),
           if (_isMyPageOpen)
-            Positioned(
-              top: 120,
-              right: 40,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _isMyPageOpen = false), // 바깥 클릭 시 닫기
                 child: Container(
-                  key: const ValueKey("mypage"),
-                  width: 280,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))
-                    ],
-                    border: Border.all(color: const Color(0xFFE0E0E0)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        '내 프로필',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64)),
-                      ),
-                      const SizedBox(height: 18),
-                      const CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white,
-                        backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                      ),
-                      const SizedBox(height: 10),
-                      _isEditingName
-                          ? TextField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 17),
-                        decoration: InputDecoration(
-                          hintText: '이름 입력',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        ),
-                      )
-                          : Text(
-                        _nameController.text,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (_isEditingName) {
-                              _updateName();
-                            } else {
-                              setState(() => _isEditingName = true);
-                            }
-                          },
-                          icon: const Icon(Icons.edit, size: 18),
-                          label: Text(_isEditingName ? '저장' : '이름 수정'),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFF0F0F0),
-                            foregroundColor: Colors.black87,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  color: Colors.transparent, // 배경은 투명하게
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 120, right: 40),
+                      child: GestureDetector(
+                        onTap: () {}, // 내부 터치 시 이벤트 전파 방지
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: Container(
+                            key: const ValueKey("mypage"),
+                            width: 280,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.92),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                )
+                              ],
+                              border: Border.all(color: const Color(0xFFE0E0E0)),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  '내 프로필',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0D0A64),
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                const CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                                ),
+                                const SizedBox(height: 10),
+                                _isEditingName
+                                    ? TextField(
+                                  controller: _nameController,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 17),
+                                  decoration: InputDecoration(
+                                    hintText: '이름 입력',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                  ),
+                                )
+                                    : Text(
+                                  _nameController.text,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      if (_isEditingName) {
+                                        _updateName();
+                                      } else {
+                                        setState(() => _isEditingName = true);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.edit, size: 18),
+                                    label: Text(_isEditingName ? '저장' : '이름 수정'),
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 0,
+                                      backgroundColor: const Color(0xFFF0F0F0),
+                                      foregroundColor: Colors.black87,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _logout,
+                                    icon: const Icon(Icons.logout, size: 18),
+                                    label: const Text('로그아웃'),
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 0,
+                                      backgroundColor: const Color(0xFFFBE9E9),
+                                      foregroundColor: Colors.redAccent,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.logout, size: 18),
-                          label: const Text('로그아웃'),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFFBE9E9),
-                            foregroundColor: Colors.redAccent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
