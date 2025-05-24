@@ -373,7 +373,6 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> with SingleTi
           backgroundColor: const Color(0xFFEAEAFF),
         ),
       );
-
     }
 
     _nameController.clear();
@@ -478,7 +477,6 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> with SingleTi
         backgroundColor: const Color(0xFFEAEAFF),
       ),
     );
-
   }
 
 
@@ -655,7 +653,6 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> with SingleTi
                                       });
                                     }
                                   },
-
                                 ),
                                 if (_playingIndex == index && _isPlaying)
                                   Column(
