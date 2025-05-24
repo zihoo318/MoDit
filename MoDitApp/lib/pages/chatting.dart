@@ -218,7 +218,7 @@ class _ChattingPageState extends State<ChattingPage> {
 
     try {
       final res = await http.post(
-        Uri.parse('http://192.168.219.108:8080/send_push'),
+        Uri.parse('http://3.38.105.45:8080/send_push'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );

@@ -48,7 +48,7 @@ Future<bool?> showNoteSubmitPopup({
                 child: FutureBuilder<List<Map<String, dynamic>>>(
                   future: fetchUserNotes(userEmail),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFFEAEAFF),));
                     final notes = snapshot.data!;
                     if (notes.isEmpty) return const Center(child: Text("저장된 노트가 없습니다."));
 
