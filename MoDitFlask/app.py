@@ -12,7 +12,9 @@ from routes.summary_route import summary_bp
 from routes.task_route import task_bp
 from routes.note_route import note_bp
 from routes.push_route import push_bp  
-from push.meeting_push import meeting_push_bp 
+from routes.meeting_push_route import meeting_push_bp 
+from routes.task_push_route import task_push_bp
+from routes.notice_push_route import notice_push_bp
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -25,6 +27,8 @@ app.register_blueprint(task_bp)
 app.register_blueprint(note_bp)
 app.register_blueprint(push_bp)
 app.register_blueprint(meeting_push_bp) 
+app.register_blueprint(task_push_bp)
+app.register_blueprint(notice_push_bp)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)

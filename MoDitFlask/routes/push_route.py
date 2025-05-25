@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from routes.firebase_push import send_push_notification  # ✅ 이렇게!
+from push.firebase_push import send_push_notification  # ✅ 이렇게!
 
 push_bp = Blueprint('push', __name__)
 

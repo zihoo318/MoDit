@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:ui';
+import 'flask_api.dart';
 
 class NoticePage extends StatefulWidget {
   final String groupId;
@@ -16,6 +17,16 @@ class NoticePage extends StatefulWidget {
 
   @override
   State<NoticePage> createState() => _NoticePageState();
+}
+
+String sanitizeKey(String key) {
+  return key
+      .replaceAll('.', '_')
+      .replaceAll('#', '_')
+      .replaceAll('\$', '_')
+      .replaceAll('[', '_')
+      .replaceAll(']', '_')
+      .replaceAll('/', '_');
 }
 
 class _NoticePageState extends State<NoticePage> {
@@ -154,6 +165,34 @@ class _NoticePageState extends State<NoticePage> {
                                           'createdAt': DateTime.now().millisecondsSinceEpoch,
                                           'pinned': false,
                                         });
+
+                                        // Firebase에 알림 기록 저장
+                                        final membersSnapshot = await db.child('groupStudies/${widget.groupId}/members').get();
+                                        final groupNameSnapshot = await db.child('groupStudies/${widget.groupId}/name').get();
+
+                                        if (membersSnapshot.exists && groupNameSnapshot.exists) {
+                                          final groupName = groupNameSnapshot.value.toString();
+                                          final members = Map<String, dynamic>.from(membersSnapshot.value as Map);
+
+
+                                          final sanitizedSender = sanitizeKey(widget.currentUserEmail);
+
+                                          for (final emailKey in members.keys) {
+                                            if (emailKey == sanitizedSender) continue; // 등록자 제외
+
+                                            final pushRef = db.child('user/$emailKey/push').push();
+                                            await pushRef.set({
+                                              'category': 'notice',
+                                              'timestamp': ServerValue.timestamp,
+                                              'groupId': widget.groupId,
+                                              'message': '[$groupName]에 새로운 공지사항이 등록되었습니다. (${titleController.text})',
+                                            });
+                                          }
+
+                                          // Flask로 푸시 요청
+                                          await Api().sendNoticeAlert(widget.groupId, titleController.text, widget.currentUserEmail);
+                                        }
+
                                         Navigator.pop(context);
                                         loadNotices();
                                       },
