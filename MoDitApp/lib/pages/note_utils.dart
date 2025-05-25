@@ -72,6 +72,7 @@ Future<String?> sendToFlaskOCR({
   required double pixelRatio,
 }) async {
   print("[🖼️] 손글씨만 캡처 시작");
+  print('MoDitLog: start taking screenshots ');
 
   await WidgetsBinding.instance.endOfFrame;
 
@@ -108,10 +109,12 @@ Future<String?> sendToFlaskOCR({
     final respStr = await response.stream.bytesToString();
 
     if (response.statusCode == 200) {
+      print('MoDitLog: Successfully received  OCR API results');
       final result = jsonDecode(respStr);
       return result['text'] ?? '';
     }
   } catch (e) {
+    print('MoDitLog: flask ocr error');
     print("❗ Flask OCR 오류: $e");
   }
 

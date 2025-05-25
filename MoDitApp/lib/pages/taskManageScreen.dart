@@ -993,7 +993,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         children: [
           // 왼쪽 과제 + 소과제 + 제출자 목록
           Expanded(
-            flex: 2,
+            flex: 1,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1111,11 +1111,11 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             ),
           ),
 
-          const SizedBox(width: 16),
+          const SizedBox(width: 27),
 
           // 오른쪽 상세내용 상자
           Expanded(
-            flex: 3,
+            flex: 2,
             child: SizedBox(
               height: 500,
               child: Container(

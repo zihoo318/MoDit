@@ -1598,6 +1598,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                                                 selectedRect = null;
                                               });
                                             } catch (e) {
+                                              print('MoDitLog: make ocr error');
                                               print("❌ 텍스트 추출 중 오류 발생: $e");
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(

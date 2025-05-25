@@ -11,71 +11,80 @@ import 'package:moditapp/pages/splash_screen.dart';
 import 'firebase_options.dart';
 import 'pages/first_page.dart';
 
-// ✅ 백그라운드 푸시 알림 수신 핸들러
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('💬 백그라운드 메시지 수신됨: ${message.messageId}');
+  print('MoDitLog: Background message received: ${message.messageId}');
 }
 
-// ✅ navigatorKey를 사용해 어디서든 context 접근 가능하게 함
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-// ✅ 로컬 알림 플러그인 전역 초기화
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  print('MoDitLog: >> Entered main()');
 
-  await FirebaseAuth.instance.signInAnonymously();
+  try {
+    print('MoDitLog: Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('MoDitLog: Firebase initialized.');
 
-  // 🔔 로컬 알림 초기화
-  const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
+    print('MoDitLog: Starting anonymous sign-in...');
+    await FirebaseAuth.instance.signInAnonymously();
+    print('MoDitLog: Anonymous sign-in complete. UID: ${FirebaseAuth.instance.currentUser?.uid}');
 
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
+    const AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    print('MoDitLog: Initializing local notifications...');
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    print('MoDitLog: Local notifications initialized.');
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+    print('MoDitLog: Requesting push notification permission...');
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    print('MoDitLog: Push notification permission granted.');
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("📬 포그라운드 메시지 수신됨: ${message.notification?.title}");
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("MoDitLog: Foreground message received: ${message.notification?.title}");
 
-    final notification = message.notification;
-    final android = notification?.android;
+      final notification = message.notification;
+      final android = notification?.android;
 
-    if (notification != null && android != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'modit_channel_id', // 고유 채널 ID
-            'MoDit 알림',
-            channelDescription: '앱 실행 중에도 알림을 보여줍니다',
-            importance: Importance.max,
-            priority: Priority.high,
-            color: const Color(0xFFB8BDF1),
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'modit_channel_id',
+              'MoDit Notification',
+              channelDescription: 'Shows notifications while the app is active',
+              importance: Importance.max,
+              priority: Priority.high,
+              color: const Color(0xFFB8BDF1),
+            ),
           ),
-        ),
-      );
-    }
-  });
+        );
+      }
+    });
 
-  runApp(const MoDitApp());
+    print('MoDitLog: All initialization complete. Running app...');
+    runApp(const MoDitApp());
+  } catch (e) {
+    print('MoDitLog: ERROR in main(): $e');
+  }
 }
 
 class MoDitApp extends StatelessWidget {
@@ -83,6 +92,7 @@ class MoDitApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('MoDitLog: Building MoDitApp...');
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
@@ -99,9 +109,7 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: SplashScreen(),
-      // home: const HomeScreen(currentUserEmail: "ga@naver.com",
-      //     currentUserName: "yujin")
+      home: SplashScreen(), // You can add logs in SplashScreen too
     );
   }
 }
