@@ -73,11 +73,12 @@ class _FadeTransitionTabState extends State<FadeTransitionTab>
   }
 }
 
-class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
+class _MeetingRecordWidgetState extends State<MeetingRecordWidget> with SingleTickerProviderStateMixin {
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   final AudioPlayer _player = AudioPlayer();
   final TextEditingController _nameController = TextEditingController();
   final db = FirebaseDatabase.instance.ref();
+  late TabController _tabController;
 
   List<Map<String, dynamic>> recordings = [];
   bool isRecording = false;
@@ -87,7 +88,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   String? recordedFilePath;
   int? _playingIndex;
   String? _selectedTextUrl;
-  Future<Map<String, dynamic>?>? _summaryFuture;
+  Future<String?>? _summaryFuture;
   String? _cachedTextUrl;
   Future<http.Response>? _textFuture;
 
@@ -97,11 +98,13 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadRecordings();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _progressSubscription?.cancel();
     _player.dispose();
     _nameController.dispose();
@@ -135,12 +138,9 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
             'text_url': value['text_url'] ?? '',
             'duration_ms': value['duration_ms'] ?? 0,
           };
-        }).toList();
-
-        // 최신순 정렬
-        recordings.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+        }).toList()
+          ..sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime)); // 최신순 정렬
       });
-
     }
   }
 
@@ -250,7 +250,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFFEAEAFF),
+              backgroundColor: const Color(0xFFF1ECFA),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -265,7 +265,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                   ? Column(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  CircularProgressIndicator(color: Color(0xFF9F8DF1)),
+                  CircularProgressIndicator(color: Color(0xFFE8B2D8)),
                   SizedBox(height: 12),
                   Text("텍스트화 중...", style: TextStyle(fontSize: 16)),
                 ],
@@ -352,16 +352,27 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
           'duration_ms': durMs,
         });
 
-        // 최신순 정렬
-        recordings.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+        // 최신순으로 정렬
+        recordings.sort((a, b) =>
+            (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
       });
-
 
       await file.delete();
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("녹음 파일 업로드에 실패했습니다.")));
+      ).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "녹음 파일 업로드에 실패했습니다.",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFEAEAFF),
+        ),
+      );
     }
 
     _nameController.clear();
@@ -454,7 +465,18 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("녹음이 삭제되었습니다.")));
+    ).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "녹음이 삭제되었습니다.",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: const Color(0xFFEAEAFF),
+      ),
+    );
   }
 
 
@@ -552,23 +574,18 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                             child: Column(
                               children: [
                                 ListTile(
-                                  leading: const Icon(Icons.mic),
-                                  title: Text(r['name']),
-                                  subtitle: Text(
-                                    DateFormat(
-                                      'yyyy.MM.dd HH:mm:ss',
-                                    ).format(r['timestamp']),
+                                  leading: CircleAvatar(
+                                    backgroundColor: const Color(0xFF9F8DF1),
+                                    child: const Icon(Icons.mic, color: Colors.white),
                                   ),
+                                  title: Text(r['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text(DateFormat('yyyy.MM.dd HH:mm').format(r['timestamp'])),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        icon: Icon(
-                                          _playingIndex == index && _isPlaying
-                                              ? Icons.stop
-                                              : Icons.play_arrow,
-                                        ),
-                                        onPressed: () async {
+                                        icon: Icon(_playingIndex == index && _isPlaying ? Icons.stop : Icons.play_arrow),
+                                        onPressed: () async { // 플레이어 로직
                                           if (_isPlaying &&
                                               _playingIndex == index) {
                                             await _player.stop();
@@ -620,23 +637,19 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                       ),
                                     ],
                                   ),
-                                  onTap: () {
+                                  onTap: () { // 텍스트 탭 전환 로직
                                     if (r.containsKey('text_url')) {
                                       final textUrl = r['text_url'];
                                       if (_cachedTextUrl != textUrl) {
                                         _cachedTextUrl = textUrl;
-                                        _textFuture = http.get(
-                                          Uri.parse(textUrl),
-                                        );
+                                        _textFuture = http.get(Uri.parse(textUrl));
                                       }
 
-                                      _summaryFuture = Api().requestSummary(
-                                        textUrl,
-                                        widget.groupId,
-                                      );
+                                      _summaryFuture = Api().requestSummary(textUrl, widget.groupId);
 
                                       setState(() {
                                         _selectedTextUrl = textUrl;
+                                        _tabController.index = 0; // 전체 텍스트 탭으로 초기화
                                       });
                                     }
                                   },
@@ -705,7 +718,8 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                       length: 2,
                       child: Column(
                         children: [
-                          const TabBar(
+                          TabBar(
+                            controller: _tabController,
                             labelColor: Color(0xFF5C4DB1),
                             unselectedLabelColor: Colors.grey,
                             tabs: [
@@ -715,30 +729,25 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                           ),
                           Expanded(
                             child: TabBarView(
+                              controller: _tabController,
                               children: [
                                 FadeTransitionTab(
                                   child: FutureBuilder<http.Response>(
                                     future: _textFuture,
                                     builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const Center(
-                                          child:
-                                          CircularProgressIndicator(),
-                                        );
-                                      } else if (!snapshot.hasData ||
-                                          snapshot.data!.statusCode !=
-                                              200) {
-                                        return const Text(
-                                          "전체 텍스트를 불러오는 데 실패했습니다.",
-                                        );
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator(color: Color(0xFFE8B2D8)));
+                                      } else if (!snapshot.hasData || snapshot.data!.statusCode != 200) {
+                                        return const Text("전체 텍스트를 불러오는 데 실패했습니다.");
                                       } else {
+                                        final body = snapshot.data!.body.trim();
+                                        if (body.isEmpty) {
+                                          return const Text("녹음된 문장이 없습니다.");
+                                        }
                                         return SingleChildScrollView(
                                           child: Text(
-                                            snapshot.data!.body,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
+                                            body,
+                                            style: const TextStyle(fontSize: 14),
                                           ),
                                         );
                                       }
@@ -746,33 +755,18 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                   ),
                                 ),
                                 FadeTransitionTab(
-                                  child: FutureBuilder<
-                                      Map<String, dynamic>?
-                                  >(
+                                  child: FutureBuilder<String?>(
                                     future: _summaryFuture,
                                     builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const Center(
-                                          child:
-                                          CircularProgressIndicator(),
-                                        );
-                                      } else if (!snapshot.hasData ||
-                                          snapshot.data!['summary_text'] ==
-                                              null) {
-                                        return const Text(
-                                          "요약할 내용이 부족합니다.",
-                                        );
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator(color: Color(0xFFE8B2D8)));
+                                      } else if (!snapshot.hasData || snapshot.data == null || snapshot.data!.isEmpty) {
+                                        return const Text("요약할 내용이 없습니다.");
                                       } else {
-                                        final summaryText =
-                                        snapshot
-                                            .data!['summary_text'];
                                         return SingleChildScrollView(
                                           child: Text(
-                                            summaryText,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
+                                            snapshot.data!,
+                                            style: const TextStyle(fontSize: 14),
                                           ),
                                         );
                                       }

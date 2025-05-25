@@ -118,8 +118,9 @@ class Api {
     }
   }
 
+
   // 음성녹음 요약 생성 요청 API
-  Future<Map<String, dynamic>?> requestSummary(String fileUrl, String groupName) async {
+  Future<String?> requestSummary(String fileUrl, String groupName) async {
     final uri = Uri.parse('$baseUrl/summary/generate');
 
     final response = await http.post(
@@ -133,13 +134,20 @@ class Api {
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
+
+      // 서버에서 summary_text가 비어 있거나 없음
+      if ((result['summary_text'] == null || result['summary_text'].toString().trim().isEmpty)) {
+        print('요약할 내용이 없습니다.');
+        return result['message'];
+      }
+
       print('녹음텍스트 요약 요청 성공');
       print('요약 텍스트: ${result['summary_text']}');
-      return result;
+      return result['summary_text'];
     } else {
       print('녹음텍스트 요약 요청 실패: ${response.statusCode}');
       print('본문: ${response.body}');
-      return null;
+      return '요약 요청 실패';
     }
   }
 

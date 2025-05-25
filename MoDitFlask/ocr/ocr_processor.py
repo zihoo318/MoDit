@@ -3,7 +3,7 @@ from google.cloud import vision
 import io, cv2
 from pathlib import Path
 import os
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/modit_docu/regal-dynamo-459905-a6-33e9e8214e12.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ubuntu/modit_docu/regal-dynamo-459905-a6-33e9e8214e12.json"
 
 
 def preprocess_image(image_path):
