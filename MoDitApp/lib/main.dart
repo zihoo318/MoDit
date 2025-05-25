@@ -31,9 +31,11 @@ void main() async {
     );
     print('MoDitLog: Firebase initialized.');
 
-    print('MoDitLog: Starting anonymous sign-in...');
-    await FirebaseAuth.instance.signInAnonymously();
-    print('MoDitLog: Anonymous sign-in complete. UID: ${FirebaseAuth.instance.currentUser?.uid}');
+    // ✅ 익명 로그인 제거 → 여기선 아무것도 하지 말고 로그인은 SplashScreen에서 판단
+    // final currentUser = FirebaseAuth.instance.currentUser;
+    // if (currentUser == null) {
+    //   await FirebaseAuth.instance.signInAnonymously();
+    // }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -57,7 +59,6 @@ void main() async {
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print("MoDitLog: Foreground message received: ${message.notification?.title}");
-
       final notification = message.notification;
       final android = notification?.android;
 
@@ -86,6 +87,7 @@ void main() async {
     print('MoDitLog: ERROR in main(): $e');
   }
 }
+
 
 class MoDitApp extends StatelessWidget {
   const MoDitApp({super.key});

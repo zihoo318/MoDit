@@ -1,7 +1,10 @@
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:moditapp/pages/login.dart';
+import 'first_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -27,12 +30,37 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     )..forward();
 
-    Future.delayed(const Duration(seconds: 3), () {
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    // ✅ FirebaseAuth 내부 초기화 기다림
+    await FirebaseAuth.instance.authStateChanges().first;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
+
+    if (user != null && !user.isAnonymous && user.email != null) {
+      final email = user.email!;
+      final name = await getUserName(email);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(
+            currentUserEmail: email,
+            currentUserName: name ?? 'Unknown',
+          ),
+        ),
+      );
+    } else {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
-    });
+    }
   }
+
 
   @override
   void dispose() {
@@ -126,4 +154,16 @@ class _Particle {
       size: size,
     );
   }
+}
+
+// 사용자 이름을 DB에서 가져오는 함수
+Future<String?> getUserName(String email) async {
+  final db = FirebaseDatabase.instance.ref();
+  final sanitizedEmail = email.replaceAll('.', '_');
+  final snapshot = await db.child('user').child(sanitizedEmail).child('name').get();
+
+  if (snapshot.exists) {
+    return snapshot.value as String;
+  }
+  return null;
 }
