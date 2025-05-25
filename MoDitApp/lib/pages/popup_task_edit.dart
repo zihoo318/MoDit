@@ -233,7 +233,7 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
               TextButton(
                 onPressed: () {
                   widget.onTaskDeleted();
-                  Navigator.pop(context);
+                  Navigator.pop(context, true);
                 },
                 child: Row(
                   children: const [

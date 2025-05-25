@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class MeetingCalendarCard extends StatefulWidget {
   final String groupId;
@@ -106,23 +107,26 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
                 ? Scrollbar(
               thumbVisibility: true,
               child: ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      events[index],
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  );
-                },
-              ),
+                        padding: EdgeInsets.zero,
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              events[index],
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          )
+                          .animate(delay: Duration(milliseconds: index * 80))
+                          .slideY(begin: 0.2, end: 0, duration: 300.ms, curve: Curves.easeOut)
+                          .fadeIn(duration: 300.ms);
+                        },
+                      ),
             )
                 : const Center(
               child: Text(
