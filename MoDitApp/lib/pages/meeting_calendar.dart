@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:http/http.dart' as http; // ✅ 추가
 import 'dart:convert'; // ✅ 추가
+import 'flask_api.dart';
 
 
 class MeetingCalendarWidget extends StatefulWidget {
@@ -274,7 +275,7 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
                                 // ✅ Flask 서버로 알림 푸시 요청
                                 await http.post(
-                                  Uri.parse('http://172.20.64.1:8080/send_meeting_alert'),  // 실제 EC2 주소로 교체
+                                  Uri.parse('${Api.baseUrl}/send_meeting_alert'),  // 실제 EC2 주소로 교체
                                   headers: {"Content-Type": "application/json"},
                                   body: jsonEncode({
                                     "groupId": widget.groupId,

@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 
-print("🔥 firebase_init.py 실행됨")  # ✅ 확인용
+print("firebase_init.py 실행됨")  # ✅ 확인용
 
 # 이미 초기화됐는지 확인
 if not firebase_admin._apps:
