@@ -5,8 +5,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_animate/flutter_animate.dart';
 
-import 'flask_api.dart';
-
 
 
 class ChattingPage extends StatefulWidget {
@@ -77,7 +75,13 @@ class _ChattingPageState extends State<ChattingPage> {
 
       setState(() {
         groupMembers = loaded;
+        if (groupMembers.isNotEmpty) {
+          targetUserEmail = groupMembers[0]['email']!;
+          targetUserName = groupMembers[0]['name']!;
+          _listenToMessages(targetUserEmail); // ✅ 첫 친구 채팅 불러오기
+        }
       });
+
     }
   }
 
@@ -220,7 +224,7 @@ class _ChattingPageState extends State<ChattingPage> {
 
     try {
       final res = await http.post(
-        Uri.parse('${Api.baseUrl}/send_push'),
+        Uri.parse('http://172.20.64.1:8080/send_push'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );
@@ -233,6 +237,7 @@ class _ChattingPageState extends State<ChattingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFBF8FE), // ← 연보라 배경 적용
       body: SafeArea(
         child: Row(
           children: [
@@ -319,19 +324,27 @@ class _ChattingPageState extends State<ChattingPage> {
 
   Widget _buildChatArea() {
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-        child: Column(
-          children: [
-            _buildTopBar(),
-            _buildMessages(),
-            _buildInputBar(),
-          ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 40, 12, 12), // 왼쪽은 0, 위는 조금 내리고, 오른쪽 & 아래는 그대로
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            children: [
+              _buildTopBar(),
+              Expanded(child: _buildMessages()), // ✅ 이건 Expanded로 감싸야 스크롤됨
+              _buildInputBar(),
+            ],
+          ),
         ),
       ),
     );
   }
+
+
+
 
   Widget _buildTopBar() {
     return Container(

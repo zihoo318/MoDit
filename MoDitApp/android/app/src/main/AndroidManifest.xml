@@ -21,7 +21,7 @@
     <application
         android:label="MoDit"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@drawable/splash">
 
         <!-- ✅ FCM 알림 채널 설정 -->
         <meta-data

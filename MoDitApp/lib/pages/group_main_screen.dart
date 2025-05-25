@@ -109,8 +109,19 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
     await db.child('user').child(userKey).update({'name': newName});
     setState(() => _isEditingName = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('이름이 수정되었습니다')),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "이름이 수정되었습니다.",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: const Color(0xFFEAEAFF),
+      ),
     );
   }
 
