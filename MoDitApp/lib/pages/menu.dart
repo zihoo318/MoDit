@@ -123,15 +123,18 @@ class _MenuScreenState extends State<MenuScreen> {
                           selectedIndex: _selectedCardIndex,
                           onTap: () => setState(() => _selectedCardIndex = 1),
                           targetCenter: widget.targetCenter,
-                          child: _buildCardContainer(
-                            title: '공부 시간',
-                            icon: 'study_icon',
-                            iconSize: 26,
-                            child: StudyTimeCard(
-                              groupId: widget.groupId,
-                              currentUserEmail: widget.currentUserEmail,
-                              currentUserName: widget.currentUserName,
-                              //onDataLoaded: _onStudyTimeLoaded,
+                          child: SizedBox(
+                            height: 360, // 원하는 높이로 지정
+                            child: _buildCardContainer(
+                              title: '공부 시간',
+                              icon: 'study_icon',
+                              iconSize: 26,
+                              child: StudyTimeCard(
+                                groupId: widget.groupId,
+                                currentUserEmail: widget.currentUserEmail,
+                                currentUserName: widget.currentUserName,
+                                //onDataLoaded: _onStudyTimeLoaded,
+                              ),
                             ),
                           ),
                           onCompleted: () => widget.onNavigateToTab?.call(1),
@@ -207,7 +210,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     targetCenter: widget.targetCenter,
                     child: SizedBox(
                       width: cardW + 150,
-                      height: w * 0.4 - 10,
+                      height: w * 0.4 + 40,
                       child: _buildCardContainer(
                         title: '미팅 일정 & 녹음',
                         icon: 'calendar_icon',
@@ -297,7 +300,7 @@ class _MenuScreenState extends State<MenuScreen> {
 
     return Container(
       width: width * 0.30 + 47,
-      height: 105,
+      height: 140,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.7),

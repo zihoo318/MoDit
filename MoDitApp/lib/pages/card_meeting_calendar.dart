@@ -61,7 +61,7 @@ class _MeetingCalendarCardState extends State<MeetingCalendarCard> {
     final events = getEventsForDay(selectedDate);
 
     return Container(
-      height: 500, // 💡 고정된 높이
+      height: 550, // 💡 고정된 높이
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.3),
