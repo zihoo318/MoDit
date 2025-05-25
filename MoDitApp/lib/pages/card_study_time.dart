@@ -138,33 +138,40 @@ void _initialize() async {
 
   @override
   Widget build(BuildContext context) {
+
+    // 로딩 중에는 카드 크기/모양은 그대로 두고 스피너만 중앙에 표시
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        width: MediaQuery.of(context).size.width * 0.42,
+        height: MediaQuery.of(context).size.height * 0.31,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    // 여기까지 추가
+
     final members = memberNames.keys.toList();
-
-    final backgroundColor = _isLoading
-        ? const Color(0xFFEAEAFF) // 로딩 중 배경색 (연보라)
-        : Colors.white;            // 로딩 완료 후 배경색 (흰색)
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: Colors.white.withOpacity(0.4),
         borderRadius: BorderRadius.circular(16),
       ),
       width: MediaQuery.of(context).size.width * 0.42,
       height: MediaQuery.of(context).size.height * 0.31,
-      child: _isLoading
-          ? const Center(child: CircularProgressIndicator(
-              color: Color(0xFF9F8DF1), // 인디케이터 색도 지정 가능
-            ))
-          : GridView.count(
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 17,
-              childAspectRatio: 1.3,
-              shrinkWrap: true,
-              children: members.map(_buildStudent).toList(),
-            ),
+      child: GridView.count(
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 17,
+        childAspectRatio: 1.3,
+        shrinkWrap: true,
+        children: members.map(_buildStudent).toList(),
+      ),
     );
   }
 }

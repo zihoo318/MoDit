@@ -229,17 +229,13 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: _isLoading ? const Color(0xFFEAEAFF) : Colors.white,
+              color: Colors.white.withOpacity(0.4),
               borderRadius: BorderRadius.circular(24),
             ),
             child: _isLoading
                 ? const SizedBox(
                     height: 390,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF9F8DF1),
-                      ),
-                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   )
                 : Center(
                     child: Wrap(
@@ -250,7 +246,6 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
                     ),
                   ),
           ),
-
         ),
       ],
     );
