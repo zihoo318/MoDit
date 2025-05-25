@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_animate/flutter_animate.dart';
-
+import 'flask_api.dart';
 
 
 class ChattingPage extends StatefulWidget {
@@ -224,7 +224,7 @@ class _ChattingPageState extends State<ChattingPage> {
 
     try {
       final res = await http.post(
-        Uri.parse('http://172.20.64.1:8080/send_push'),
+        Uri.parse('${Api.baseUrl}/send_push'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );
