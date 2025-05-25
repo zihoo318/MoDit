@@ -804,18 +804,11 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
               height: note.size.height,
               decoration: BoxDecoration(
                 border: note.isSelected ? Border.all(color: Colors.grey) : null,
-                color: Colors.white,
+                color: Colors.transparent,
               ),
               child: Listener(
                 behavior: HitTestBehavior.opaque,
-                // onPointerDown: (_) {
-                //   if (note.isSelected && !note.isEditing) {
-                //     setState(() {
-                //       note.isEditing = true;
-                //       note.focusNode.requestFocus();
-                //     });
-                //   }
-                // },
+
                 child: TextField(
                   controller: note.controller,
                   focusNode: note.focusNode,
@@ -1816,14 +1809,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         color: selectedTextColor,
         size: Size(300, 100),
         initialText: '', // 비어 있음
-        isEditing: true, // 글이 없으면 바로 편집
+        isEditing: true,
         onFocusLost: () {
           setState(() {
-            newNote.isSelected = false;
-            newNote.isEditing = false;
+            if (newNote.controller.text.trim().isEmpty) {
+              textNotes.remove(newNote); // 입력이 없으면 삭제
+            } else {
+              newNote.isSelected = false;
+              newNote.isEditing = false;
+            }
           });
         },
       );
+
 
       setState(() {
         for (var n in textNotes) n.isSelected = false;

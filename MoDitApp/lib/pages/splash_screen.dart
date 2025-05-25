@@ -19,7 +19,6 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // 무작위 파티클 15개 생성
     particles = List.generate(15, (_) => _Particle.random());
 
     _controller = AnimationController(
@@ -28,11 +27,15 @@ class _SplashScreenState extends State<SplashScreen>
     )..forward();
 
     Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return; // ✅ context가 살아있는지 확인
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(), // 필요시 임시 Scaffold로 테스트
+        ),
       );
     });
   }
+
 
   @override
   void dispose() {

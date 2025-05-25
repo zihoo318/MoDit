@@ -47,6 +47,7 @@ class _NoticePageState extends State<NoticePage> {
           'title': item['title'] ?? '',
           'body': item['body'] ?? '',
           'name': item['name'] ?? '',
+          'email': item['email'] ?? '',
           'createdAt': item['createdAt'] ?? 0,
           'pinned': item['pinned'] ?? false,
         };
@@ -151,6 +152,7 @@ class _NoticePageState extends State<NoticePage> {
                                           'title': titleController.text,
                                           'body': bodyController.text,
                                           'name': widget.currentUserName,
+                                          'email': widget.currentUserEmail,
                                           'createdAt': DateTime.now().millisecondsSinceEpoch,
                                           'pinned': false,
                                         });
@@ -286,6 +288,83 @@ class _NoticePageState extends State<NoticePage> {
     );
   }
 
+  void _editNotice(Map<String, dynamic> notice) {
+    final titleController = TextEditingController(text: notice['title']);
+    final bodyController = TextEditingController(text: notice['body']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('공지사항 수정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: '제목'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: bodyController,
+              maxLines: 4,
+              decoration: const InputDecoration(labelText: '내용'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          TextButton(
+            onPressed: () async {
+              final id = notice['id'];
+              await db
+                  .child('groupStudies')
+                  .child(widget.groupId)
+                  .child('notices')
+                  .child(id)
+                  .update({
+                'title': titleController.text.trim(),
+                'body': bodyController.text.trim(),
+              });
+              Navigator.pop(context);
+              loadNotices();
+            },
+            child: const Text('저장', style: TextStyle(color: Color(0xFF0D0A64))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteNotice(Map<String, dynamic> notice) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('공지사항 삭제'),
+        content: Text('‘${notice['title']}’ 공지사항을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await db
+          .child('groupStudies')
+          .child(widget.groupId)
+          .child('notices')
+          .child(notice['id'])
+          .remove();
+      setState(() {
+        selectedNotice = null;
+      });
+      loadNotices();
+    }
+  }
+
   Widget _buildNoticeDetail() {
     if (selectedNotice == null) {
       return const Center(child: Text('공지사항을 선택하세요'));
@@ -326,6 +405,35 @@ class _NoticePageState extends State<NoticePage> {
               child: Text(selectedNotice!['body'], style: const TextStyle(fontSize: 16)),
             ),
           ),
+          const SizedBox(height: 24),
+          if (selectedNotice!['email'] == widget.currentUserEmail)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _editNotice(selectedNotice!),
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('수정'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0D0A64),
+                    side: const BorderSide(color: Color(0xFF0D0A64)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => _deleteNotice(selectedNotice!),
+                  icon: const Icon(Icons.delete, size: 18),
+                  label: const Text('삭제'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+
         ],
       ),
     );

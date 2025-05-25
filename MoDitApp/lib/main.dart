@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -25,58 +27,76 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
-  await FirebaseAuth.instance.signInAnonymously();
 
-  // 🔔 로컬 알림 초기화
-  const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
+  // ✅ 전역 Flutter 프레임워크 오류 핸들링
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    print("🔥 FlutterError: ${details.exception}");
+    print("🔥 StackTrace: ${details.stack}");
+  };
 
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
+  // ✅ 비동기 예외 핸들링 포함
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await FirebaseAuth.instance.signInAnonymously();
 
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+    // 🔔 로컬 알림 초기화
+    const AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("📬 포그라운드 메시지 수신됨: ${message.notification?.title}");
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
 
-    final notification = message.notification;
-    final android = notification?.android;
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-    if (notification != null && android != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'modit_channel_id', // 고유 채널 ID
-            'MoDit 알림',
-            channelDescription: '앱 실행 중에도 알림을 보여줍니다',
-            importance: Importance.max,
-            priority: Priority.high,
-            color: const Color(0xFFB8BDF1),
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("📬 포그라운드 메시지 수신됨: ${message.notification?.title}");
+
+      final notification = message.notification;
+      final android = notification?.android;
+
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'modit_channel_id',
+              'MoDit 알림',
+              channelDescription: '앱 실행 중에도 알림을 보여줍니다',
+              importance: Importance.max,
+              priority: Priority.high,
+              color: const Color(0xFFB8BDF1),
+            ),
           ),
-        ),
-      );
-    }
-  });
+        );
+      }
+    });
 
-  runApp(const MoDitApp());
+    runApp(const MoDitApp());
+
+  }, (error, stack) {
+    print("🔥 Uncaught Error: $error");
+    print("🔥 StackTrace: $stack");
+  });
 }
+
 
 class MoDitApp extends StatelessWidget {
   const MoDitApp({super.key});
@@ -99,9 +119,9 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: SplashScreen(),
-      // home: const HomeScreen(currentUserEmail: "ga@naver.com",
-      //     currentUserName: "yujin")
+      // home: SplashScreen(),
+      home: const HomeScreen(currentUserEmail: "yu@naver.com",
+          currentUserName: "유진")
     );
   }
 }
