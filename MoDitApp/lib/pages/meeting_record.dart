@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:io';
 import 'group_main_screen.dart';
@@ -137,7 +136,11 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
             'duration_ms': value['duration_ms'] ?? 0,
           };
         }).toList();
+
+        // 최신순 정렬
+        recordings.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
       });
+
     }
   }
 
@@ -247,7 +250,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFFF1ECFA),
+              backgroundColor: const Color(0xFFEAEAFF),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -346,9 +349,13 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
           'timestamp': DateTime.now(),
           'url': uploadedUrl,
           'text_url': textUrl,
-          'duration_ms': durMs, // 추가
+          'duration_ms': durMs,
         });
+
+        // 최신순 정렬
+        recordings.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
       });
+
 
       await file.delete();
     } else {
@@ -754,7 +761,7 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
                                           snapshot.data!['summary_text'] ==
                                               null) {
                                         return const Text(
-                                          "요약본을 불러오는 데 실패했습니다.",
+                                          "요약할 내용이 부족합니다.",
                                         );
                                       } else {
                                         final summaryText =
