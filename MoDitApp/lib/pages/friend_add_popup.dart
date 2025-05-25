@@ -24,8 +24,19 @@ class _FriendAddPopupState extends State<FriendAddPopup> {
 
     final userSnapshot = await db.child('user').child(friendId).get();
     if (!userSnapshot.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('존재하지 않는 사용자입니다')),
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "등록되지 않은 사용자입니다.",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFEAEAFF),
+        ),
       );
       return;
     }

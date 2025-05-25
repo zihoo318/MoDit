@@ -105,8 +105,19 @@ class _SummaryPopupState extends State<SummaryPopup> {
                   TextButton(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: summaryText ?? ''));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('복사되었습니다')),
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                            "복사되었습니다.",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          backgroundColor: const Color(0xFFEAEAFF),
+                        ),
                       );
                     },
                     child: const Text('복사'),

@@ -336,7 +336,18 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       if (uploaded != null) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("파일이 성공적으로 업로드되었습니다!")));
+        ).showSnackBar(
+          SnackBar(
+            content: const Text(
+              "파일이 성공적으로 업로드되었습니다!",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: const Color(0xFFEAEAFF),
+          ),
+        );
 
         final encodedEmail = sanitizeKey(userEmail);
 
@@ -359,7 +370,18 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("파일 업로드 실패.")));
+        ).showSnackBar(
+          SnackBar(
+            content: const Text(
+              "파일 업로드 실패.",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: const Color(0xFFEAEAFF),
+          ),
+        );
       }
     }
   }
@@ -745,10 +767,15 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                                                                 ScaffoldMessenger.of(
                                                                                   context,
                                                                                 ).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text(
-                                                                                      '노트가 성공적으로 제출되었습니다',
+                                                                                  SnackBar(
+                                                                                    content: const Text(
+                                                                                      "노트가 성공적으로 제출되었습니다.",
+                                                                                      style: TextStyle(
+                                                                                        color: Colors.black,
+                                                                                        fontWeight: FontWeight.w600,
+                                                                                      ),
                                                                                     ),
+                                                                                    backgroundColor: const Color(0xFFEAEAFF),
                                                                                   ),
                                                                                 );
                                                                               } else if (result ==
@@ -756,12 +783,15 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                                                                                 ScaffoldMessenger.of(
                                                                                   context,
                                                                                 ).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text(
-                                                                                      '노트 제출에 실패했습니다',
+                                                                                  SnackBar(
+                                                                                    content: const Text(
+                                                                                      "노트 제출에 실패했습니다.",
+                                                                                      style: TextStyle(
+                                                                                        color: Colors.black,
+                                                                                        fontWeight: FontWeight.w600,
+                                                                                      ),
                                                                                     ),
-                                                                                    backgroundColor:
-                                                                                        Colors.red,
+                                                                                    backgroundColor: const Color(0xFFEAEAFF),
                                                                                   ),
                                                                                 );
                                                                               }

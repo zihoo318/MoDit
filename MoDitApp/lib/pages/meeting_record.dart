@@ -354,7 +354,18 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("녹음 파일 업로드에 실패했습니다.")));
+      ).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "녹음파일 업로드에 실패했습니다.",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFEAEAFF),
+        ),
+      );
     }
 
     _nameController.clear();
@@ -447,7 +458,18 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> {
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("녹음이 삭제되었습니다.")));
+    ).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "녹음이 삭제되었습니다.",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: const Color(0xFFEAEAFF),
+      ),
+    );
   }
 
 

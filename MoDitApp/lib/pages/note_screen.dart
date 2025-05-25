@@ -320,11 +320,18 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
       title = _noteTitleController.text.trim();
       if (title.isEmpty || title == '노트 이름 설정') {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
           SnackBar(
-            content: Text("노트 제목을 먼저 설정해주세요"),
-            backgroundColor: Colors.black87,
-            duration: Duration(seconds: 2),
+            content: const Text(
+              "노트 제목을 먼저 설정해주세요.",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: const Color(0xFFEAEAFF),
           ),
         );
         return;
@@ -446,13 +453,21 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     } catch (e) {
       print("❌ 노트 저장 중 오류 발생: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
         SnackBar(
-          content: Text("오류 발생: $e"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
+          content: Text(
+            "오류 발생: $e",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFEAEAFF),
         ),
       );
+
     } finally {
       _isUploading = false;
     }

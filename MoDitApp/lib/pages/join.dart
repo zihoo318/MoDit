@@ -24,8 +24,19 @@ class _JoinScreenState extends State<JoinScreen> {
 
   void registerUser() {
     if (password.text != confirmPassword.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호가 일치하지 않습니다')),
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "비밀번호가 일치하지 않습니다.",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFEAEAFF),
+        ),
       );
       return;
     }
@@ -37,8 +48,19 @@ class _JoinScreenState extends State<JoinScreen> {
     };
 
     db.child('user').child(email.text.replaceAll('.', '_')).set(userData).then((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('회원가입 완료')),
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "회원가입 완료!",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFEAEAFF),
+        ),
       );
       Navigator.pop(context); // 뒤로가기 = Home으로
     });
