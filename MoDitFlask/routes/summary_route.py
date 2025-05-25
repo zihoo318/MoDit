@@ -18,6 +18,9 @@ def generate_summary():
 
         result = summarize_from_ncp(file_url, group_name)
 
+        if result["summary_text"] is None:
+            return jsonify({'message': '요약할 내용이 없습니다.', 'summary_text': ''}), 200
+
         return jsonify(result), 200
 
     except Exception as e:

@@ -4,12 +4,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:moditapp/pages/note_screen.dart';
 import 'pages/first_page.dart';
 import 'package:moditapp/pages/login.dart';
 import 'package:moditapp/pages/splash_screen.dart';
-
 import 'firebase_options.dart';
-import 'pages/home.dart';
+import 'pages/first_page.dart';
 
 // ✅ 백그라운드 푸시 알림 수신 핸들러
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -99,7 +99,9 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: const SplashScreen(),
+      home: SplashScreen(),
+      // home: const HomeScreen(currentUserEmail: "ga@naver.com",
+      //     currentUserName: "yujin")
     );
   }
 }

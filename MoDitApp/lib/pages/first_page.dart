@@ -53,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     loadGroupStudies();
     loadUserNotes();
+    listenToUserNotes();
     _nameController = TextEditingController(text: widget.currentUserName);
 
   }
@@ -310,61 +311,61 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       DateTime.fromMillisecondsSinceEpoch(timestampMillis),
     );
     return AspectRatio(
-      aspectRatio: 14 / 9,
-      child: Hero(
-        tag: 'note_${title}',
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              Expanded(
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                  const Center(child: Icon(Icons.broken_image)),
+        aspectRatio: 14 / 9,
+        child: Hero(
+          tag: 'note_${title}',
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(6),
-                child: Column(
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormat('yyyy.MM.dd HH:mm').format(
-                        DateTime.fromMillisecondsSinceEpoch(timestampMillis),
-                      ),
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Center(child: Icon(Icons.broken_image)),
+                  ),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Column(
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('yyyy.MM.dd HH:mm').format(
+                          DateTime.fromMillisecondsSinceEpoch(timestampMillis),
+                        ),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      )
+        )
     );
   }
 
@@ -415,393 +416,385 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
     await FirebaseDatabase.instance.ref().child('user').child(userKey).update({'name': newName});
     setState(() => _isEditingName = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      SnackBar(
-        content: const Text(
-          "이름이 수정되었습니다.",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: const Color(0xFFEAEAFF),
-      ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('이름이 수정되었습니다')),
     );
   }
 
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-                'assets/images/background.png', fit: BoxFit.cover),
-          ),
+    return GestureDetector(
+        onTap: () {
+          if (_isMyPageOpen) setState(() => _isMyPageOpen = false);
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                    'assets/images/background.png', fit: BoxFit.cover),
+              ),
 
-          // 상단바
-          Positioned(
-            top: 40,
-            left: 30,
-            right: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Transform.translate(
-                  offset: const Offset(-10, 0),
-                  child: Image.asset('assets/images/logo.png', height: 45),
+              // 상단바
+              Positioned(
+                top: 40,
+                left: 30,
+                right: 40,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Transform.translate(
+                      offset: const Offset(-10, 0),
+                      child: Image.asset('assets/images/logo.png', height: 45),
+                    ),
+                    GestureDetector(
+                      onTap: _showFriendAddPopup,
+                      child: Row(
+                        children: [
+                          const Text('친구 추가', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 4),
+                          Image.asset('assets/images/plus_icon2.png', width: 24),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _isMyPageOpen = !_isMyPageOpen);
+                            },
+                            child: const CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.white,
+                              backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                GestureDetector(
-                  onTap: _showFriendAddPopup,
-                  child: Row(
-                    children: [
-                      const Text('친구 추가', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 4),
-                      Image.asset('assets/images/plus_icon2.png', width: 24),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() => _isMyPageOpen = !_isMyPageOpen);
-                        },
-                        child: const CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.white,
-                          backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                        ),
+              ),
+
+              // 그룹 스터디 (가로 스크롤)
+              Positioned(
+                top: 100,
+                left: 30,
+                right: 30,
+                child: Container(
+                  height: 80,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(40),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,     // 그림자 색상
+                        blurRadius: 10,            // 흐림 정도
+                        offset: Offset(0, 4),      // 그림자 위치 (x, y)
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          ...groupStudies.map((g) {
+                            final isSelected = _animatingGroupId == g['id'];
 
-          // 그룹 스터디 (가로 스크롤)
-          Positioned(
-            top: 100,
-            left: 30,
-            right: 30,
-            child: Container(
-              height: 80,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(40),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,     // 그림자 색상
-                    blurRadius: 10,            // 흐림 정도
-                    offset: Offset(0, 4),      // 그림자 위치 (x, y)
-                  ),
-                ],
-              ),
-              child: Center(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ...groupStudies.map((g) {
-                        final isSelected = _animatingGroupId == g['id'];
+                            if (isSelected) {
+                              _groupAnimController.forward(from: 0.0);
+                            }
 
-                        if (isSelected) {
-                          _groupAnimController.forward(from: 0.0);
-                        }
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() => _animatingGroupId = g['id']);
+                                _groupAnimController.forward(from: 0.0);
 
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() => _animatingGroupId = g['id']);
-                            _groupAnimController.forward(from: 0.0);
-
-                            Future.delayed(
-                                const Duration(milliseconds: 200), () {
-                              Navigator.of(context).push(
-                                PageRouteBuilder(
-                                  transitionDuration: const Duration(milliseconds: 500),
-                                  pageBuilder: (_, animation, secondaryAnimation) => GroupMainScreen(
-                                    groupId: g['id'],
-                                    currentUserEmail: widget.currentUserEmail,
-                                    currentUserName: widget.currentUserName,
-                                  ),
-                                  transitionsBuilder: (_, animation, __, child) {
-                                    final tween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
-                                    final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
-                                    return FadeTransition(
-                                      opacity: fade,
-                                      child: ScaleTransition(
-                                        scale: animation.drive(tween),
-                                        child: child,
+                                Future.delayed(
+                                    const Duration(milliseconds: 200), () {
+                                  Navigator.of(context).push(
+                                    PageRouteBuilder(
+                                      transitionDuration: const Duration(milliseconds: 500),
+                                      pageBuilder: (_, animation, secondaryAnimation) => GroupMainScreen(
+                                        groupId: g['id'],
+                                        currentUserEmail: widget.currentUserEmail,
+                                        currentUserName: widget.currentUserName,
                                       ),
-                                    );
-                                  },
-                                ),
-                              ).then((_) =>
-                                  setState(() => _animatingGroupId = null));
-                            });
-                          },
-                          child: AnimatedBuilder(
-                            animation: _groupAnimController,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: isSelected
-                                    ? _groupScaleAnimation.value
-                                    : 1.0,
-                                child: Opacity(
-                                  opacity: isSelected ? _groupFadeAnimation
-                                      .value : 1.0,
-                                  child: Hero(
-                                    tag: g['id'],
-                                    child: child!,
+                                      transitionsBuilder: (_, animation, __, child) {
+                                        final tween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
+                                        final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
+                                        return FadeTransition(
+                                          opacity: fade,
+                                          child: ScaleTransition(
+                                            scale: animation.drive(tween),
+                                            child: child,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ).then((_) =>
+                                      setState(() => _animatingGroupId = null));
+                                });
+                              },
+                              child: AnimatedBuilder(
+                                animation: _groupAnimController,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: isSelected
+                                        ? _groupScaleAnimation.value
+                                        : 1.0,
+                                    child: Opacity(
+                                      opacity: isSelected ? _groupFadeAnimation
+                                          .value : 1.0,
+                                      child: Hero(
+                                        tag: g['id'],
+                                        child: child!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 120,
+                                  height: 50,
+                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE1E6FB),
+                                    borderRadius: BorderRadius.circular(30),
                                   ),
+                                  child: Center(
+                                    child: Text(
+                                      g['name'],
+                                      style: const TextStyle(fontSize: 14,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          _buildGroupStudyAddCard(_showGroupCreatePopup),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 노트카드 (하드코딩 + 추가 버튼)
+              Positioned.fill(
+                top: 200,
+                left: 30,
+                right: 30,
+                bottom: 30,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.5), // ✅ 배경 색상 및 투명도
+                    borderRadius: BorderRadius.circular(30), // ✅ 라운드 처리
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: GridView.count(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                    childAspectRatio: 14 / 9,
+                    children: [
+                      _buildNoteAddCard(() {
+                        Navigator.of(context).push(
+                          PageRouteBuilder(
+                            transitionDuration: const Duration(milliseconds: 500),
+                            pageBuilder: (_, animation, __) => NoteScreen(currentUserEmail: widget.currentUserEmail),
+                            transitionsBuilder: (_, animation, __, child) {
+                              final scaleTween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic));
+                              final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
+                              return FadeTransition(
+                                opacity: fadeTween,
+                                child: ScaleTransition(
+                                  scale: animation.drive(scaleTween),
+                                  child: child,
                                 ),
                               );
                             },
-                            child: Container(
-                              width: 120,
-                              height: 50,
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE1E6FB),
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  g['name'],
-                                  style: const TextStyle(fontSize: 14,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                            ),
                           ),
-                        );
-                      }).toList(),
-                      _buildGroupStudyAddCard(_showGroupCreatePopup),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+                        ).then((value) {
+                          if (value == true) loadUserNotes();
+                        });
+                      }),
 
-          // 노트카드 (하드코딩 + 추가 버튼)
-          Positioned.fill(
-            top: 200,
-            left: 30,
-            right: 30,
-            bottom: 30,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.5), // ✅ 배경 색상 및 투명도
-                borderRadius: BorderRadius.circular(30), // ✅ 라운드 처리
-              ),
-              padding: const EdgeInsets.all(20),
-              child: GridView.count(
-                crossAxisCount: 4,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-                childAspectRatio: 14 / 9,
-                children: [
-                  _buildNoteAddCard(() {
-                    Navigator.of(context).push(
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 500),
-                        pageBuilder: (_, animation, __) => NoteScreen(currentUserEmail: widget.currentUserEmail),
-                        transitionsBuilder: (_, animation, __, child) {
-                          final scaleTween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic));
-                          final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
-                          return FadeTransition(
-                            opacity: fadeTween,
-                            child: ScaleTransition(
-                              scale: animation.drive(scaleTween),
-                              child: child,
+                      ...userNotes.map((note) => GestureDetector(
+                        onTap: () async {
+                          final userKey = widget.currentUserEmail.replaceAll('.', '_');
+                          final snap = await db
+                              .child('notes')
+                              .child(userKey)
+                              .orderByChild('title')
+                              .equalTo(note['title'])
+                              .limitToFirst(1)
+                              .get();
+                          final existingSnap = snap.children.first;
+                          final existingNote = existingSnap.value as Map;
+
+                          final result = await Navigator.of(context).push(
+                            PageRouteBuilder(
+                              transitionDuration: const Duration(milliseconds: 500),
+                              pageBuilder: (_, animation, __) => NoteScreen(
+                                currentUserEmail: widget.currentUserEmail,
+                                existingNoteData: {
+                                  ...existingNote,
+                                  'noteId': existingSnap.key,
+                                  'title': note['title'],
+                                },
+                              ),
+                              transitionsBuilder: (_, animation, __, child) {
+                                final scaleTween = Tween(begin: 0.95, end: 1.0)
+                                    .chain(CurveTween(curve: Curves.easeOutCubic));
+                                final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+                                return FadeTransition(
+                                  opacity: fadeTween,
+                                  child: ScaleTransition(
+                                    scale: animation.drive(scaleTween),
+                                    child: child,
+                                  ),
+                                );
+                              },
                             ),
                           );
+
+                          if (result == true) {
+                            await loadUserNotes();
+                            setState(() {});
+                          }
                         },
-                      ),
-                    ).then((value) {
-                      if (value == true) loadUserNotes();
-                    });
-                  }),
+                        onLongPress: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('노트 삭제'),
+                              content: Text("‘${note['title']}’ 노트를 삭제하시겠습니까?"),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+                                TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('삭제', style: TextStyle(color: Colors.red))),
+                              ],
+                            ),
+                          );
 
-                  ...userNotes.map((note) => GestureDetector(
-                    onTap: () async {
-                      final userKey = widget.currentUserEmail.replaceAll('.', '_');
-                      final snap = await db
-                          .child('notes')
-                          .child(userKey)
-                          .orderByChild('title')
-                          .equalTo(note['title'])
-                          .limitToFirst(1)
-                          .get();
-                      final existingSnap = snap.children.first;
-                      final existingNote = existingSnap.value as Map;
-
-                      final result = await Navigator.of(context).push(
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(milliseconds: 500),
-                          pageBuilder: (_, animation, secondaryAnimation) => NoteScreen(
-                            currentUserEmail: widget.currentUserEmail,
-                            existingNoteData: {
-                              ...existingNote,
-                              'noteId': existingSnap.key,
-                              'title': note['title'],
-                            },
-                          ),
-                          transitionsBuilder: (_, animation, __, child) {
-                            final scaleTween = Tween(begin: 0.95, end: 1.0)
-                                .chain(CurveTween(curve: Curves.easeOutCubic));
-                            final fadeTween = Tween(begin: 0.0, end: 1.0).animate(animation);
-
-                            return FadeTransition(
-                              opacity: fadeTween,
-                              child: ScaleTransition(
-                                scale: animation.drive(scaleTween),
-                                child: child,
+                          if (confirm == true) {
+                            await _deleteNote(note['title']);
+                            await loadUserNotes();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "노트가 삭제되었습니다",
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                backgroundColor: Color(0xFFEAEAFF),
+                                duration: Duration(seconds: 2),
                               ),
                             );
-                          },
-                        ),
-                      ).then((value) {
-                        if (value == true) loadUserNotes();
-                      });
+                          }
 
-
-                      if (result == true) loadUserNotes();
-                    },
-                    onLongPress: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('노트 삭제'),
-                          content: Text("‘${note['title']}’ 노트를 삭제하시겠습니까?"),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-                            TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text('삭제', style: TextStyle(color: Colors.red))),
-                          ],
+                        },
+                        child: _buildNoteCardFromFirebase(
+                          note['imageUrl'],
+                          note['title'],
+                          note['timestampMillis'],
                         ),
-                      );
-
-                      if (confirm == true) {
-                        await _deleteNote(note['title']);
-                        await loadUserNotes();
-                        setState(() {});
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              "노트가 삭제되었습니다.",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            backgroundColor: const Color(0xFFEAEAFF),
-                          ),
-                        );
-                      }
-
-                    },
-                    child: _buildNoteCardFromFirebase(
-                      note['imageUrl'],
-                      note['title'],
-                      note['timestampMillis'],
-                    ),
-                  )),
-                ],
-              ),
-            ),
-          ),
-          if (_isMyPageOpen)
-            Positioned(
-              top: 100,
-              right: 40,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  key: const ValueKey("mypage_home"),
-                  width: 280,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))],
-                    border: Border.all(color: const Color(0xFFE0E0E0)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('내 프로필',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64))),
-                      const SizedBox(height: 18),
-                      const CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white,
-                        backgroundImage: AssetImage('assets/images/user_icon2.png'),
-                      ),
-                      const SizedBox(height: 10),
-                      _isEditingName
-                          ? TextField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 17),
-                        decoration: InputDecoration(
-                          hintText: '이름 입력',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        ),
-                      )
-                          : Text(_nameController.text,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (_isEditingName) {
-                              _updateName();
-                            } else {
-                              setState(() => _isEditingName = true);
-                            }
-                          },
-                          icon: const Icon(Icons.edit, size: 18),
-                          label: Text(_isEditingName ? '저장' : '이름 수정'),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFF0F0F0),
-                            foregroundColor: Colors.black87,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.logout, size: 18),
-                          label: const Text('로그아웃'),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFFBE9E9),
-                            foregroundColor: Colors.redAccent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
+                      )),
                     ],
                   ),
                 ),
               ),
-            ),
-        ],
+              if (_isMyPageOpen)
+                Positioned(
+                  top: 100,
+                  right: 40,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      key: const ValueKey("mypage_home"),
+                      width: 280,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))],
+                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('내 프로필',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D0A64))),
+                          const SizedBox(height: 18),
+                          const CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.white,
+                            backgroundImage: AssetImage('assets/images/user_icon2.png'),
+                          ),
+                          const SizedBox(height: 10),
+                          _isEditingName
+                              ? TextField(
+                            controller: _nameController,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 17),
+                            decoration: InputDecoration(
+                              hintText: '이름 입력',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                            ),
+                          )
+                              : Text(_nameController.text,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (_isEditingName) {
+                                  _updateName();
+                                } else {
+                                  setState(() => _isEditingName = true);
+                                }
+                              },
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: Text(_isEditingName ? '저장' : '이름 수정'),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFF0F0F0),
+                                foregroundColor: Colors.black87,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _logout,
+                              icon: const Icon(Icons.logout, size: 18),
+                              label: const Text('로그아웃'),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFFBE9E9),
+                                foregroundColor: Colors.redAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
 
-      ),
+          ),
+        )
     );
   }
 }
