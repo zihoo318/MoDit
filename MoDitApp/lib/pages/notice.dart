@@ -87,128 +87,127 @@ class _NoticePageState extends State<NoticePage> {
       barrierLabel: "공지사항 등록",
       barrierDismissible: true,
       transitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(), // 배경 탭 시 키보드 닫기
-            child: Material(
-              color: Colors.transparent,
-              child: Center(
-                child: AnimatedPadding(
-                  duration: const Duration(milliseconds: 250),
-                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                  curve: Curves.easeOut,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: 500,
-                      maxHeight: MediaQuery.of(context).size.height * 0.7,
-                    ),
-                    child: SingleChildScrollView( // 세로 스크롤 허용
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(30),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.85),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  '📢 공지사항 등록',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0D0A64),
-                                  ),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(), // 배경 탭 시 키보드 닫기
+          child: Material(
+            color: Colors.transparent,
+            child: Center(
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 250),
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                curve: Curves.easeOut,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 500,
+                    maxHeight: MediaQuery.of(context).size.height * 0.7,
+                  ),
+                  child: SingleChildScrollView( // 세로 스크롤 허용
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.white.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                '📢 공지사항 등록',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0D0A64),
                                 ),
-                                const SizedBox(height: 24),
-                                TextField(
-                                  controller: titleController,
-                                  decoration: const InputDecoration(
-                                    labelText: '공지사항 제목',
-                                    border: OutlineInputBorder(),
-                                  ),
+                              ),
+                              const SizedBox(height: 24),
+                              TextField(
+                                controller: titleController,
+                                decoration: const InputDecoration(
+                                  labelText: '공지사항 제목',
+                                  border: OutlineInputBorder(),
                                 ),
-                                const SizedBox(height: 17),
-                                TextField(
-                                  controller: bodyController,
-                                  maxLines: 4,
-                                  decoration: const InputDecoration(
-                                    labelText: '공지사항 내용',
-                                    border: OutlineInputBorder(),
-                                  ),
+                              ),
+                              const SizedBox(height: 17),
+                              TextField(
+                                controller: bodyController,
+                                maxLines: 4,
+                                decoration: const InputDecoration(
+                                  labelText: '공지사항 내용',
+                                  border: OutlineInputBorder(),
                                 ),
-                                const SizedBox(height: 24),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    OutlinedButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text("취소"),
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
-                                        foregroundColor: const Color(0xFF0D0A64),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      ),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("취소"),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                                      foregroundColor: const Color(0xFF0D0A64),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      onPressed: () async {
-                                        final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
-                                        await newRef.set({
-                                          'title': titleController.text,
-                                          'body': bodyController.text,
-                                          'name': widget.currentUserName,
-                                          'email': widget.currentUserEmail,
-                                          'createdAt': DateTime.now().millisecondsSinceEpoch,
-                                          'pinned': false,
-                                        });
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: () async {
+                                      final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
+                                      await newRef.set({
+                                        'title': titleController.text,
+                                        'body': bodyController.text,
+                                        'name': widget.currentUserName,
+                                        'email': widget.currentUserEmail,
+                                        'createdAt': DateTime.now().millisecondsSinceEpoch,
+                                        'pinned': false,
+                                      });
 
-                                        // Firebase에 알림 기록 저장
-                                        final membersSnapshot = await db.child('groupStudies/${widget.groupId}/members').get();
-                                        final groupNameSnapshot = await db.child('groupStudies/${widget.groupId}/name').get();
+                                      // Firebase에 알림 기록 저장
+                                      final membersSnapshot = await db.child('groupStudies/${widget.groupId}/members').get();
+                                      final groupNameSnapshot = await db.child('groupStudies/${widget.groupId}/name').get();
 
-                                        if (membersSnapshot.exists && groupNameSnapshot.exists) {
-                                          final groupName = groupNameSnapshot.value.toString();
-                                          final members = Map<String, dynamic>.from(membersSnapshot.value as Map);
+                                      if (membersSnapshot.exists && groupNameSnapshot.exists) {
+                                        final groupName = groupNameSnapshot.value.toString();
+                                        final members = Map<String, dynamic>.from(membersSnapshot.value as Map);
 
 
-                                          final sanitizedSender = sanitizeKey(widget.currentUserEmail);
+                                        final sanitizedSender = sanitizeKey(widget.currentUserEmail);
 
-                                          for (final emailKey in members.keys) {
-                                            if (emailKey == sanitizedSender) continue; // 등록자 제외
+                                        for (final emailKey in members.keys) {
+                                          if (emailKey == sanitizedSender) continue; // 등록자 제외
 
-                                            final pushRef = db.child('user/$emailKey/push').push();
-                                            await pushRef.set({
-                                              'category': 'notice',
-                                              'timestamp': ServerValue.timestamp,
-                                              'groupId': widget.groupId,
-                                              'message': '[$groupName]에 새로운 공지사항이 등록되었습니다. (${titleController.text})',
-                                            });
-                                          }
-
-                                          // Flask로 푸시 요청
-                                          await Api().sendNoticeAlert(widget.groupId, titleController.text, widget.currentUserEmail);
+                                          final pushRef = db.child('user/$emailKey/push').push();
+                                          await pushRef.set({
+                                            'category': 'notice',
+                                            'timestamp': ServerValue.timestamp,
+                                            'groupId': widget.groupId,
+                                            'message': '[$groupName]에 새로운 공지사항이 등록되었습니다. (${titleController.text})',
+                                          });
                                         }
 
-                                        Navigator.pop(context);
-                                        loadNotices();
-                                      },
-                                      child: const Text("등록"),
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
-                                        foregroundColor: const Color(0xFF0D0A64),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      ),
+                                        // Flask로 푸시 요청
+                                        await Api().sendNoticeAlert(widget.groupId, titleController.text, widget.currentUserEmail);
+                                      }
+
+                                      Navigator.pop(context);
+                                      loadNotices();
+                                    },
+                                    child: const Text("등록"),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                                      foregroundColor: const Color(0xFF0D0A64),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -217,9 +216,10 @@ class _NoticePageState extends State<NoticePage> {
                 ),
               ),
             ),
-          );
-        },
-        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
           opacity: animation,
           child: ScaleTransition(
