@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -32,10 +34,41 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   List<Map<String, dynamic>> meetings = [];
 
+  late StreamSubscription<DatabaseEvent> _meetingSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadMeetings();
+
+    // 실시간 리스너 등록
+    _meetingSubscription = db.child('groupStudies/${widget.groupId}/meeting').onValue.listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final List<Map<String, dynamic>> loaded = [];
+        for (final entry in data.entries) {
+          final value = Map<String, dynamic>.from(entry.value);
+          final date = DateTime.tryParse(value['date'] ?? '');
+          if (date != null) {
+            loaded.add({...value, 'date': date, 'id': entry.key});
+          }
+        }
+        setState(() {
+          meetings = loaded;
+        });
+      } else {
+        setState(() {
+          meetings = [];
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _meetingSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _loadMeetings() async {
@@ -66,23 +99,81 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   void _confirmDelete(Map<String, dynamic> meeting) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("삭제 확인"),
-        content: const Text("이 미팅을 삭제하시겠습니까?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
-          ElevatedButton(
-            onPressed: () async {
-              await db.child('groupStudies/${widget.groupId}/meeting/${meeting['id']}').remove();
-              setState(() => meetings.removeWhere((m) => m['id'] == meeting['id']));
-              Navigator.pop(context);
-            },
-            child: const Text("삭제"),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              constraints: const BoxConstraints(maxWidth: 450),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '삭제 확인',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0D0A64),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(thickness: 1, color: Color(0xFF0D0A64)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '이 미팅을 삭제하시겠습니까?',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                          foregroundColor: const Color(0xFF0D0A64),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('취소'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton( // ElevatedButton → OutlinedButton 으로 변경
+                        onPressed: () async {
+                          await db.child('groupStudies/${widget.groupId}/meeting/${meeting['id']}').remove();
+                          setState(() => meetings.removeWhere((m) => m['id'] == meeting['id']));
+                          Navigator.pop(context); // 삭제 확인 팝업 닫기
+                          Navigator.pop(context); // 미팅 일정 수정 팝업도 닫기
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                          foregroundColor: Colors.redAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('삭제'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
+
 
   void _showEditDialog(Map<String, dynamic> meeting) {
     final titleController = TextEditingController(text: meeting['title']);
@@ -92,68 +183,169 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Text('미팅 일정 수정'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextButton(
-              onPressed: () async {
-                final newDate = await showDatePicker(
-                  context: context,
-                  initialDate: pickedDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2030),
-                  builder: (context, child) {
-                    return Dialog(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      child: Container(
-                        width: 500, // 💡 여기서 확실히 가로 길이 늘림
-                        child: child,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 450,
+                  maxHeight: 480,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '📅 미팅 일정 수정',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0D0A64),
+                        ),
                       ),
-                    );
-                  },
-                );
-                if (newDate != null) {
-                  setState(() => pickedDate = newDate);
-                }
-              },
-              child: Text(DateFormat('yyyy.MM.dd').format(pickedDate)),
+                      const SizedBox(height: 16),
+                      const Divider(thickness: 1, color: Color(0xFF0D0A64)),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              TextButton(
+                                onPressed: () async {
+                                  final newDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: pickedDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                    builder: (context, child) {
+                                      return Dialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        child: Container(width: 500, child: child),
+                                      );
+                                    },
+                                  );
+                                  if (newDate != null) {
+                                    setState(() => pickedDate = newDate);
+                                  }
+                                },
+                                child: Text(
+                                  DateFormat('yyyy.MM.dd').format(pickedDate),
+                                  style: const TextStyle(
+                                    fontSize: 21,
+                                    color: Color(0xFF0D0A64),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: titleController,
+                                decoration: const InputDecoration(
+                                  labelText: '미팅 주제',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: locationController,
+                                decoration: const InputDecoration(
+                                  labelText: '장소',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: membersController,
+                                decoration: const InputDecoration(
+                                  labelText: '참여자 (쉼표로 구분)',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () => _confirmDelete(meeting),
+                            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+                          ),
+                          Row(
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                                  foregroundColor: const Color(0xFF0D0A64),
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: const Text('취소'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: () async {
+                                  final updated = {
+                                    'title': titleController.text,
+                                    'location': locationController.text,
+                                    'members': membersController.text
+                                        .split(',')
+                                        .map((e) => e.trim())
+                                        .toList(),
+                                    'date': DateFormat('yyyy-MM-dd').format(pickedDate),
+                                  };
+                                  await db
+                                      .child('groupStudies/${widget.groupId}/meeting/${meeting['id']}')
+                                      .update(updated);
+
+                                  setState(() {
+                                    final index = meetings.indexWhere((m) => m['id'] == meeting['id']);
+                                    if (index != -1) {
+                                      meetings[index] = {...updated, 'date': pickedDate, 'id': meeting['id']};
+                                    }
+                                  });
+
+                                  Navigator.pop(context);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                                  foregroundColor: const Color(0xFF0D0A64),
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: const Text('수정'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            TextField(controller: titleController, decoration: const InputDecoration(hintText: '미팅 주제')),
-            TextField(controller: locationController, decoration: const InputDecoration(hintText: '장소')),
-            TextField(controller: membersController, decoration: const InputDecoration(hintText: '참여자 (쉼표로 구분)')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => _confirmDelete(meeting), child: const Text("삭제", style: TextStyle(color: Colors.red))),
-          ElevatedButton(
-            onPressed: () async {
-              final updated = {
-                'title': titleController.text,
-                'location': locationController.text,
-                'members': membersController.text.split(',').map((e) => e.trim()).toList(),
-                'date': DateFormat('yyyy-MM-dd').format(pickedDate),
-              };
-
-              await db.child('groupStudies/${widget.groupId}/meeting/${meeting['id']}').update(updated);
-
-              setState(() {
-                final index = meetings.indexWhere((m) => m['id'] == meeting['id']);
-                if (index != -1) {
-                  meetings[index] = {...updated, 'date': pickedDate, 'id': meeting['id']};
-                }
-              });
-
-              Navigator.pop(context);
-            },
-            child: const Text("수정"),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+
+
   void showAddMeetingDialog() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -439,19 +631,18 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
               ],
             ),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditDialog(meeting);
-              } else if (value == 'delete') {
-                _confirmDelete(meeting);
-              }
+          GestureDetector(
+            onTap: () {
+              _showEditDialog(meeting);
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'edit', child: Text('수정')),
-              PopupMenuItem(value: 'delete', child: Text('삭제')),
-            ],
+            child: const Text(
+              '수정',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF0D0A64),
+                decoration: TextDecoration.underline,
+              ),
+            ),
           ),
         ],
       ),
