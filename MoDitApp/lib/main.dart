@@ -13,59 +13,54 @@ import 'package:moditapp/pages/splash_screen.dart';
 import 'firebase_options.dart';
 import 'pages/first_page.dart';
 
-// ✅ 백그라운드 푸시 알림 수신 핸들러
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('💬 백그라운드 메시지 수신됨: ${message.messageId}');
+  print('MoDitLog: Background message received: ${message.messageId}');
 }
 
-// ✅ navigatorKey를 사용해 어디서든 context 접근 가능하게 함
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-// ✅ 로컬 알림 플러그인 전역 초기화
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 void main() async {
 
+  WidgetsFlutterBinding.ensureInitialized();
+  print('MoDitLog: >> Entered main()');
 
-  // ✅ 전역 Flutter 프레임워크 오류 핸들링
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    print("🔥 FlutterError: ${details.exception}");
-    print("🔥 StackTrace: ${details.stack}");
-  };
-
-  // ✅ 비동기 예외 핸들링 포함
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
+  try {
+    print('MoDitLog: Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    print('MoDitLog: Firebase initialized.');
 
+    print('MoDitLog: Starting anonymous sign-in...');
     await FirebaseAuth.instance.signInAnonymously();
+    print('MoDitLog: Anonymous sign-in complete. UID: ${FirebaseAuth.instance.currentUser?.uid}');
 
-    // 🔔 로컬 알림 초기화
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
-
     final InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
 
+    print('MoDitLog: Initializing local notifications...');
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    print('MoDitLog: Local notifications initialized.');
 
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+    print('MoDitLog: Requesting push notification permission...');
     await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
+    print('MoDitLog: Push notification permission granted.');
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("📬 포그라운드 메시지 수신됨: ${message.notification?.title}");
+      print("MoDitLog: Foreground message received: ${message.notification?.title}");
 
       final notification = message.notification;
       final android = notification?.android;
@@ -78,8 +73,10 @@ void main() async {
           NotificationDetails(
             android: AndroidNotificationDetails(
               'modit_channel_id',
-              'MoDit 알림',
-              channelDescription: '앱 실행 중에도 알림을 보여줍니다',
+
+              'MoDit Notification',
+              channelDescription: 'Shows notifications while the app is active',
+
               importance: Importance.max,
               priority: Priority.high,
               color: const Color(0xFFB8BDF1),
@@ -89,12 +86,12 @@ void main() async {
       }
     });
 
-    runApp(const MoDitApp());
 
-  }, (error, stack) {
-    print("🔥 Uncaught Error: $error");
-    print("🔥 StackTrace: $stack");
-  });
+    print('MoDitLog: All initialization complete. Running app...');
+    runApp(const MoDitApp());
+  } catch (e) {
+    print('MoDitLog: ERROR in main(): $e');
+  }
 }
 
 
@@ -103,6 +100,7 @@ class MoDitApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('MoDitLog: Building MoDitApp...');
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
@@ -119,9 +117,9 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      // home: SplashScreen(),
-      home: const HomeScreen(currentUserEmail: "yu@naver.com",
-          currentUserName: "유진")
+
+      home: SplashScreen(), // You can add logs in SplashScreen too
+
     );
   }
 }

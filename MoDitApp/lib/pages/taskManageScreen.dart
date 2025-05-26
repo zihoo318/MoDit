@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:moditapp/pages/popup_task_edit.dart';
 import 'package:moditapp/pages/popup_task_submit_note.dart';
 
@@ -292,7 +293,36 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       "subTasks": subTaskMap,
     };
 
+    // Firebase에 새 과제 저장
     await db.child('tasks').child(widget.groupId).child(taskId).set(taskData);
+
+    // Firebase에 알림 데이터 저장
+    final membersSnapshot = await db.child('groupStudies/${widget.groupId}/members').get();
+    final groupNameSnapshot = await db.child('groupStudies/${widget.groupId}/name').get();
+
+    if (membersSnapshot.exists && groupNameSnapshot.exists) {
+      final groupName = groupNameSnapshot.value.toString();
+      final members = Map<String, dynamic>.from(membersSnapshot.value as Map);
+
+      final sanitizedSender = sanitizeKey(widget.currentUserEmail); // 등록자 이메일 변환
+
+      for (final emailKey in members.keys) {
+        if (emailKey == sanitizedSender) continue; // 등록자 건너뜀
+
+        final pushRef = db.child('user/$emailKey/push').push();
+        await pushRef.set({
+          'category': 'task',
+          'timestamp': ServerValue.timestamp,
+          'groupId': widget.groupId,
+          'message': '[$groupName]에 새로운 과제가 등록되었습니다. ($title)',
+        });
+      }
+
+
+      // Flask 서버로 알림 푸시 요청
+      await Api().sendTaskAlert(widget.groupId, title, widget.currentUserEmail); // 등록자는 알림 받지 않음
+    }
+
   }
 
   Future<void> updateTask(
@@ -993,7 +1023,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         children: [
           // 왼쪽 과제 + 소과제 + 제출자 목록
           Expanded(
-            flex: 2,
+            flex: 1,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1111,11 +1141,11 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             ),
           ),
 
-          const SizedBox(width: 16),
+          const SizedBox(width: 27),
 
           // 오른쪽 상세내용 상자
           Expanded(
-            flex: 3,
+            flex: 2,
             child: SizedBox(
               height: 500,
               child: Container(

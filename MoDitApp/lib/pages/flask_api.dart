@@ -8,7 +8,8 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://3.38.105.45:8080";
+
+  static const String baseUrl = "http://192.168.45.152:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupId) async {
     final uri = Uri.parse('$baseUrl/stt/upload');
@@ -208,5 +209,59 @@ class Api {
       return null;
     }
   }
+
+  // 과제 새로 등록 시 그룹 구성원들에게 알림
+  Future<void> sendTaskAlert(String groupId, String title, String senderEmail) async {
+    final url = Uri.parse('${Api.baseUrl}/send_task_alert');
+    final body = {
+      "groupId": groupId,
+      "title": title,
+      "senderEmail": senderEmail, // 등록자 이메일
+    };
+
+    try {
+      final res = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        print("과제 푸시 알림 전송 성공");
+      } else {
+        print("과제 푸시 알림 실패: ${res.statusCode} / ${res.body}");
+      }
+    } catch (e) {
+      print("과제 푸시 알림 예외 발생: $e");
+    }
+  }
+
+
+  // 공지사항 등록 시 그룹 전체 알림
+  Future<void> sendNoticeAlert(String groupId, String title, String senderEmail) async {
+    final url = Uri.parse('${Api.baseUrl}/send_notice_alert');
+    final body = {
+      "groupId": groupId,
+      "title": title,
+      "senderEmail": senderEmail, // 등록자 이메일 전달
+    };
+
+    try {
+      final res = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        print("공지사항 푸시 알림 전송 성공");
+      } else {
+        print("공지사항 푸시 실패: ${res.statusCode} / ${res.body}");
+      }
+    } catch (e) {
+      print("공지사항 푸시 예외 발생: $e");
+    }
+  }
+
 
 }

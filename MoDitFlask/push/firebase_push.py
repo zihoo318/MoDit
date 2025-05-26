@@ -2,8 +2,8 @@
 import firebase_admin
 from firebase_admin import credentials, messaging
 
-cred = credentials.Certificate("config/serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
+from config.firebase_init import *  # ✅ 초기화는 여기서 가져옴 (중복 방지)
+
 
 def send_push_notification(token, title, body):
     message = messaging.Message(

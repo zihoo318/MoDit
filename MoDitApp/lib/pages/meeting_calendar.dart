@@ -4,6 +4,9 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:ui';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:http/http.dart' as http; // ✅ 추가
+import 'dart:convert'; // ✅ 추가
+import 'flask_api.dart';
 
 
 class MeetingCalendarWidget extends StatefulWidget {
@@ -251,11 +254,43 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                               final ref = db.child('groupStudies/${widget.groupId}/meeting').push();
                               await ref.set(newMeeting);
 
-                              setState(() {
-                                meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
-                                selectedDate = pickedDate;
-                                focusedDate = pickedDate;
-                              });
+
+                              // ✅ Firebase에 알림 데이터 저장
+                              final membersSnapshot = await db.child('groupStudies/${widget.groupId}/members').get();
+                              final groupNameSnapshot = await db.child('groupStudies/${widget.groupId}/name').get();
+
+                              if (membersSnapshot.exists && groupNameSnapshot.exists) {
+                                final groupName = groupNameSnapshot.value.toString();
+                                final members = Map<String, dynamic>.from(membersSnapshot.value as Map);
+
+                                for (final emailKey in members.keys) {
+                                  final pushRef = db.child('user/$emailKey/push').push();
+                                  await pushRef.set({
+                                    'category': 'meeting',
+                                    'timestamp': ServerValue.timestamp,
+                                    'groupId': widget.groupId,
+                                    'message': '[$groupName]에 새로운 미팅이 등록되었습니다. (${DateFormat('yyyy.MM.dd').format(pickedDate)})',
+                                  });
+                                }
+
+                                // ✅ Flask 서버로 알림 푸시 요청
+                                await http.post(
+                                  Uri.parse('${Api.baseUrl}/send_meeting_alert'),  // 실제 EC2 주소로 교체
+                                  headers: {"Content-Type": "application/json"},
+                                  body: jsonEncode({
+                                    "groupId": widget.groupId,
+                                    "date": DateFormat('yyyy.MM.dd').format(pickedDate),
+                                  }),
+                                );
+                              }
+
+                              if (mounted) {
+                                setState(() {
+                                  meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
+                                  selectedDate = pickedDate;
+                                  focusedDate = pickedDate;
+                                });
+                              }
 
                               Navigator.pop(context);
                             },
