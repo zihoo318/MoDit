@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     loadGroupStudies();
+    listenToGroupStudies();
     loadUserNotes();
     listenToUserNotes();
     _nameController = TextEditingController(text: widget.currentUserName);
@@ -197,68 +198,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-
-  Widget _buildGroupStudyCard(Map<String, dynamic> group) {
-    final isSelected = _animatingGroupId == group['id'];
-
-    if (isSelected) {
-      _groupAnimController.forward(from: 0.0);
-    }
-
-    return GestureDetector(
-      onTap: () {
-        setState(() => _animatingGroupId = group['id']);
-        _groupAnimController.forward(from: 0.0);
-
-        Future.delayed(const Duration(milliseconds: 200), () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  GroupMainScreen(
-                    groupId: group['id'],
-                    currentUserEmail: widget.currentUserEmail,
-                    currentUserName: widget.currentUserName,
-                  ),
-            ),
-          ).then((_) => setState(() => _animatingGroupId = null));
+  //실시간 그룹 데이터 감지
+  void listenToGroupStudies() {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    db.child('groupStudies').onValue.listen((event) {
+      if (event.snapshot.value == null) {
+        setState(() {
+          groupStudies = [];
         });
-      },
-      child: AnimatedBuilder(
-        animation: _groupAnimController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: isSelected ? _groupScaleAnimation.value : 1.0,
-            child: Opacity(
-              opacity: isSelected ? _groupFadeAnimation.value : 1.0,
-              child: Hero( // ✅ 여기 Hero로 감쌈
-                tag: group['id'], // 고유 tag
-                child: child!,
-              ),
-            ),
-          );
-        },
-        child: Container(
-          width: 120,
-          height: 50,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE1E6FB),
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(group['name'], style: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w500)),
-          ),
-        ),
-      ),
-    );
+        return;
+      }
+
+      final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final List<Map<String, dynamic>> visibleGroups = [];
+
+      for (var entry in data.entries) {
+        final value = Map<String, dynamic>.from(entry.value);
+        if ((value['members'] as Map?)?.containsKey(userKey) ?? false) {
+          visibleGroups.add({
+            'id': entry.key,
+            'name': value['name'] ?? '이름없음',
+          });
+        }
+      }
+
+      setState(() {
+        groupStudies = visibleGroups;
+      });
+    });
   }
 
 
@@ -508,13 +475,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               onTap: () {
                                 setState(() => _animatingGroupId = g['id']);
                                 _groupAnimController.forward(from: 0.0);
-
-                                Future.delayed(
-                                    const Duration(milliseconds: 200), () {
+                                Future.delayed(const Duration(milliseconds: 200), () {
                                   Navigator.of(context).push(
                                     PageRouteBuilder(
                                       transitionDuration: const Duration(milliseconds: 500),
-                                      pageBuilder: (_, animation, secondaryAnimation) => GroupMainScreen(
+                                      pageBuilder: (_, animation, __) => GroupMainScreen(
                                         groupId: g['id'],
                                         currentUserEmail: widget.currentUserEmail,
                                         currentUserName: widget.currentUserName,
@@ -524,16 +489,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         final fade = Tween(begin: 0.0, end: 1.0).animate(animation);
                                         return FadeTransition(
                                           opacity: fade,
-                                          child: ScaleTransition(
-                                            scale: animation.drive(tween),
-                                            child: child,
-                                          ),
+                                          child: ScaleTransition(scale: animation.drive(tween), child: child),
                                         );
                                       },
                                     ),
-                                  ).then((_) =>
-                                      setState(() => _animatingGroupId = null));
+                                  ).then((_) => setState(() => _animatingGroupId = null));
                                 });
+                              },
+                              onLongPress: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('그룹 삭제'),
+                                    content: Text("‘${g['name']}’ 그룹을 삭제하시겠습니까?"),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        child: const Text('삭제', style: TextStyle(color: Colors.red)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm == true) {
+                                  final groupId = g['id'];
+                                  await db.child('groupStudies').child(groupId).remove();
+                                  await db.child('tasks').child(groupId).remove();
+
+                                  setState(() {
+                                    groupStudies.removeWhere((grp) => grp['id'] == groupId);
+                                  });
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "그룹이 삭제되었습니다",
+                                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                                      ),
+                                      backgroundColor: Color(0xFFEAEAFF),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
                               },
                               child: AnimatedBuilder(
                                 animation: _groupAnimController,

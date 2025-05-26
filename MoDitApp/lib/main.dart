@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -21,6 +23,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
   print('MoDitLog: >> Entered main()');
 
@@ -31,11 +34,9 @@ void main() async {
     );
     print('MoDitLog: Firebase initialized.');
 
-    // ✅ 익명 로그인 제거 → 여기선 아무것도 하지 말고 로그인은 SplashScreen에서 판단
-    // final currentUser = FirebaseAuth.instance.currentUser;
-    // if (currentUser == null) {
-    //   await FirebaseAuth.instance.signInAnonymously();
-    // }
+    print('MoDitLog: Starting anonymous sign-in...');
+    await FirebaseAuth.instance.signInAnonymously();
+    print('MoDitLog: Anonymous sign-in complete. UID: ${FirebaseAuth.instance.currentUser?.uid}');
 
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -55,10 +56,12 @@ void main() async {
       badge: true,
       sound: true,
     );
+
     print('MoDitLog: Push notification permission granted.');
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print("MoDitLog: Foreground message received: ${message.notification?.title}");
+
       final notification = message.notification;
       final android = notification?.android;
 
@@ -70,8 +73,10 @@ void main() async {
           NotificationDetails(
             android: AndroidNotificationDetails(
               'modit_channel_id',
+
               'MoDit Notification',
               channelDescription: 'Shows notifications while the app is active',
+
               importance: Importance.max,
               priority: Priority.high,
               color: const Color(0xFFB8BDF1),
@@ -80,6 +85,7 @@ void main() async {
         );
       }
     });
+
 
     print('MoDitLog: All initialization complete. Running app...');
     runApp(const MoDitApp());
@@ -111,7 +117,9 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
+
       home: SplashScreen(), // You can add logs in SplashScreen too
+
     );
   }
 }

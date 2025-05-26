@@ -24,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final userSnapshot = await db.child('user').child(email.text.replaceAll('.', '_')).get();
 
     if (userSnapshot.exists) {
-      final data = userSnapshot.value as Map;
+      final data = Map<String, dynamic>.from(userSnapshot.value as Map);
       if (data['password'] == password.text) {
         final userKey = email.text.replaceAll('.', '_');
         final token = await FirebaseMessaging.instance.getToken();
