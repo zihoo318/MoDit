@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'chatting.dart';
@@ -132,6 +134,156 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     );
   }
 
+  void _showAddFriendDialog() async {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+
+    // 1) 내 친구 목록 가져오기
+    final friendsSnap = await db.child('user').child(userKey).child('friends').get();
+    if (!friendsSnap.exists) {
+      _showSnackBar('친구가 없습니다.');
+      return;
+    }
+    final friendsData = Map<String, dynamic>.from(friendsSnap.value as Map);
+
+    // 2) 친구 이메일 키 리스트
+    final List<String> friendKeys = friendsData.keys.toList();
+
+    // 3) 친구 이름 리스트 가져오기 (비동기)
+    final List<Map<String, String>> friendList = [];
+    for (var fKey in friendKeys) {
+      if (memberNames.contains(await _getUserNameByKey(fKey))) continue; // 이미 멤버면 제외
+
+      final userSnap = await db.child('user').child(fKey).get();
+      if (userSnap.exists) {
+        final userData = userSnap.value as Map;
+        friendList.add({
+          'key': fKey,
+          'name': userData['name'] ?? fKey,
+        });
+      }
+    }
+
+    // 4) 팝업 띄우기
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxWidth: 450,
+                  maxHeight: 380,
+                ),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '👥 친구 추가',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0D0A64),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(thickness: 1, color: Color(0xFF0D0A64)),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: friendList.isEmpty
+                          ? const Center(
+                        child: Text(
+                          '추가할 친구가 없습니다.',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        ),
+                      )
+                          : ListView.builder(
+                        itemCount: friendList.length,
+                        itemBuilder: (context, index) {
+                          final friend = friendList[index];
+                          return ListTile(
+                            title: Text(friend['name'] ?? ''),
+                            onTap: () async {
+                              Navigator.of(context).pop(); // 팝업 닫기
+                              await _addMember(friend['key'] ?? '', friend['name'] ?? '');
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                          foregroundColor: const Color(0xFF0D0A64),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('취소'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+
+  Future<void> _addMember(String friendKey, String friendName) async {
+    try {
+      // 1) DB 내 그룹 멤버에 friendKey 추가 (값은 true 또는 friendName 등)
+      await db.child('groupStudies').child(widget.groupId).child('members').update({
+        friendKey: true,
+      });
+
+      // 2) 로컬 멤버 목록에도 추가
+      setState(() {
+        memberNames.add(friendName);
+      });
+
+      _showSnackBar('$friendName 님이 멤버로 추가되었습니다.');
+    } catch (e) {
+      _showSnackBar('멤버 추가 중 오류가 발생했습니다.');
+    }
+  }
+
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
+
+
+// 이메일 키로 이름 가져오는 헬퍼 함수
+  Future<String> _getUserNameByKey(String emailKey) async {
+    final userSnap = await db.child('user').child(emailKey).get();
+    if (userSnap.exists) {
+      final userData = userSnap.value as Map;
+      return userData['name'] ?? emailKey;
+    }
+    return emailKey;
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -225,21 +377,37 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                           Row(
                             children: [
                               ...memberNames.map((name) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                width: 38,
+                                height: 38,
+                                alignment: Alignment.center,
                                 decoration: const BoxDecoration(
                                   color: Color(0xFFD9D9D9),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(name, style: const TextStyle(fontSize: 15, color: Colors.black)),
                               )),
+
+                              const SizedBox(width: 8),
+                              // 친구 추가 버튼
+                              GestureDetector(
+                                onTap: _showAddFriendDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.add, color: Colors.white, size: 19),
+                                ),
+                              ),
                               const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () {
                                   setState(() => _isMyPageOpen = !_isMyPageOpen);
                                 },
                                 child: const CircleAvatar(
-                                  radius: 16,
+                                  radius: 20,
                                   backgroundColor: Colors.white,
                                   backgroundImage: AssetImage('assets/images/user_icon2.png'),
                                 ),
@@ -491,6 +659,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       case 2:
         return MeetingCalendarWidget(
           groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
           onRecordDateSelected: (date, meetingId) {
             setState(() {
               _recordDate = date;

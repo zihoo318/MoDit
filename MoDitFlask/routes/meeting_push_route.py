@@ -11,6 +11,20 @@ def send_meeting_alert():
     data = request.json
     group_id = data.get("groupId")
     date = data.get("date")
+    sender_email = data.get("senderEmail")  # 등록자 이메일
+
+    if not group_id or not date or not sender_email:
+        return jsonify({"error": "Missing data"}), 400
+
+    # 이메일 키 변환 (Firebase DB와 동일한 포맷으로)
+    sanitized_sender = (
+        sender_email.replace('.', '_')
+                    .replace('#', '_')
+                    .replace('$', '_')
+                    .replace('[', '_')
+                    .replace(']', '_')
+                    .replace('/', '_')
+    )
 
     group_ref = db.reference(f"groupStudies/{group_id}")
     members_ref = group_ref.child("members").get()
@@ -20,6 +34,9 @@ def send_meeting_alert():
         return jsonify({"error": "Invalid group or members"}), 400
 
     for email_key in members_ref:
+        if email_key == sanitized_sender:
+            print("등록자 본인 → 알림 건너뜀")
+            continue  # 등록자 본인 제외
         user_ref = db.reference(f"user/{email_key}")
         fcm_token = user_ref.child("fcmToken").get()
         if fcm_token:

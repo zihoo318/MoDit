@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -11,11 +13,13 @@ import 'flask_api.dart';
 
 class MeetingCalendarWidget extends StatefulWidget {
   final String groupId;
+  final String currentUserEmail;
   final void Function(DateTime, String) onRecordDateSelected;
 
   const MeetingCalendarWidget({
     super.key,
     required this.groupId,
+    required this.currentUserEmail,
     required this.onRecordDateSelected,
   });
 
@@ -30,10 +34,41 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   List<Map<String, dynamic>> meetings = [];
 
+  late StreamSubscription<DatabaseEvent> _meetingSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadMeetings();
+
+    // 실시간 리스너 등록
+    _meetingSubscription = db.child('groupStudies/${widget.groupId}/meeting').onValue.listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final List<Map<String, dynamic>> loaded = [];
+        for (final entry in data.entries) {
+          final value = Map<String, dynamic>.from(entry.value);
+          final date = DateTime.tryParse(value['date'] ?? '');
+          if (date != null) {
+            loaded.add({...value, 'date': date, 'id': entry.key});
+          }
+        }
+        setState(() {
+          meetings = loaded;
+        });
+      } else {
+        setState(() {
+          meetings = [];
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _meetingSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _loadMeetings() async {
@@ -273,20 +308,20 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                                   });
                                 }
 
-                                // ✅ Flask 서버로 알림 푸시 요청
+                                // Flask 서버로 알림 푸시 요청
                                 await http.post(
-                                  Uri.parse('${Api.baseUrl}/send_meeting_alert'),  // 실제 EC2 주소로 교체
+                                  Uri.parse('${Api.baseUrl}/send_meeting_alert'),
                                   headers: {"Content-Type": "application/json"},
                                   body: jsonEncode({
                                     "groupId": widget.groupId,
                                     "date": DateFormat('yyyy.MM.dd').format(pickedDate),
+                                    "senderEmail": widget.currentUserEmail, // 추가
                                   }),
                                 );
                               }
 
                               if (mounted) {
                                 setState(() {
-                                  meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
                                   selectedDate = pickedDate;
                                   focusedDate = pickedDate;
                                 });
