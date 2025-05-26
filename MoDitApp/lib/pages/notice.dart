@@ -204,6 +204,8 @@ class _NoticePageState extends State<NoticePage> {
                                   const SizedBox(width: 8),
                                   OutlinedButton(
                                     onPressed: () async {
+                                      Navigator.pop(context);
+
                                       final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
                                       await newRef.set({
                                         'title': titleController.text,
@@ -300,8 +302,7 @@ class _NoticePageState extends State<NoticePage> {
               onTap: _showNoticeDialog,
               child: Row(
                 children: [
-                  const Text('공지사항 등록', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
+                  const Text('공지사항 등록', style: TextStyle(fontSize: 18)),                  const SizedBox(width: 4),
                   Image.asset('assets/images/plus_icon2.png', width: 20),
                 ],
               ),

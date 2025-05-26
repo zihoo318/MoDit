@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -32,10 +34,41 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   List<Map<String, dynamic>> meetings = [];
 
+  late StreamSubscription<DatabaseEvent> _meetingSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadMeetings();
+
+    // 실시간 리스너 등록
+    _meetingSubscription = db.child('groupStudies/${widget.groupId}/meeting').onValue.listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final List<Map<String, dynamic>> loaded = [];
+        for (final entry in data.entries) {
+          final value = Map<String, dynamic>.from(entry.value);
+          final date = DateTime.tryParse(value['date'] ?? '');
+          if (date != null) {
+            loaded.add({...value, 'date': date, 'id': entry.key});
+          }
+        }
+        setState(() {
+          meetings = loaded;
+        });
+      } else {
+        setState(() {
+          meetings = [];
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _meetingSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _loadMeetings() async {
@@ -289,7 +322,6 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
                               if (mounted) {
                                 setState(() {
-                                  meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
                                   selectedDate = pickedDate;
                                   focusedDate = pickedDate;
                                 });
