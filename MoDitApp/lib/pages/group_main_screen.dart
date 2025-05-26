@@ -491,6 +491,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
       case 2:
         return MeetingCalendarWidget(
           groupId: widget.groupId,
+          currentUserEmail: widget.currentUserEmail,
           onRecordDateSelected: (date, meetingId) {
             setState(() {
               _recordDate = date;

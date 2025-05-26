@@ -118,7 +118,7 @@ class MoDitApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
 
-      home: SplashScreen(), // You can add logs in SplashScreen too
+      home: SplashScreen(),
         //home: HomeScreen(currentUserEmail: 'yu@naver.com', currentUserName: '유진',),
     );
   }

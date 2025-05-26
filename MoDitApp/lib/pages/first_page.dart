@@ -88,8 +88,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           'timestamp': val['timestamp'] ?? 0,
           'category': val['category'] ?? '',
           'groupId': val['groupId'] ?? '',
+          'isRead': val['isRead'] ?? false,  // 기본 false
         };
       }).toList();
+
 
       // 최신순 정렬 (timestamp 내림차순)
       notifList.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
@@ -508,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   width: 32,
                                   height: 32,
                                 ),
-                                if (_notifications.isNotEmpty)
+                                if (_notifications.where((e) => e['isRead'] == false).isNotEmpty)
                                   Positioned(
                                     right: -4,
                                     top: -4,
@@ -520,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       ),
                                       constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                                       child: Text(
-                                        '${_notifications.length}',
+                                        '${_notifications.where((e) => e['isRead'] == false).length}',
                                         style: const TextStyle(color: Colors.white, fontSize: 10),
                                         textAlign: TextAlign.center,
                                       ),
@@ -945,28 +947,57 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           itemBuilder: (context, index) {
                             final notif = _notifications[index];
                             return ListTile(
-                              leading: const Icon(Icons.notifications_active),
+                              leading: Stack(
+                                children: [
+                                  const Icon(Icons.notifications_active),
+                                  if (notif['isRead'] == false)  // 읽지 않은 경우에만 빨간 점
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+
                               title: Text(notif['message']),
                               subtitle: Text(DateFormat('yyyy.MM.dd HH:mm').format(
                                 DateTime.fromMillisecondsSinceEpoch(notif['timestamp']),
                               )),
-                              onTap: () {
+                              onTap: () async {
                                 print('알림 클릭: ${notif['message']}');
+
+                                // 읽음 처리 로직 (Firebase에 isRead=true 업데이트)
+                                final userKey = widget.currentUserEmail.replaceAll('.', '_');
+                                final notifId = notif['id'];
+                                await db.child('user').child(userKey).child('push').child(notifId).update({'isRead': true});
 
                                 setState(() {
                                   _isNotificationOpen = false;
+                                  // 로컬 알림 리스트에서도 해당 알림을 읽음 처리
+                                  final index = _notifications.indexWhere((element) => element['id'] == notifId);
+                                  if (index != -1) {
+                                    _notifications[index]['isRead'] = true;
+                                  }
                                 });
 
+                                // 이후 화면 이동 등 기존 코드 유지
                                 int tabIndex = 0;
                                 switch (notif['category']) {
                                   case 'task':
-                                    tabIndex = 3;    // GroupMainScreen 내 과제 관리 탭 index는 3
+                                    tabIndex = 3;
                                     break;
                                   case 'meeting':
-                                    tabIndex = 2;    // 미팅 일정 탭 index는 2
+                                    tabIndex = 2;
                                     break;
                                   case 'notice':
-                                    tabIndex = 4;    // 공지사항 탭 index는 4
+                                    tabIndex = 4;
                                     break;
                                   default:
                                     tabIndex = 0;
@@ -995,8 +1026,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     },
                                   ),
                                 );
-
                               },
+
                             );
                           },
                         ),
