@@ -594,13 +594,11 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                     child: Scrollbar(
                       child: Builder(
                         builder: (context) {
-                          final sortedTasks = List<Map<String, dynamic>>.from(
-                            tasks,
-                          )..sort(
-                                (a, b) => DateTime.parse(
-                              a['deadline'],
-                            ).compareTo(DateTime.parse(b['deadline'])),
-                          );
+                          final now = DateTime.now();
+                          final sortedTasks = List<Map<String, dynamic>>.from(tasks)
+                              .where((task) => DateTime.parse(task['deadline']).isAfter(now) || DateTime.parse(task['deadline']).isAtSameMomentAs(now))
+                              .toList()
+                            ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
 
                           return ListView.builder(
                             itemCount: sortedTasks.length,
