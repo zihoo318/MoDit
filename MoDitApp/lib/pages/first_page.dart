@@ -36,6 +36,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isEditingName = false;
   late TextEditingController _nameController;
 
+  bool _isNotificationOpen = false; // 알림창 열림 여부
+  List<Map<String, dynamic>> _notifications = []; // 알림 데이터 리스트
+
+  // 알림 탭 애니메이션 변수
+  late AnimationController _notificationAnimController;
+  late Animation<double> _notificationScaleAnimation;
+  late Animation<double> _notificationHeightAnimation;
+
 
   @override
   void initState() {
@@ -57,11 +65,67 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     listenToUserNotes();
     _nameController = TextEditingController(text: widget.currentUserName);
 
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+
+    db.child('user').child(userKey).child('push').onValue.listen((event) {
+      if (!mounted) return;
+
+      final data = event.snapshot.value;
+      if (data == null) {
+        setState(() {
+          _notifications = [];
+        });
+        return;
+      }
+
+      final Map<dynamic, dynamic> rawMap = data as Map<dynamic, dynamic>;
+
+      final List<Map<String, dynamic>> notifList = rawMap.entries.map((entry) {
+        final val = Map<String, dynamic>.from(entry.value);
+        return {
+          'id': entry.key,
+          'message': val['message'] ?? '',
+          'timestamp': val['timestamp'] ?? 0,
+          'category': val['category'] ?? '',
+          'groupId': val['groupId'] ?? '',
+        };
+      }).toList();
+
+      // 최신순 정렬 (timestamp 내림차순)
+      notifList.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+
+      setState(() {
+        _notifications = notifList;
+      });
+    });
+
+    _notificationAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _notificationScaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _notificationAnimController,
+        curve: Curves.elasticOut,
+      ),
+    );
+    _notificationHeightAnimation = Tween<double>(begin: 0, end: 480).animate(
+      CurvedAnimation(
+        parent: _notificationAnimController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _notificationAnimController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _groupAnimController.dispose();
+    _notificationAnimController.dispose();
     super.dispose();
   }
 
@@ -423,6 +487,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(width: 4),
                           Image.asset('assets/images/plus_icon2.png', width: 24),
                           const SizedBox(width: 12),
+
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isNotificationOpen = !_isNotificationOpen;
+                              });
+
+                              if (_isNotificationOpen) {
+                                _notificationAnimController.forward(from: 0.0);
+                              } else {
+                                _notificationAnimController.reverse();
+                              }
+                            },
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Image.asset(
+                                  'assets/images/bell.png',
+                                  width: 32,
+                                  height: 32,
+                                ),
+                                if (_notifications.isNotEmpty)
+                                  Positioned(
+                                    right: -4,
+                                    top: -4,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                      child: Text(
+                                        '${_notifications.length}',
+                                        style: const TextStyle(color: Colors.white, fontSize: 10),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 12), // 프로필과 알림 아이콘 간 간격
+
+                          // 프로필 CircleAvatar 기존 코드
                           GestureDetector(
                             onTap: () {
                               setState(() => _isMyPageOpen = !_isMyPageOpen);
@@ -434,6 +544,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                         ],
+
                       ),
                     ),
                   ],
@@ -789,8 +900,111 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-            ],
+              if (_isNotificationOpen)
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isNotificationOpen = false;
+                      });
+                    },
+                    child: Container(
+                      color: Colors.transparent, // 투명 배경
+                    ),
+                  ),
+                ),
 
+              if (_isNotificationOpen)
+                Positioned(
+                  top: 90,
+                  right: 40,
+                  width: 450,
+                  height: _notificationHeightAnimation.value,
+                  child: AnimatedBuilder(
+                    animation: _notificationScaleAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _notificationScaleAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: _notifications.isEmpty
+                            ? const Center(child: Text('알림이 없습니다.'))
+                            : ListView.separated(
+                          itemCount: _notifications.length,
+                          separatorBuilder: (_, __) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final notif = _notifications[index];
+                            return ListTile(
+                              leading: const Icon(Icons.notifications_active),
+                              title: Text(notif['message']),
+                              subtitle: Text(DateFormat('yyyy.MM.dd HH:mm').format(
+                                DateTime.fromMillisecondsSinceEpoch(notif['timestamp']),
+                              )),
+                              onTap: () {
+                                print('알림 클릭: ${notif['message']}');
+
+                                setState(() {
+                                  _isNotificationOpen = false;
+                                });
+
+                                int tabIndex = 0;
+                                switch (notif['category']) {
+                                  case 'task':
+                                    tabIndex = 3;    // GroupMainScreen 내 과제 관리 탭 index는 3
+                                    break;
+                                  case 'meeting':
+                                    tabIndex = 2;    // 미팅 일정 탭 index는 2
+                                    break;
+                                  case 'notice':
+                                    tabIndex = 4;    // 공지사항 탭 index는 4
+                                    break;
+                                  default:
+                                    tabIndex = 0;
+                                }
+
+                                Navigator.of(context).push(
+                                  PageRouteBuilder(
+                                    transitionDuration: const Duration(milliseconds: 500),
+                                    pageBuilder: (context, animation, secondaryAnimation) => GroupMainScreen(
+                                      groupId: notif['groupId'],
+                                      currentUserEmail: widget.currentUserEmail,
+                                      currentUserName: widget.currentUserName,
+                                      initialTabIndex: tabIndex,
+                                    ),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      final tween = Tween(begin: 0.95, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
+                                      final fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(animation);
+
+                                      return FadeTransition(
+                                        opacity: fadeAnimation,
+                                        child: ScaleTransition(
+                                          scale: animation.drive(tween),
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                );
+
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+            ],
           ),
         )
     );
