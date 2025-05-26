@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -21,6 +23,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
   print('MoDitLog: >> Entered main()');
 
@@ -53,6 +56,7 @@ void main() async {
       badge: true,
       sound: true,
     );
+
     print('MoDitLog: Push notification permission granted.');
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -69,8 +73,10 @@ void main() async {
           NotificationDetails(
             android: AndroidNotificationDetails(
               'modit_channel_id',
+
               'MoDit Notification',
               channelDescription: 'Shows notifications while the app is active',
+
               importance: Importance.max,
               priority: Priority.high,
               color: const Color(0xFFB8BDF1),
@@ -80,12 +86,14 @@ void main() async {
       }
     });
 
+
     print('MoDitLog: All initialization complete. Running app...');
     runApp(const MoDitApp());
   } catch (e) {
     print('MoDitLog: ERROR in main(): $e');
   }
 }
+
 
 class MoDitApp extends StatelessWidget {
   const MoDitApp({super.key});
@@ -109,7 +117,9 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
+
       home: SplashScreen(), // You can add logs in SplashScreen too
+
     );
   }
 }
