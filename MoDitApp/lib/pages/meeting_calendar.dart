@@ -11,11 +11,13 @@ import 'flask_api.dart';
 
 class MeetingCalendarWidget extends StatefulWidget {
   final String groupId;
+  final String currentUserEmail;
   final void Function(DateTime, String) onRecordDateSelected;
 
   const MeetingCalendarWidget({
     super.key,
     required this.groupId,
+    required this.currentUserEmail,
     required this.onRecordDateSelected,
   });
 
@@ -273,13 +275,14 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
                                   });
                                 }
 
-                                // ✅ Flask 서버로 알림 푸시 요청
+                                // Flask 서버로 알림 푸시 요청
                                 await http.post(
-                                  Uri.parse('${Api.baseUrl}/send_meeting_alert'),  // 실제 EC2 주소로 교체
+                                  Uri.parse('${Api.baseUrl}/send_meeting_alert'),
                                   headers: {"Content-Type": "application/json"},
                                   body: jsonEncode({
                                     "groupId": widget.groupId,
                                     "date": DateFormat('yyyy.MM.dd').format(pickedDate),
+                                    "senderEmail": widget.currentUserEmail, // 추가
                                   }),
                                 );
                               }
