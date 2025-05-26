@@ -39,8 +39,54 @@ class _NoticePageState extends State<NoticePage> {
   @override
   void initState() {
     super.initState();
-    loadNotices();
+
+    db.child('groupStudies')
+        .child(widget.groupId)
+        .child('notices')
+        .onValue
+        .listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final list = data.entries.map((e) {
+          final item = Map<String, dynamic>.from(e.value as Map);
+          return <String, dynamic>{
+            'id': e.key,
+            'title': item['title'] ?? '',
+            'body': item['body'] ?? '',
+            'name': item['name'] ?? '',
+            'email': item['email'] ?? '',
+            'createdAt': item['createdAt'] ?? 0,
+            'pinned': item['pinned'] ?? false,
+          };
+        }).toList();
+
+        list.sort((a, b) {
+          if (a['pinned'] != b['pinned']) {
+            return (b['pinned'] ? 1 : 0) - (a['pinned'] ? 1 : 0);
+          }
+          return (b['createdAt'] as int).compareTo(a['createdAt'] as int);
+        });
+
+        final Map<String, dynamic>? updated = list.cast<Map<String, dynamic>?>().firstWhere(
+              (element) => element!['id'] == selectedNotice?['id'],
+          orElse: () => null,
+        );
+
+        setState(() {
+          notices = list;
+          selectedNotice = updated;
+        });
+      } else {
+        setState(() {
+          notices = [];
+          selectedNotice = null;
+        });
+      }
+    });
   }
+
+
 
   void loadNotices() async {
     final noticeSnap = await db
