@@ -204,6 +204,8 @@ class _NoticePageState extends State<NoticePage> {
                                   const SizedBox(width: 8),
                                   OutlinedButton(
                                     onPressed: () async {
+                                      Navigator.pop(context);
+
                                       final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
                                       await newRef.set({
                                         'title': titleController.text,
@@ -300,8 +302,7 @@ class _NoticePageState extends State<NoticePage> {
               onTap: _showNoticeDialog,
               child: Row(
                 children: [
-                  const Text('공지사항 등록', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
+                  const Text('공지사항 등록', style: TextStyle(fontSize: 18)),                  const SizedBox(width: 4),
                   Image.asset('assets/images/plus_icon2.png', width: 20),
                 ],
               ),
@@ -379,46 +380,121 @@ class _NoticePageState extends State<NoticePage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('공지사항 수정'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: '제목'),
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 450,
+                  maxHeight: 410,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '📝 공지사항 수정',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0D0A64),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(thickness: 1, color: Color(0xFF0D0A64)),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextField(
+                                controller: titleController,
+                                decoration: const InputDecoration(
+                                  labelText: '제목',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: bodyController,
+                                maxLines: null,
+                                minLines: 4,
+                                decoration: const InputDecoration(
+                                  labelText: '내용',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                                foregroundColor: const Color(0xFF0D0A64),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('취소'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: () async {
+                                final id = notice['id'];
+                                await db
+                                    .child('groupStudies')
+                                    .child(widget.groupId)
+                                    .child('notices')
+                                    .child(id)
+                                    .update({
+                                  'title': titleController.text.trim(),
+                                  'body': bodyController.text.trim(),
+                                });
+                                Navigator.pop(context);
+                                loadNotices();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                                foregroundColor: const Color(0xFF0D0A64),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('저장'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bodyController,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: '내용'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-          TextButton(
-            onPressed: () async {
-              final id = notice['id'];
-              await db
-                  .child('groupStudies')
-                  .child(widget.groupId)
-                  .child('notices')
-                  .child(id)
-                  .update({
-                'title': titleController.text.trim(),
-                'body': bodyController.text.trim(),
-              });
-              Navigator.pop(context);
-              loadNotices();
-            },
-            child: const Text('저장', style: TextStyle(color: Color(0xFF0D0A64))),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+
 
   void _deleteNotice(Map<String, dynamic> notice) async {
     final confirm = await showDialog<bool>(

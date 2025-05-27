@@ -25,14 +25,12 @@ FlutterLocalNotificationsPlugin();
 void main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
-  print('MoDitLog: >> Entered main()');
 
   try {
     print('MoDitLog: Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('MoDitLog: Firebase initialized.');
 
     print('MoDitLog: Starting anonymous sign-in...');
     await FirebaseAuth.instance.signInAnonymously();
@@ -44,7 +42,6 @@ void main() async {
       android: initializationSettingsAndroid,
     );
 
-    print('MoDitLog: Initializing local notifications...');
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     print('MoDitLog: Local notifications initialized.');
 
@@ -118,8 +115,8 @@ class MoDitApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
 
-      home: SplashScreen(),
-      //home: HomeScreen(currentUserEmail: 'yu@naver.com', currentUserName: '유진',),
+      //home: SplashScreen(),
+      home: HomeScreen(currentUserEmail: 'ji@naver.com', currentUserName: '지후',),
     );
   }
 }
