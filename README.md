@@ -119,23 +119,68 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 ![entire_alarm](https://github.com/user-attachments/assets/d6b1b1e3-e576-4314-b04f-8a171d5aa917)
 
 
-| **🔹 Splash 화면** | **📝 노트 기능** |
-|:--:|:--:|
-| ![Splash](https://github.com/user-attachments/assets/88875736-8297-438a-be6f-3779ade382d8) | ![Note](https://github.com/user-attachments/assets/c4b8cf4a-e931-46b3-b635-e7ddba84b641) |
-| 앱 실행 시 나타나는 초기 로딩 화면입니다. | 손글씨, 텍스트 입력, 이미지 삽입, OCR 인식 및 AI 요약까지 지원하는 올인원 노트입니다. |
+---
 
-| **⏱️ 공부시간 측정** | **📅 미팅 일정 & 회의 녹음** |
-| ![Study](https://github.com/user-attachments/assets/fd07a3b3-d401-43db-a664-4b35843ab0e6) | ![미팅 일정 & 녹음](assets/미팅일정&녹음.gif) |
-| 개별 실시간 공부 시간을 기록하고<br>그룹원 간 학습 현황을 확인할 수 있습니다. | 캘린더 기반 일정 관리와 회의 녹음,<br>텍스트 변환 및 AI 요약 기능이 통합된 협업 도구입니다. |
 
-| **📂 과제 관리** | **📢 공지사항** |
-| ![과제 관리](assets/과제관리화면.gif) | ![공지사항](assets/공지사항화면.gif) |
-| 과제 등록, 소과제 생성, 마감일 설정,<br>과제 제출 및 제출 현황 확인 기능을 제공합니다. | 공지사항을 등록하고,<br>그룹원에게 실시간 푸시 알림으로 안내할 수 있습니다. |
+<table style="width: 100%; table-layout: fixed;">
+  <tr>
+    <td style="width: 50%; vertical-align: top; text-align: center;">
+      <strong>🔹 Splash 화면</strong>
+    </td>
+    <td style="width: 50%; vertical-align: top; text-align: center;">
+      <strong>📝 노트 기능</strong>
+    </td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/88875736-8297-438a-be6f-3779ade382d8" width="90%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/c4b8cf4a-e931-46b3-b635-e7ddba84b641" width="90%"/></td>
+  </tr>
+  <tr>
+    <td>앱 실행 시 나타나는 초기 로딩 화면입니다.</td>
+    <td>손글씨, 텍스트 입력, 이미지 삽입, OCR 인식 및 AI 요약까지 지원하는 올인원 노트입니다.</td>
+  </tr>
 
-| **💬 채팅** | **🔔 전체 알림 푸시** |
-| ![채팅](https://github.com/user-attachments/assets/ab77caa6-0589-4ef5-a17f-3c07a9187dfe) | ![알림](https://github.com/user-attachments/assets/d6b1b1e3-e576-4314-b04f-8a171d5aa917) |
-| 실시간 그룹 채팅과 '찌르기' 기능을 통해<br>그룹원 간 학습 동기를 유도할 수 있습니다. | 미팅, 과제, 공지사항, 채팅 등 주요 이벤트 발생 시<br>실시간으로 푸시 알림이 전송됩니다. |
+  <tr>
+    <td><strong>⏱️ 공부시간 측정</strong></td>
+    <td><strong>📅 미팅 일정 & 회의 녹음</strong></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/fd07a3b3-d401-43db-a664-4b35843ab0e6" width="90%"/></td>
+    <td><img src="assets/미팅일정&녹음.gif" width="90%"/></td>
+  </tr>
+  <tr>
+    <td>개별 실시간 공부 시간을 기록하고<br/>그룹원 간 학습 현황을 확인할 수 있습니다.</td>
+    <td>캘린더 기반 일정 관리와 회의 녹음,<br/>텍스트 변환 및 AI 요약 기능이 통합된 협업 도구입니다.</td>
+  </tr>
 
+  <tr>
+    <td><strong>📂 과제 관리</strong></td>
+    <td><strong>📢 공지사항</strong></td>
+  </tr>
+  <tr>
+    <td><img src="assets/과제관리화면.gif" width="90%"/></td>
+    <td><img src="assets/공지사항화면.gif" width="90%"/></td>
+  </tr>
+  <tr>
+    <td>과제 등록, 소과제 생성, 마감일 설정,<br/>과제 제출 및 제출 현황 확인 기능을 제공합니다.</td>
+    <td>공지사항을 등록하고,<br/>그룹원에게 실시간 푸시 알림으로 안내할 수 있습니다.</td>
+  </tr>
+
+  <tr>
+    <td><strong>💬 채팅</strong></td>
+    <td><strong>🔔 전체 알림 푸시</strong></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/ab77caa6-0589-4ef5-a17f-3c07a9187dfe" width="90%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/d6b1b1e3-e576-4314-b04f-8a171d5aa917" width="90%"/></td>
+  </tr>
+  <tr>
+    <td>실시간 그룹 채팅과 '찌르기' 기능을 통해<br/>그룹원 간 학습 동기를 유도할 수 있습니다.</td>
+    <td>미팅, 과제, 공지사항, 채팅 등 주요 이벤트 발생 시<br/>실시간으로 푸시 알림이 전송됩니다.</td>
+  </tr>
+</table>
+
+---
 
 ## 🛠 사용 모듈 및 버전 관리
 >Flask 백엔드에서 사용하는 주요 Python 모듈과 해당 버전입니다.
