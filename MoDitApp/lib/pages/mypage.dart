@@ -20,12 +20,24 @@ class _MyPagePopupState extends State<MyPagePopup> {
   late TextEditingController _nameController;
   final db = FirebaseDatabase.instance.ref();
   bool _isEditingName = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.userName);
+
+    _loadUserName();
   }
+
+  Future<void> _loadUserName() async {
+    final name = await fetchUserName(widget.userEmail);
+    setState(() {
+      _nameController.text = name;
+      _isLoading = false;
+    });
+  }
+
 
   Future<void> _updateName() async {
     final newName = _nameController.text.trim();
@@ -52,6 +64,22 @@ class _MyPagePopupState extends State<MyPagePopup> {
     setState(() => _isEditingName = false);
   }
 
+  Future<String> fetchUserName(String email) async {
+    final userKey = email.replaceAll('.', '_');
+    final snapshot = await FirebaseDatabase.instance.ref()
+        .child('user')
+        .child(userKey)
+        .child('name')
+        .get();
+
+    if (snapshot.exists) {
+      return snapshot.value as String;
+    } else {
+      return email.split('@')[0]; // fallback
+    }
+  }
+
+
   void _logout() {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -71,7 +99,9 @@ class _MyPagePopupState extends State<MyPagePopup> {
             color: const Color(0xFFECE6F0),
             borderRadius: BorderRadius.circular(70),
           ),
-          child: Column(
+          child: _isLoading
+              ? const CircularProgressIndicator()
+              : Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(

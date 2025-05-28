@@ -113,7 +113,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 children: [
                   // 왼쪽 컬럼
                   SizedBox(
-                    width: cardW + 45,
+                    width: cardW +35,
                     height: h * 0.9,
                     child: Column(
                       children: [
@@ -124,7 +124,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           onTap: () => setState(() => _selectedCardIndex = 1),
                           targetCenter: widget.targetCenter,
                           child: SizedBox(
-                            height: 360, // 원하는 높이로 지정
+                            height: 320, // 원하는 높이로 지정
                             child: _buildCardContainer(
                               title: '공부 시간',
                               icon: 'study_icon',
@@ -148,9 +148,12 @@ class _MenuScreenState extends State<MenuScreen> {
                           selectedIndex: _selectedCardIndex,
                           onTap: () => setState(() => _selectedCardIndex = 3),
                           targetCenter: widget.targetCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: _buildTaskCard(),
+                          child: SizedBox(
+                            height: 107, // 원하는 높이로 조절
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: _buildTaskCard(),
+                            ),
                           ),
                           onCompleted: () => widget.onNavigateToTab?.call(3),
                         ),
@@ -166,12 +169,15 @@ class _MenuScreenState extends State<MenuScreen> {
                                 selectedIndex: _selectedCardIndex,
                                 onTap: () => setState(() => _selectedCardIndex = 4),
                                 targetCenter: widget.targetCenter,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 1),
-                                  child: _buildCard(
-                                    title: '공지사항',
-                                    icon: 'notice_icon',
-                                    iconSize: 40,
+                                child: SizedBox(
+                                  height: 110, // 원하는 높이로 설정
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 1),
+                                    child: _buildCard(
+                                      title: '공지사항',
+                                      icon: 'notice_icon',
+                                      iconSize: 40,
+                                    ),
                                   ),
                                 ),
                                 onCompleted: () => widget.onNavigateToTab?.call(4),
@@ -183,12 +189,15 @@ class _MenuScreenState extends State<MenuScreen> {
                                 selectedIndex: _selectedCardIndex,
                                 onTap: () => setState(() => _selectedCardIndex = 5),
                                 targetCenter: widget.targetCenter,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  child: _buildCard(
-                                    title: '채팅',
-                                    icon: 'chatting_icon',
-                                    iconSize: 40,
+                                child: SizedBox(
+                                  height: 110, // 원하는 높이로 설정
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: _buildCard(
+                                      title: '채팅',
+                                      icon: 'chatting_icon',
+                                      iconSize: 40,
+                                    ),
                                   ),
                                 ),
                                 onCompleted: () => widget.onNavigateToTab?.call(5),
@@ -200,25 +209,26 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                   ),
 
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 15),
 
                   // 오른쪽 미팅 일정 & 녹음 카드 (index = 2)
-                  AnimatedCard(
-                    index: 2,
-                    selectedIndex: _selectedCardIndex,
-                    onTap: () => setState(() => _selectedCardIndex = 2),
-                    targetCenter: widget.targetCenter,
-                    child: SizedBox(
-                      width: cardW + 150,
-                      height: w * 0.4 + 40,
-                      child: _buildCardContainer(
-                        title: '미팅 일정 & 녹음',
-                        icon: 'calendar_icon',
-                        iconSize: 29,
-                        child: MeetingCalendarCard(groupId: widget.groupId),
+                  Expanded(
+                    child: AnimatedCard(
+                      index: 2,
+                      selectedIndex: _selectedCardIndex,
+                      onTap: () => setState(() => _selectedCardIndex = 2),
+                      targetCenter: widget.targetCenter,
+                      child: Container( // SizedBox → Container로 height만 제한
+                        height: w * 0.4 + 53,
+                        child: _buildCardContainer(
+                          title: '미팅 일정 & 녹음',
+                          icon: 'calendar_icon',
+                          iconSize: 29,
+                          child: MeetingCalendarCard(groupId: widget.groupId),
+                        ),
                       ),
+                      onCompleted: () => widget.onNavigateToTab?.call(2),
                     ),
-                    onCompleted: () => widget.onNavigateToTab?.call(2),
                   ),
                 ],
               ),
@@ -293,8 +303,14 @@ class _MenuScreenState extends State<MenuScreen> {
     if (deadlineStr != null) {
       final dl = DateTime.tryParse(deadlineStr);
       if (dl != null) {
-        final diff = DateTime(dl.year, dl.month, dl.day).difference(DateTime.now()).inDays;
-        dDay = 'D-${diff >= 0 ? diff : 0}';
+        final today = DateTime.now();
+        final deadlineDate = DateTime(dl.year, dl.month, dl.day);
+        final todayDate = DateTime(today.year, today.month, today.day);
+        final diff = deadlineDate.difference(todayDate).inDays;
+
+        dDay = (diff == 0)
+            ? 'D-day'
+            : 'D-${diff > 0 ? diff : 0}';
       }
     }
 

@@ -1630,8 +1630,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
                                   if (isNoteMenuVisible && noteMenuPosition != null)
                                     Positioned(
-                                      left: 890,
-                                      top: 10,
+                                      right: 10,
+                                      top: 8,
                                       child: Material(
                                         elevation: 4,
                                         color: Colors.white,
