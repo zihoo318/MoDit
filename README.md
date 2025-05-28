@@ -109,7 +109,7 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
   </tr>
   <tr>
     <td><img src="https://github.com/user-attachments/assets/fd07a3b3-d401-43db-a664-4b35843ab0e6" width="90%"/></td>
-    <td><img src="assets/미팅일정&녹음.gif" width="90%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/e7f6c84d-5840-45ae-99b4-fe7dd29e5906" width="90%"/></td>
   </tr>
   <tr>
     <td>개별 실시간 공부 시간을 기록하고<br/>그룹원 간 학습 현황을 확인할 수 있습니다.</td>
