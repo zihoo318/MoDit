@@ -85,9 +85,6 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ## 🖼️ 주요 기능 시연 영상
 
----
-
-
 <table style="width: 100%; table-layout: fixed;">
   <tr>
     <td style="width: 50%; vertical-align: top; text-align: center;">
