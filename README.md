@@ -120,11 +120,6 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ---
 
-## 🖼️ 작품 소개 사진
-
-![작품사진](https://github.com/user-attachments/assets/493190c2-3a59-4bc4-a1fc-f24d8bb53bdc)
-
----
 ## 🛠 사용 모듈 및 버전 관리
 >Flask 백엔드에서 사용하는 주요 Python 모듈과 해당 버전입니다.
 
