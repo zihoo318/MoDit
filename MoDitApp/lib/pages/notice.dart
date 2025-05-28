@@ -412,7 +412,7 @@ class _NoticePageState extends State<NoticePage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
                   maxWidth: 450,
-                  maxHeight: 410,
+                  maxHeight: 450,
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(24),

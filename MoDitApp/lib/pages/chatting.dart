@@ -222,15 +222,18 @@ class _ChattingPageState extends State<ChattingPage> {
       'body': message,
     };
 
+    print("[FCM] 전송 대상: $toEmail");
+    print("[FCM] 토큰: $token");
+    print("[FCM] 요청 바디: $body");
     try {
       final res = await http.post(
         Uri.parse('${Api.baseUrl}/send_push'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );
-      print("🔔 알림 전송 결과: \${res.statusCode} / \${res.body}");
+      print("🔔 알림 전송 결과: ${res.statusCode} / ${res.body}");
     } catch (e) {
-      print("❌ 알림 전송 예외: \$e");
+      print("❌ 알림 전송 예외: $e");
     }
   }
 

@@ -476,7 +476,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       ),
     );
 
-    if (result == true) setState(() {});
+    //if (result == true) setState(() {});
   }
 
 
@@ -596,8 +596,13 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                       child: Builder(
                         builder: (context) {
                           final now = DateTime.now();
+                          final nowDate = DateTime(now.year, now.month, now.day); // 날짜만 비교용
                           final sortedTasks = List<Map<String, dynamic>>.from(tasks)
-                              .where((task) => DateTime.parse(task['deadline']).isAfter(now) || DateTime.parse(task['deadline']).isAtSameMomentAs(now))
+                              .where((task) {
+                            final deadline = DateTime.parse(task['deadline']);
+                            final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
+                            return deadlineDate.isAfter(nowDate) || deadlineDate.isAtSameMomentAs(nowDate);
+                          })
                               .toList()
                             ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
 
