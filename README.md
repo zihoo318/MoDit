@@ -158,7 +158,8 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
     <td><strong>📢 공지사항</strong></td>
   </tr>
   <tr>
-    <td><img src="" width="90%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/6963ae99-5ef2-4200-b8a2-b4124ec7628b
+" width="90%"/></td>
     <td><img src="https://github.com/user-attachments/assets/30b203a4-5c3e-4fcf-a369-a7926fc136bc" width="90%"/></td>
   </tr>
   <tr>
