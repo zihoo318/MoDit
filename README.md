@@ -107,7 +107,7 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ### 📢 공지사항  
 공지사항을 등록하고, 그룹원에게 실시간 푸시 알림으로 안내할 수 있습니다.  
-![공지사항](assets/공지사항화면.gif)
+![notice_250](https://github.com/user-attachments/assets/30b203a4-5c3e-4fcf-a369-a7926fc136bc)
 
 ### 💬 채팅  
 실시간 그룹 채팅과 '찌르기' 기능을 통해 그룹원 간 학습 동기를 유도할 수 있습니다.
