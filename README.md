@@ -85,40 +85,6 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ## 🖼️ 주요 기능 시연 영상
 
-### 🔹 Splash 화면  
-앱 실행 시 나타나는 초기 로딩 화면입니다.  
-![Image](https://github.com/user-attachments/assets/88875736-8297-438a-be6f-3779ade382d8)
-
-### 📝 노트 기능  
-손글씨, 텍스트 입력, 이미지 삽입, OCR 인식 및 AI 요약까지 지원하는 올인원 노트입니다.  
-![note_5_2](https://github.com/user-attachments/assets/c4b8cf4a-e931-46b3-b635-e7ddba84b641)
-
-### ⏱️ 공부시간 측정  
-개별 실시간 공부 시간을 실시간 기록하며, 그룹원 간 학습 현황을 확인할 수 있습니다.  
-![study_time_5_23](https://github.com/user-attachments/assets/fd07a3b3-d401-43db-a664-4b35843ab0e6)
-
-### 📅 미팅 일정 & 회의 녹음  
-캘린더 기반 일정 관리와 회의 녹음, 텍스트 변환 및 AI 요약 기능이 통합된 협업 도구입니다.  
-![미팅 일정 & 녹음](assets/미팅일정&녹음.gif)
-
-### 📂 과제 관리  
-과제 등록, 소과제 생성, 마감일 설정, 과제 제출 및 제출 현황 확인 기능을 제공합니다.  
-![과제 관리](assets/과제관리화면.gif)
-
-### 📢 공지사항  
-공지사항을 등록하고, 그룹원에게 실시간 푸시 알림으로 안내할 수 있습니다.  
-![notice_250](https://github.com/user-attachments/assets/30b203a4-5c3e-4fcf-a369-a7926fc136bc)
-
-### 💬 채팅  
-실시간 그룹 채팅과 '찌르기' 기능을 통해 그룹원 간 학습 동기를 유도할 수 있습니다.
-![chatting](https://github.com/user-attachments/assets/ab77caa6-0589-4ef5-a17f-3c07a9187dfe)
-
-
-### 🔔 전체 알림 푸시  
-미팅, 과제, 공지사항, 채팅 등 주요 이벤트 발생 시 실시간으로 푸시 알림이 전송됩니다.  
-![entire_alarm](https://github.com/user-attachments/assets/d6b1b1e3-e576-4314-b04f-8a171d5aa917)
-
-
 ---
 
 
