@@ -450,20 +450,16 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     final task = tasks[index];
     final result = await showAnimatedDialog<bool>(
       context: context,
-      builder:
-          (context) => TaskEditPopup(
+      builder: (popupContext) => TaskEditPopup(
         groupId: widget.groupId,
         initialTitle: task['title'],
         initialDeadline: task['deadline'],
-        initialSubTasks:
-        (task['subTasks'] as List)
-            .map<Map<String, String>>(
+        initialSubTasks: (task['subTasks'] as List).map<Map<String, String>>(
               (sub) => {
             'subtitle': sub['subtitle'] ?? '',
             'description': sub['description'] ?? '',
           },
-        )
-            .toList(),
+        ).toList(),
         onTaskUpdated: (newTitle, newDeadline, updatedSubTasks) async {
           await updateTask(
             task['taskId'],
@@ -471,16 +467,20 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
             newDeadline,
             updatedSubTasks,
           );
-          Navigator.pop(context, true);
+          // ✅ 여기서는 팝업 닫지 말 것! 팝업 내부에서 닫음
         },
         onTaskDeleted: () async {
           await deleteTask(task['taskId']);
+          // ✅ 여기서도 팝업 닫지 말 것
         },
       ),
     );
 
     if (result == true) setState(() {});
   }
+
+
+
 
   void _showTaskRegisterDialog() {
     showAnimatedDialog(
@@ -495,7 +495,6 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
     );
   }
 
-  // 팝업 띄우는 애니메이션
   Future<T?> showAnimatedDialog<T>({
     required BuildContext context,
     required WidgetBuilder builder,
@@ -504,6 +503,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      useRootNavigator: false, // ✅ 반드시 false 설정!
       transitionDuration: const Duration(milliseconds: 550),
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -520,6 +520,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
       },
     );
   }
+
 
   Widget _buildCircleTabButton(int index) {
     return GestureDetector(

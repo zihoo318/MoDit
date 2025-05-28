@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'first_page.dart';
@@ -22,17 +21,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
 
   void loginUser() async {
-    try {
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text.trim(),
-      );
+    final userSnapshot = await db.child('user').child(email.text.replaceAll('.', '_')).get();
 
-      final user = userCredential.user;
-      if (user != null) {
+    if (userSnapshot.exists) {
+      final data = Map<String, dynamic>.from(userSnapshot.value as Map);
+      if (data['password'] == password.text) {
+        final userKey = email.text.replaceAll('.', '_');
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) {
-          final userKey = email.text.replaceAll('.', '_');
           await db.child('user').child(userKey).update({'fcmToken': token});
         }
 
@@ -40,20 +36,18 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => HomeScreen(
-              currentUserEmail: user.email!,
-              currentUserName: '', // 필요시 DB에서 이름 불러오기
+              currentUserEmail: email.text,
+              currentUserName: data['name'],
             ),
           ),
         );
+      } else {
+        _showError('비밀번호가 일치하지 않습니다');
       }
-    } catch (e) {
-      // 예외 발생 시 에러 메시지 확인
-      _showError('로그인 실패: ${e.toString()}');
+    } else {
+      _showError('등록되지 않은 사용자입니다');
     }
   }
-
-
-
 
   void _showError(String msg) {
     ScaffoldMessenger.of(

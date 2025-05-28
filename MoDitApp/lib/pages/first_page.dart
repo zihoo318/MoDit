@@ -63,7 +63,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     listenToGroupStudies();
     loadUserNotes();
     listenToUserNotes();
-    _nameController = TextEditingController(text: widget.currentUserName);
+    _nameController = TextEditingController();
+    _loadUserNameFromDB();
 
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
 
@@ -130,6 +131,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _notificationAnimController.dispose();
     super.dispose();
   }
+
+  Future<void> _loadUserNameFromDB() async {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    final snapshot = await db.child('user').child(userKey).get();
+
+    if (snapshot.exists) {
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final nameFromDB = data['name'] ?? widget.currentUserEmail.split('@')[0];
+      setState(() {
+        _nameController.text = nameFromDB;
+      });
+    }
+  }
+
 
   void _logout() {
     Navigator.of(context).pushAndRemoveUntil(
@@ -1008,7 +1023,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     pageBuilder: (context, animation, secondaryAnimation) => GroupMainScreen(
                                       groupId: notif['groupId'],
                                       currentUserEmail: widget.currentUserEmail,
-                                      currentUserName: widget.currentUserName,
+                                      currentUserName: _nameController.text,
                                       initialTabIndex: tabIndex,
                                     ),
                                     transitionsBuilder: (context, animation, secondaryAnimation, child) {

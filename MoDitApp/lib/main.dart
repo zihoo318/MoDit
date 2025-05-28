@@ -116,7 +116,7 @@ class MoDitApp extends StatelessWidget {
       ],
 
       //home: SplashScreen(),
-      home: HomeScreen(currentUserEmail: 'ji@naver.com', currentUserName: '지후',),
+      home: HomeScreen(currentUserEmail: 'ga@naver.com', currentUserName: '가을',),
     );
   }
 }
