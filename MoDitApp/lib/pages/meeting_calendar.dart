@@ -481,7 +481,6 @@ class _MeetingCalendarWidgetState extends State<MeetingCalendarWidget> {
 
                               if (mounted) {
                                 setState(() {
-                                  meetings.add({...newMeeting, 'date': pickedDate, 'id': ref.key});
                                   selectedDate = pickedDate;
                                   focusedDate = pickedDate;
                                 });

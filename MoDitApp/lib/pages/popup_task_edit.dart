@@ -30,19 +30,23 @@ class TaskEditPopup extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 700),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.85),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: TaskEditDialogContent(
-                initialTitle: initialTitle,
-                initialDeadline: initialDeadline,
-                initialSubTasks: initialSubTasks,
-                onTaskUpdated: onTaskUpdated,
-                onTaskDeleted: onTaskDeleted,
+            child: Material(
+              color: Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(30),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: TaskEditDialogContent(
+                  initialTitle: initialTitle,
+                  initialDeadline: initialDeadline,
+                  initialSubTasks: initialSubTasks,
+                  onTaskUpdated: onTaskUpdated,
+                  onTaskDeleted: onTaskDeleted,
+                ),
               ),
             ),
           ),
@@ -97,7 +101,6 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 왼쪽: 제목, 마감일, 소과제 목록
               Expanded(
                 flex: 1,
                 child: Column(
@@ -122,8 +125,7 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
                         );
                         if (pickedDate != null) {
                           setState(() {
-                            deadline =
-                            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                            deadline = "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
                           });
                         }
                       },
@@ -198,8 +200,6 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
                 ),
               ),
               const SizedBox(width: 24),
-
-              // 오른쪽: 소과제 입력
               Expanded(
                 flex: 1,
                 child: Column(
@@ -225,15 +225,13 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
             ],
           ),
           const SizedBox(height: 24),
-
-          // 하단 버튼 영역
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton(
                 onPressed: () {
                   widget.onTaskDeleted();
-                  Navigator.pop(context, true);
+                  Navigator.of(context).pop(true); // ✅ 정상적으로 팝업만 닫힘
                 },
                 child: Row(
                   children: const [
@@ -246,7 +244,7 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
               Row(
                 children: [
                   OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
                       foregroundColor: const Color(0xFF0D0A64),
@@ -259,7 +257,7 @@ class _TaskEditDialogContentState extends State<TaskEditDialogContent> {
                   OutlinedButton(
                     onPressed: () {
                       widget.onTaskUpdated(title, deadline, subTasks);
-                      Navigator.pop(context);
+                      Navigator.of(context).pop(true); // ✅ 여기만 팝업 닫기
                     },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),

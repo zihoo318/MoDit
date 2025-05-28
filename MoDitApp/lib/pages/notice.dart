@@ -39,52 +39,73 @@ class _NoticePageState extends State<NoticePage> {
   @override
   void initState() {
     super.initState();
+    _listenToNotices(); // 비동기 처리 함수 호출
+  }
 
+  void _listenToNotices() {
     db.child('groupStudies')
         .child(widget.groupId)
         .child('notices')
         .onValue
-        .listen((event) {
+        .listen((event) async {
       final snapshot = event.snapshot;
-      if (snapshot.exists) {
-        final data = Map<String, dynamic>.from(snapshot.value as Map);
-        final list = data.entries.map((e) {
-          final item = Map<String, dynamic>.from(e.value as Map);
-          return <String, dynamic>{
-            'id': e.key,
-            'title': item['title'] ?? '',
-            'body': item['body'] ?? '',
-            'name': item['name'] ?? '',
-            'email': item['email'] ?? '',
-            'createdAt': item['createdAt'] ?? 0,
-            'pinned': item['pinned'] ?? false,
-          };
-        }).toList();
 
-        list.sort((a, b) {
-          if (a['pinned'] != b['pinned']) {
-            return (b['pinned'] ? 1 : 0) - (a['pinned'] ? 1 : 0);
-          }
-          return (b['createdAt'] as int).compareTo(a['createdAt'] as int);
-        });
-
-        final Map<String, dynamic>? updated = list.cast<Map<String, dynamic>?>().firstWhere(
-              (element) => element!['id'] == selectedNotice?['id'],
-          orElse: () => null,
-        );
-
-        setState(() {
-          notices = list;
-          selectedNotice = updated;
-        });
-      } else {
+      if (!snapshot.exists) {
         setState(() {
           notices = [];
           selectedNotice = null;
         });
+        return;
       }
+
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final List<Map<String, dynamic>> list = [];
+
+      for (final e in data.entries) {
+        final item = Map<String, dynamic>.from(e.value as Map);
+        final email = item['email'] ?? '';
+        final sanitizedEmail = sanitizeKey(email);
+
+        // Firebase에서 사용자 이름 비동기로 가져오기
+        String nameFromDb = '';
+        try {
+          final userSnapshot = await db.child('user').child(sanitizedEmail).child('name').get();
+          nameFromDb = userSnapshot.exists ? userSnapshot.value.toString() : '';
+        } catch (e) {
+          print('⚠️ 사용자 이름 조회 실패: $e');
+        }
+
+        list.add({
+          'id': e.key,
+          'title': item['title'] ?? '',
+          'body': item['body'] ?? '',
+          'name': nameFromDb,
+          'email': email,
+          'createdAt': item['createdAt'] ?? 0,
+          'pinned': item['pinned'] ?? false,
+        });
+      }
+
+      // 공지사항 정렬
+      list.sort((a, b) {
+        if (a['pinned'] != b['pinned']) {
+          return (b['pinned'] ? 1 : 0) - (a['pinned'] ? 1 : 0);
+        }
+        return (b['createdAt'] as int).compareTo(a['createdAt'] as int);
+      });
+
+      final updated = list.cast<Map<String, dynamic>?>().firstWhere(
+            (element) => element!['id'] == selectedNotice?['id'],
+        orElse: () => null,
+      );
+
+      setState(() {
+        notices = list;
+        selectedNotice = updated;
+      });
     });
   }
+
 
 
 
@@ -204,6 +225,8 @@ class _NoticePageState extends State<NoticePage> {
                                   const SizedBox(width: 8),
                                   OutlinedButton(
                                     onPressed: () async {
+                                      Navigator.pop(context);
+
                                       final newRef = db.child('groupStudies').child(widget.groupId).child('notices').push();
                                       await newRef.set({
                                         'title': titleController.text,
@@ -300,8 +323,7 @@ class _NoticePageState extends State<NoticePage> {
               onTap: _showNoticeDialog,
               child: Row(
                 children: [
-                  const Text('공지사항 등록', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
+                  const Text('공지사항 등록', style: TextStyle(fontSize: 18)),                  const SizedBox(width: 4),
                   Image.asset('assets/images/plus_icon2.png', width: 20),
                 ],
               ),
