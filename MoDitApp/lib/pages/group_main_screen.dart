@@ -214,9 +214,13 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
                           final friend = friendList[index];
                           return ListTile(
                             title: Text(friend['name'] ?? ''),
-                            onTap: () async {
-                              Navigator.of(context).pop(); // 팝업 닫기
-                              await _addMember(friend['key'] ?? '', friend['name'] ?? '');
+                            onTap: () {
+                              final selectedKey = friend['key'] ?? '';
+                              final selectedName = friend['name'] ?? '';
+                              Navigator.of(context).pop(); // 팝업 닫기 먼저
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _addMember(selectedKey, selectedName);
+                              });
                             },
                           );
                         },
@@ -268,7 +272,16 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
 
   void _showSnackBar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(
+        content: Text(
+          msg,
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: const Color(0xFFEAEAFF),
+      ),
     );
   }
 
