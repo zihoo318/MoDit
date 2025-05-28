@@ -114,7 +114,8 @@ pip install flask-cors
 
 pip install firebase-admin
 
-권장 Python 버전: Python 3.8
-가상환경 사용 권장: python -m venv venv
+**권장 Python 버전: Python 3.8**
+
+**가상환경 사용 권장: python -m venv venv**
 
 
