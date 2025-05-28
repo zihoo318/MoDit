@@ -89,27 +89,33 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 ![작품사진](https://github.com/user-attachments/assets/493190c2-3a59-4bc4-a1fc-f24d8bb53bdc)
 
 ---
-### 사용 모듈 및 버전 관리
+🛠 사용 모듈 및 버전 관리
+Flask 백엔드에서 사용하는 주요 Python 모듈과 해당 버전입니다.
 
-**python  -version 3.8**
-
-**pip install boto3==1.6.19 botocore==1.9.20**
-
-pip install openai==1.77.0
-
+# 서버 및 환경 변수
 pip install flask
-
+pip install flask-cors
 pip install python-dotenv
 
+# Firebase 연동
+pip install firebase-admin
+
+# 요약 (Chat GPT 연동)
+pip install openai==1.77.0
+
+# 음성 인식 (NAVER Clova 연동)
 pip install requests
 
+# 이미지 처리 및 OCR
 pip install google-cloud-vision
-
 pip install opencv-python
-
 pip install opencv-python-headless
 
-pip install flask-cors
+# Naver Object Storage 연동 (S3 호환)
+pip install boto3==1.6.19
+pip install botocore==1.9.20
 
-pip install firebase-admin
+권장 Python 버전: Python 3.8
+가상환경 사용 권장: python -m venv venv
+
 
