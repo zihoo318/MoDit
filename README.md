@@ -158,8 +158,8 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
     <td><strong>📢 공지사항</strong></td>
   </tr>
   <tr>
+    <td><img src="" width="90%"/></td>
     <td><img src="https://github.com/user-attachments/assets/30b203a4-5c3e-4fcf-a369-a7926fc136bc" width="90%"/></td>
-    <td><img src="assets/공지사항화면.gif" width="90%"/></td>
   </tr>
   <tr>
     <td>과제 등록, 소과제 생성, 마감일 설정,<br/>과제 제출 및 제출 현황 확인 기능을 제공합니다.</td>
