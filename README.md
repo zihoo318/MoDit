@@ -92,14 +92,24 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 ### 사용 모듈 및 버전 관리
 
 **python  -version 3.8**
+
 **pip install boto3==1.6.19 botocore==1.9.20**
+
 pip install openai==1.77.0
+
 pip install flask
+
 pip install python-dotenv
+
 pip install requests
+
 pip install google-cloud-vision
+
 pip install opencv-python
+
 pip install opencv-python-headless
+
 pip install flask-cors
+
 pip install firebase-admin
 
