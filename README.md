@@ -1,4 +1,3 @@
-![chatting](https://github.com/user-attachments/assets/cb9cb2e0-1cea-4580-9577-5ea250eeac04)# MoDit (2025 캡스톤디자인)
 > 팀명: **사공사**
 
 <img src="https://github.com/user-attachments/assets/60a37c32-10dc-4c77-9921-d06dbd9d7623" width="300"/>
@@ -91,10 +90,10 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 ![Image](https://github.com/user-attachments/assets/88875736-8297-438a-be6f-3779ade382d8)
 
 ### 📝 노트 기능  
-손글씨, 텍스트, 이미지 삽입, OCR 및 AI 요약까지 지원하는 다기능 메모 시스템입니다.  
+손글씨, 텍스트 입력, 이미지 삽입, OCR 인식 및 AI 요약까지 지원하는 다기능?? 올인원?? 메모 시스템?? 노트 기능??입니다.  
 
 ### ⏱️ 공부시간 측정  
-사용자별 실시간 공부 시간을 기록하고 그룹원들은 서로의 공부 현황??을 볼 수 있습니다.  
+개별 실시간 공부 시간을 실시간 기록하며, 그룹원 간 학습 현황을 확인할 수 있습니다.  
 ![공부시간](assets/공부시간화면.gif)
 
 ### 📅 미팅 일정 & 회의 녹음  
