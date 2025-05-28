@@ -51,19 +51,20 @@ class TextNote {
 
 class ImageNote {
   Offset position;
-  File file;
+  String imageUrl;
   Size size;
+  double aspectRatio;
   bool isSelected;
-  final double aspectRatio;
 
   ImageNote({
     required this.position,
-    required this.file,
+    required this.imageUrl,
     required this.size,
-    this.isSelected = false,
     required this.aspectRatio,
+    this.isSelected = false,
   });
 }
+
 
 class LineSegment {
   final Offset a;

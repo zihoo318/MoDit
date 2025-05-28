@@ -14,6 +14,8 @@ import 'note_summary_popup.dart';
 import 'note_utils.dart';
 import 'note_models.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:collection/collection.dart';
+
 
 class NoteScreen extends StatefulWidget {
   final String currentUserEmail;
@@ -30,6 +32,7 @@ class NoteScreen extends StatefulWidget {
 class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateMixin {
   // 모드
   bool isDrawingMode = false;
+
   bool isTextMode = false;
   bool isImageMode = false;
   bool isSelectMode = false;
@@ -139,15 +142,14 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         // imageNotes 복원
         if (imagesData != null) {
           imageNotes = imagesData.map<ImageNote>((i) {
-            double width = i['width'] * 1.0;
-            double height = i['height'] * 1.0;
             return ImageNote(
               position: Offset(i['x'] * 1.0, i['y'] * 1.0),
-              file: File(i['filePath']),
-              size: Size(width, height),
-              aspectRatio: width / height,
+              imageUrl: i['imageUrl'],
+              size: Size(i['width'] * 1.0, i['height'] * 1.0),
+              aspectRatio: i['width'] / i['height'],
             );
           }).toList();
+
         }
       }
     }
@@ -367,7 +369,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   // 이미지를 선택하고, imageNotes 리스트에 저장
   void _pickImage() async {
-    final ImagePicker picker = ImagePicker();
+    final picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
 
@@ -375,29 +377,30 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
     double maxWidth = 450;
     double maxHeight = 450;
-
     double originalWidth = decoded.width.toDouble();
     double originalHeight = decoded.height.toDouble();
-
-    // 비율 유지하며 크기 축소
-    double widthRatio = maxWidth / originalWidth;
-    double heightRatio = maxHeight / originalHeight;
-    double scale = widthRatio < heightRatio ? widthRatio : heightRatio;
-
-    // 비율 유지한 축소된 크기
+    double scale = (maxWidth / originalWidth).clamp(0, 1.0);
     double scaledWidth = originalWidth * scale;
     double scaledHeight = originalHeight * scale;
+
+    // Firebase Storage에 업로드
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    final storagePath = 'notes/$userKey/images/$fileName.png';
+    final storageRef = FirebaseStorage.instance.ref().child(storagePath);
+    await storageRef.putFile(File(image.path));
+    final imageUrl = await storageRef.getDownloadURL();
 
     setState(() {
       imageNotes.add(ImageNote(
         position: const Offset(100, 100),
-        file: File(image.path),
+        imageUrl: imageUrl,
         size: Size(scaledWidth, scaledHeight),
         aspectRatio: originalWidth / originalHeight,
       ));
     });
-
   }
+
 
   Future<void> _captureAndUploadNote() async {
     if (_isUploading) return;
@@ -445,32 +448,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       final originalTitle = widget.existingNoteData?['title'];
       final isTitleChanged = title != originalTitle;
 
-      if (isExistingNote && originalTitle != null) {
-        try {
-          final storageRef = FirebaseStorage.instance
-              .ref()
-              .child('notes/${widget.currentUserEmail.replaceAll('.', '_')}/$originalTitle');
-
-          final ListResult result = await storageRef.listAll();
-          for (final item in result.items) {
-            await item.delete();
-          }
-          print("✅ 기존 썸네일 이미지 전체 삭제 완료");
-        } catch (e) {
-          print("⚠️ 기존 썸네일 삭제 실패: $e");
-        }
-      }
-
-
-
       // 새 제목이면 중복 검사 후 갱신
       if (!isExistingNote && isTitleChanged) {
         title = await getUniqueNoteTitle(title, widget.currentUserEmail);
         _noteTitleController.text = title;
       }
 
-      // FirebaseStorage 업로드
-      fileUrl = await uploadNoteToFirebaseStorage(file, widget.currentUserEmail, title);
+      // 덮어쓸 파일 이름을 고정 ("thumbnail.png" 등)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'notes/${widget.currentUserEmail.replaceAll('.', '_')}/$title/$timestamp.png';
+
+      final storageRef = FirebaseStorage.instance.ref().child(storagePath);
+      await storageRef.putFile(file);
+      fileUrl = await storageRef.getDownloadURL();
 
       if (fileUrl != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -529,10 +519,11 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       {
         'x': i.position.dx,
         'y': i.position.dy,
-        'filePath': i.file.path,
+        'imageUrl': i.imageUrl,
         'width': i.size.width,
         'height': i.size.height,
       }).toList();
+
 
       // 기존 노트는 덮어쓰기, 새 노트는 새로 생성
       final noteId = isExistingNote
@@ -589,15 +580,53 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     // 기존 노트와 동일한 경우 저장 생략
     if (widget.existingNoteData != null) {
       final oldTitle = widget.existingNoteData!['title'];
-      final oldData = widget.existingNoteData!['data'];
+      final dynamic rawData = widget.existingNoteData!['data'];
+      final Map<String, dynamic> oldData = rawData is Map
+          ? Map<String, dynamic>.from((rawData as Map).map((key, value) => MapEntry(key.toString(), value)))
+          : {};
+
+
+
 
       final isSameTitle = title == oldTitle;
 
-      bool isSameContent = true;
-      try {
-        final currentJson = {
+      bool _isSameNoteContent(Map? oldData) {
+        if (oldData == null) return false;
+
+        Map<String, dynamic> normalize(Map<String, dynamic> data) {
+          return {
+            'strokes': (data['strokes'] as List?)?.map((s) => {
+              'points': (s['points'] as List).map((p) => {
+                'x': double.parse(p['x'].toString()).toStringAsFixed(2),
+                'y': double.parse(p['y'].toString()).toStringAsFixed(2),
+              }).toList(),
+              'color': s['color'],
+              'width': s['width'].toStringAsFixed(2),
+            }).toList() ?? [],
+            'texts': (data['texts'] as List?)?.map((t) => {
+              'x': double.parse(t['x'].toString()).toStringAsFixed(2),
+              'y': double.parse(t['y'].toString()).toStringAsFixed(2),
+              'text': t['text'].toString().trim(),
+              'fontSize': t['fontSize'].toStringAsFixed(2),
+              'color': t['color'],
+              'width': t['width'].toStringAsFixed(2),
+              'height': t['height'].toStringAsFixed(2),
+            }).toList() ?? [],
+            'images': (data['images'] as List?)?.map((i) => {
+              'x': double.parse(i['x'].toString()).toStringAsFixed(2),
+              'y': double.parse(i['y'].toString()).toStringAsFixed(2),
+              'width': i['width'].toStringAsFixed(2),
+              'height': i['height'].toStringAsFixed(2),
+            }).toList() ?? [],
+          };
+        }
+
+        final current = normalize({
           'strokes': strokes.map((s) => {
-            'points': s.points.whereType<Offset>().map((p) => {'x': p.dx, 'y': p.dy}).toList(),
+            'points': s.points.whereType<Offset>().map((p) => {
+              'x': p.dx,
+              'y': p.dy,
+            }).toList(),
             'color': '#${s.color.value.toRadixString(16).padLeft(8, '0')}',
             'width': s.strokeWidth,
           }).toList(),
@@ -616,37 +645,105 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             'width': i.size.width,
             'height': i.size.height,
           }).toList(),
-        };
+        });
 
-        isSameContent = currentJson.toString() == oldData.toString();
-      } catch (e) {
-        isSameContent = false;
+        final previous = normalize(Map<String, dynamic>.from(oldData));
+
+
+        return const DeepCollectionEquality().equals(current, previous);
       }
 
+      final isSameContent = _isSameNoteContent(oldData);
+
       if (isSameTitle && isSameContent) {
-        Navigator.pop(context); // 변경사항 없으면 그냥 나가기
+        Navigator.pop(context);
         isSaving = false;
         return;
       }
     }
 
     if (title.isEmpty || title == '노트 이름 설정') {
-      isSaving = false;
-      showDialog(
+      final shouldSave = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('저장 전'),
-          content: const Text('노트 이름을 먼저 설정해주세요.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('확인'),
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                constraints: const BoxConstraints(maxWidth: 450),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '제목 없이 저장',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0D0A64),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(thickness: 1, color: Color(0xFF0D0A64)),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '저장하시겠습니까?',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF0D0A64), width: 1.5),
+                            foregroundColor: const Color(0xFF0D0A64),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('취소'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            foregroundColor: Colors.redAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('저장'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
         ),
       );
-      return;
+
+      if (shouldSave != true) {
+        isSaving = false;
+        Navigator.pop(context); // 저장 없이 나감
+        return;
+      }
+
+      _noteTitleController.text = '제목 없음'; // 강제 제목 지정
     }
+
+
 
     LoadingOverlay.show(context, message: '노트 저장 중...');
     try {
@@ -918,8 +1015,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
               decoration: BoxDecoration(
                 border: imgNote.isSelected ? Border.all(color: Colors.grey) : null,
               ),
-              child: Image.file(
-                imgNote.file,
+              child: Image.network(
+                imgNote.imageUrl,
                 fit: BoxFit.contain,
               ),
             ),
@@ -929,11 +1026,21 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 top: -12,
                 left: -12,
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
+                    // Firebase Storage 삭제
+                    try {
+                      final storageRef = FirebaseStorage.instance.refFromURL(imgNote.imageUrl);
+                      await storageRef.delete();
+                      print('✅ 이미지 파일 삭제 완료');
+                    } catch (e) {
+                      print('⚠️ 이미지 파일 삭제 실패: $e');
+                    }
+
                     setState(() {
                       imageNotes.remove(imgNote);
                     });
                   },
+
                   child: Container(
                     width: 30,
                     height: 30,
