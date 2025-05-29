@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
-      sdk: flutter
+    sdk: flutter
   firebase_core: ^2.24.2
   firebase_auth: ^4.17.4  # ✅ 이 줄 추가
   firebase_database: ^10.3.7 # ✅ 추가
@@ -45,17 +45,26 @@ dependencies:
   mime: ^1.0.4
   http_parser: ^4.0.2
   file_selector: ^1.0.3
-
-
+  image_picker: ^1.0.4
+  flutter_sound: ^9.2.13
+  firebase_storage: ^11.5.2
+  url_launcher: ^6.2.4
+  just_audio: ^0.9.36
+  flutter_colorpicker: ^1.0.3
+  intl: ^0.19.0
+  flutter_animate: ^4.3.0
+  flutter_local_notifications: ^18.0.1
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  firebase_messaging: ^14.9.4
+  flutter_native_splash: ^2.4.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   table_calendar: ^3.0.9
-
+  flutter_launcher_icons: ^0.13.1
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -65,7 +74,10 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
-
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_logo.png"
 # The following section is specific to Flutter packages.
 flutter:
 
@@ -107,8 +119,13 @@ flutter:
     - assets/images/clicked_keyboard.png
     - assets/images/eraser.png
     - assets/images/clicked_eraser.png
+    - assets/images/image.png
+    - assets/images/clicked_image.png
     - assets/images/box.png
     - assets/images/clicked_box.png
+    - assets/images/back_button.png
+    - assets/images/menu.png
+    - assets/images/bell.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -126,44 +143,13 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   fonts:
-     - family: kakao
-       fonts:
-         - asset: assets/fonts/KakaoSmallSans-Regular.ttf
-           weight: 300
-         - asset: assets/fonts/KakaoSmallSans-Bold.ttf
-     - family: paperlogy
-       fonts:
-         - asset: assets/fonts/Paperlogy-4Regular.ttf
-           weight: 300
-         - asset: assets/fonts/Paperlogy-7Bold.ttf
-           weight: 600
-     - family: nanum_neo
-       fonts:
-         - asset: assets/fonts/NanumSquareNeo-bRg.ttf
-           weight: 300
-         - asset: assets/fonts/NanumSquareNeo-cBd.ttf
-           weight: 600
-     - family: nanum_round
-       fonts:
-         - asset: assets/fonts/NanumSquareRoundR.ttf
-           weight: 300
-         - asset: assets/fonts/NanumSquareRoundB.ttf
-           weight: 600
-     - family: scdream
-       fonts:
-         - asset: assets/fonts/SCDream4.otf
-           weight: 300
-         - asset: assets/fonts/SCDream6.otf
-           weight: 600
-     - family: mango
-       fonts:
-         - asset: assets/fonts/MangoDdobak-R(ttf).ttf
-           weight: 300
-         - asset: assets/fonts/MangoDdobak-B(ttf).ttf
-           weight: 600
+    - family: nanum_round
+      fonts:
+        - asset: assets/fonts/NanumSquareRoundR.ttf
+          weight: 300
+        - asset: assets/fonts/NanumSquareRoundB.ttf
+          weight: 600
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
-
 

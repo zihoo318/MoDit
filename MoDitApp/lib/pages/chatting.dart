@@ -1,11 +1,21 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_animate/flutter_animate.dart';
+import 'flask_api.dart';
+
 
 class ChattingPage extends StatefulWidget {
   final String groupId;
   final String currentUserEmail;
 
-  const ChattingPage({required this.groupId, required this.currentUserEmail, super.key});
+  const ChattingPage({
+    required this.groupId,
+    required this.currentUserEmail,
+    super.key,
+  });
 
   @override
   _ChattingPageState createState() => _ChattingPageState();
@@ -14,240 +24,455 @@ class ChattingPage extends StatefulWidget {
 class _ChattingPageState extends State<ChattingPage> {
   final db = FirebaseDatabase.instance.ref();
   late String targetUserEmail;
-  String targetUserName = ''; // 초기값 설정
+  String targetUserName = '';
   final TextEditingController messageController = TextEditingController();
-  List<Map<String, dynamic>> groupMembers = []; // 그룹 멤버 리스트
-  List<Map<String, String>> chatMessages = []; // 채팅 메시지 리스트
+  List<Map<String, dynamic>> groupMembers = [];
+  List<Map<String, dynamic>> chatMessages = [];
+  StreamSubscription<DatabaseEvent>? _messageSubscription;
+  final ScrollController _scrollController = ScrollController();
+
 
   @override
   void initState() {
     super.initState();
-    _loadGroupMembers(); // 그룹 멤버 로드
-    _createChatIfNotExist(); // chat 항목이 없으면 생성
+    _loadGroupMembers();
   }
 
-  // 그룹 멤버 로딩
+  @override
+  void didUpdateWidget(covariant ChattingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 새 메시지 추가 시 자동 스크롤
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription?.cancel();
+    super.dispose();
+  }
+
   void _loadGroupMembers() async {
-    final groupSnap = await db.child('groupStudies').child(widget.groupId).get();
+    final groupSnap = await db.child('groupStudies')
+        .child(widget.groupId)
+        .get();
     if (groupSnap.exists) {
-      final data = groupSnap.value as Map;
+      final data = Map<String, dynamic>.from(groupSnap.value as Map);
       final members = Map<String, dynamic>.from(data['members'] ?? {});
+      final List<Map<String, dynamic>> loaded = [];
+
+      for (var emailKey in members.keys) {
+        final userSnap = await db.child('user').child(emailKey).get();
+        final name = userSnap
+            .child('name')
+            .value
+            ?.toString() ?? emailKey.split('@')[0];
+        loaded.add({'email': emailKey, 'name': name});
+      }
 
       setState(() {
-        groupMembers = members.entries
-            .map((e) {
-          return {
-            'email': e.key, // 이메일
-            'name': e.key.split('@')[0], // name을 이메일 앞부분으로 설정 (예시: ga@naver_com -> ga)
-          };
-        })
-            .toList(); // List<Map<String, String>> 형식으로 변환
+        groupMembers = loaded;
+        if (groupMembers.isNotEmpty) {
+          targetUserEmail = groupMembers[0]['email']!;
+          targetUserName = groupMembers[0]['name']!;
+          _listenToMessages(targetUserEmail); // ✅ 첫 친구 채팅 불러오기
+        }
       });
     }
   }
 
-  // 채팅 메시지 로딩
-  void _loadChatMessages() async {
-    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
-    if (chatSnap.exists) {
-      final data = Map<String, dynamic>.from(chatSnap.value as Map);
-      setState(() {
-        chatMessages = data.entries
-            .where((e) =>
-        (e.value['senderId'] == widget.currentUserEmail && e.value['receiverId'] == targetUserEmail) ||
-            (e.value['senderId'] == targetUserEmail && e.value['receiverId'] == widget.currentUserEmail))
-            .map((e) {
+  void _listenToMessages(String receiverEmail) {
+    _messageSubscription?.cancel();
+    _messageSubscription = db
+        .child('groupStudies')
+        .child(widget.groupId)
+        .child('chat')
+        .onValue
+        .listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final loaded = data.entries.where((e) {
+          final v = e.value as Map;
+          final msg = v['message']?.toString() ?? '';
+          final isPoke = msg == '공부하세요!' || msg == '상대방을 찔렀습니다';
+
+          final sender = v['senderId'].toString().replaceAll('.', '_');
+          final receiver = v['receiverId'].toString().replaceAll('.', '_');
+          final currentUser = widget.currentUserEmail.replaceAll('.', '_');
+          final target = receiverEmail.replaceAll('.', '_');
+
+          return !isPoke && ((sender == currentUser && receiver == target) ||
+              (sender == target && receiver == currentUser));
+        }).map((e) {
+          final v = e.value as Map;
           return {
-            'senderId': e.value['senderId'] as String,
-            'message': e.value['message'] as String,
-            'timestamp': e.value['timestamp'] as String,
+            'senderId': v['senderId'],
+            'message': v['message'],
+            'timestamp': v['timestamp'],
           };
-        })
-            .toList();
-      });
-    }
+        }).toList()
+          ..sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
+
+        setState(() => chatMessages = loaded);
+
+        // ✅ 메시지 추가 후 자동 스크롤
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
+    });
   }
 
-  // chat 항목 생성 (chat 항목이 없으면 생성)
-  void _createChatIfNotExist() async {
-    final chatSnap = await db.child('groupStudies').child(widget.groupId).child('chat').get();
-    if (!chatSnap.exists) {
-      // chat이 없으면 새로 생성
-      await db.child('groupStudies').child(widget.groupId).child('chat').set({});
-    }
-  }
-
-  // 메시지 전송
-  void _sendMessage() async {
-    if (targetUserEmail.isEmpty) {
-      // targetUserEmail이 비어 있으면 메시지 보내지 않도록 처리
-      return;
-    }
+  Future<void> _sendMessage() async {
+    if (targetUserEmail.isEmpty) return;
     final message = messageController.text.trim();
     if (message.isNotEmpty) {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final chatRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
+      final timestamp = DateTime
+          .now()
+          .millisecondsSinceEpoch
+          .toString();
+      final chatRef = db.child('groupStudies').child(widget.groupId).child(
+          'chat').push();
       await chatRef.set({
         'senderId': widget.currentUserEmail,
         'receiverId': targetUserEmail,
         'message': message,
         'timestamp': timestamp,
       });
-      setState(() {
-        chatMessages.add({
-          'senderId': widget.currentUserEmail,
-          'message': message,
-          'timestamp': timestamp,
-        });
-      });
+      print("파베에 저장되는 receiverId: $targetUserEmail");
+
+      final userSnap = await db.child('user').child(
+          widget.currentUserEmail.replaceAll('.', '_')).get();
+      final senderName = userSnap
+          .child('name')
+          .value
+          ?.toString() ?? widget.currentUserEmail;
+
+      // 🔒 수신자에게만 푸시 전송
+      await _sendPushNotification("$senderName: $message", targetUserEmail);
+
       messageController.clear();
     }
   }
 
-  // 찌르기 아이콘 (알림 메시지 전송)
-  void _sendReminderMessage() async {
-    if (targetUserEmail.isEmpty) {
-      // targetUserEmail이 비어 있으면 알림 전송하지 않도록 처리
-      return;
-    }
+  Future<void> _sendReminderMessage() async {
+    if (targetUserEmail.isEmpty) return;
 
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-
-    // 상대방에게 "공부하세요!" 알림 전송
-    final chatRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
-    await chatRef.set({
+    final reminderRef = db.child('groupStudies').child(widget.groupId).child(
+        'reminder').push();
+    await reminderRef.set({
       'senderId': widget.currentUserEmail,
       'receiverId': targetUserEmail,
       'message': '공부하세요!',
-      'timestamp': timestamp,
+      'timestamp': DateTime
+          .now()
+          .millisecondsSinceEpoch
+          .toString(),
     });
 
-    // 알림을 보낸 사람에게 "알림을 보냈습니다" 알림 전송
-    final reminderRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
-    await reminderRef.set({
-      'senderId': widget.currentUserEmail,
-      'receiverId': widget.currentUserEmail,
-      'message': '알림을 보냈습니다!',
-      'timestamp': timestamp,
-    });
+    // 🔒 수신자에게만 푸시 전송
+    await _sendPushNotification("공부하세요!", targetUserEmail);
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false, // 팝업 바깥 클릭으로 닫히지 않도록
+        builder: (_) =>
+            Center(
+              child: Animate(
+                effects: const [
+                  ScaleEffect(curve: Curves.elasticOut,
+                      duration: Duration(milliseconds: 500)),
+                  FadeEffect(duration: Duration(milliseconds: 300)),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECE6F0), // ✅ 여기 배경색 변경!
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: const Text(
+                    "상대방에게 '공부하세요!' 알림을 보냈습니다.",
+                    style: TextStyle(fontSize: 16, color: Color(0xFF404040)),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+      );
+
+      // 팝업 자동 닫기
+      Future.delayed(const Duration(seconds: 2), () {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      });
+    }
+  }
+
+  Future<void> _sendPushNotification(String message, String toEmail) async {
+    if (toEmail == widget.currentUserEmail) return;
+
+    final userKey = toEmail.replaceAll('.', '_');
+    final userSnap = await db.child('user').child(userKey).get();
+    final token = userSnap
+        .child('fcmToken')
+        .value
+        ?.toString();
+    if (token == null) return;
+
+    final body = {
+      'token': token,
+      'title': '모딧에서 알림!',
+      'body': message,
+    };
+
+    print("[FCM] 전송 대상: $toEmail");
+    print("[FCM] 토큰: $token");
+    print("[FCM] 요청 바디: $body");
+    try {
+      final res = await http.post(
+        Uri.parse('${Api.baseUrl}/send_push'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+      print("🔔 알림 전송 결과: ${res.statusCode} / ${res.body}");
+    } catch (e) {
+      print("❌ 알림 전송 예외: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(80), // 앱바 높이 설정
-        child: ClipRRect(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
-          child: AppBar(
-            title: Row(
+      backgroundColor: const Color(0xFFFBF8FE), // ← 연보라 배경 적용
+      body: SafeArea(
+        child: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundColor: Colors.grey, // 회색 동그라미
-                  child: Image.asset('assets/images/user_icon2.png', width: 30), // user_icon2.png
-                ),
-                const SizedBox(width: 10),
-                Text(targetUserName.isEmpty ? '' : targetUserName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: _sendReminderMessage, // 찌르기 아이콘 클릭 시 알림 전송
-                  child: Image.asset('assets/images/hand_icon.png', width: 30),
-                ),
-              ],
-            ),
-            automaticallyImplyLeading: false, // 뒤로 가기 버튼 제거
-            elevation: 0, // 앱바 그림자 없애기
-            backgroundColor: Color(0xFFB8BDF1).withOpacity(0.3), // 앱바 배경색
-          ),
-        ),
-      ),
-      body: Row(
-        children: [
-          // 그룹 멤버 목록
-          Container(
-            width: 150,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[200], // 배경색 설정
-              borderRadius: BorderRadius.circular(15), // radius 추가
-            ),
-            child: ListView.builder(
-              itemCount: groupMembers.length,
-              itemBuilder: (context, index) {
-                final member = groupMembers[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Color(0xFFD9D9D9), // 회색 동그라미
+                // 🔼 채팅 텍스트 위로 조금 올리기
+                Transform.translate(
+                  offset: const Offset(0, -18),
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 20),
                     child: Text(
-                      member['name']![0], // 이름의 첫 글자
-                      style: TextStyle(color: Colors.black87),
+                      "채팅",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  title: Text(member['name']!), // 이름 표시
-                  onTap: () {
-                    setState(() {
-                      targetUserEmail = member['email']!;
-                      targetUserName = member['name']!;
-                      _loadChatMessages();
-                    });
-                  },
+                ),
+                const SizedBox(height: 0),
+                Expanded(child: _buildUserList()),
+              ],
+            ),
+
+            // 오른쪽 채팅 UI
+            _buildChatArea(),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildUserList() {
+    return Container(
+      width: 180,
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: ListView.builder(
+        itemCount: groupMembers.length,
+        itemBuilder: (context, index) {
+          final member = groupMembers[index];
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                targetUserEmail = member['email']!;
+                targetUserName = member['name']!;
+              });
+              _listenToMessages(targetUserEmail);
+            },
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1.0, end: 1.0),
+              duration: const Duration(milliseconds: 300),
+              builder: (context, scale, child) {
+                return AnimatedScale(
+                  scale: 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+                    title: Center(
+                      child: CircleAvatar(
+                        backgroundColor: const Color(0xFFD9D9D9),
+                        child: Text(
+                          member['name']!,
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
+          );
+        },
+      ),
+    );
+  }
+
+
+  Widget _buildChatArea() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 40, 12, 12),
+        // 왼쪽은 0, 위는 조금 내리고, 오른쪽 & 아래는 그대로
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
           ),
-          // 채팅 영역
+          child: Column(
+            children: [
+              _buildTopBar(),
+              Expanded(child: _buildMessages()), // ✅ 이건 Expanded로 감싸야 스크롤됨
+              _buildInputBar(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildTopBar() {
+    return Container(
+      height: 90,
+      decoration: BoxDecoration(
+        color: const Color(0xFFB8BDF1).withOpacity(0.3),
+        borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(15), topRight: Radius.circular(15)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            backgroundColor: Color(0xFFFFFFFF),
+            backgroundImage: AssetImage('assets/images/user_icon2.png'),
+          ),
+          const SizedBox(width: 10),
+          Text(targetUserName.isEmpty ? '' : targetUserName,
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w500)),
+          const Spacer(),
+          GestureDetector(
+            onTap: () {
+              _sendReminderMessage();
+              setState(() {}); // 트리거용
+            },
+            child: Animate(
+              effects: const [ShakeEffect()],
+              key: ValueKey(DateTime
+                  .now()
+                  .millisecondsSinceEpoch), // 매번 새로 흔들림
+              child: Row(
+                children: [
+                  Image.asset('assets/images/hand_icon.png', width: 40),
+                  const SizedBox(width: 8),
+                  const Text('찌르기'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessages() {
+    return Expanded(
+      child: ListView.builder(
+        controller: _scrollController,
+        reverse: false,
+        itemCount: chatMessages.length,
+        itemBuilder: (context, index) {
+          final chat = chatMessages[index];
+          final isSender = chat['senderId'] == widget.currentUserEmail;
+
+          return Align(
+            alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFB8BDF1).withOpacity(0.3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Animate(
+                effects: const [
+                  FadeEffect(duration: Duration(milliseconds: 300)),
+                  SlideEffect(begin: Offset(0, 0.1), end: Offset(0, 0)),
+                ],
+                child: Text(
+                  chat['message'],
+                  style: const TextStyle(color: Color(0xFF404040)),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
+  Widget _buildInputBar() {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        children: [
           Expanded(
-            child: Column(
-              children: [
-                // 채팅 대화 내용
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: chatMessages.length,
-                    itemBuilder: (context, index) {
-                      final chat = chatMessages[index];
-                      final isSender = chat['senderId'] == widget.currentUserEmail;
-                      return ListTile(
-                        title: Align(
-                          alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Color(0xFFB8BDF1).withOpacity(0.3), // 채팅 배경색
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Text(chat['message']!),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                // 메시지 입력 및 전송
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: messageController,
-                          decoration: const InputDecoration(hintText: '메시지를 입력하세요'),
-                        ),
-                      ),
-                      // 전송 버튼 (색상 ECE6F0으로 설정)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Color(0xFFECE6F0),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.send),
-                          onPressed: _sendMessage,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            child: TextField(
+              controller: messageController,
+              decoration: const InputDecoration(hintText: '메시지를 입력하세요'),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(color: const Color(0xFFECE6F0),
+                borderRadius: BorderRadius.circular(30)),
+            child: IconButton(
+              icon: const Icon(Icons.send),
+              onPressed: _sendMessage,
             ),
           ),
         ],

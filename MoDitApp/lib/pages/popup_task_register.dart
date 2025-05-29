@@ -2,6 +2,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+
+// 팝업 전체(반투명 배경 + blur + 창)를 감싸는 래퍼 역할
+// TaskDialogContent를 내부에 보여줌
+// 팝업 창의 껍데기 UI
 class TaskRegisterPopup extends StatelessWidget {
   final String groupId;
   final Function(String title, String deadline, List<Map<String, String>> subTasks) onTaskRegistered;
@@ -21,16 +25,19 @@ class TaskRegisterPopup extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.55),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
-            ),
-            child: TaskDialogContent(
-              groupId: groupId,
-              onTaskRegistered: onTaskRegistered,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700), // 가로 제한
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.85), // 밝은 흰 배경
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+              ),
+              child: TaskDialogContent(
+                groupId: groupId,
+                onTaskRegistered: onTaskRegistered,
+              ),
             ),
           ),
         ),
@@ -39,6 +46,9 @@ class TaskRegisterPopup extends StatelessWidget {
   }
 }
 
+
+// 실제 과제 입력 UI(제목, 마감일, 소과제 추가)
+// 팝업 내부의 실제 폼 입력 화면
 class TaskDialogContent extends StatefulWidget {
   final String groupId;
   final Function(String title, String deadline, List<Map<String, String>> subTasks) onTaskRegistered;

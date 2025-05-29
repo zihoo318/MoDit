@@ -1,43 +1,111 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:moditapp/pages/group_main_screen.dart';
-import 'pages/first_page.dart'; // HomeScreen이 정의된 파일
-import 'pages/logo_screen.dart';
-import 'pages/meeting_calendar.dart';
-import 'pages/meeting_record.dart';
-import 'pages/notice.dart';
-import 'pages/study_first_page.dart';
-import 'pages/study_time.dart';
-import 'package:moditapp/pages/chatting.dart';
-import 'package:moditapp/pages/join.dart';
-import 'pages/home.dart';
-import 'pages/login.dart'; // 👈 login.dart 임포트 추가
-import 'pages/note_screen.dart';
-import 'pages/flask_test.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:moditapp/pages/note_screen.dart';
+import 'pages/first_page.dart';
+import 'package:moditapp/pages/login.dart';
+import 'package:moditapp/pages/splash_screen.dart';
+import 'firebase_options.dart';
+import 'pages/first_page.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('MoDitLog: Background message received: ${message.messageId}');
+}
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
-  runApp(const MoDitApp()); // 이름 바꿔도 되고 그대로 사용해도 됨
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    print('MoDitLog: Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    print('MoDitLog: Starting anonymous sign-in...');
+    await FirebaseAuth.instance.signInAnonymously();
+    print('MoDitLog: Anonymous sign-in complete. UID: ${FirebaseAuth.instance.currentUser?.uid}');
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    print('MoDitLog: Local notifications initialized.');
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    print('MoDitLog: Requesting push notification permission...');
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    print('MoDitLog: Push notification permission granted.');
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("MoDitLog: Foreground message received: ${message.notification?.title}");
+
+      final notification = message.notification;
+      final android = notification?.android;
+
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'modit_channel_id',
+
+              'MoDit Notification',
+              channelDescription: 'Shows notifications while the app is active',
+
+              importance: Importance.max,
+              priority: Priority.high,
+              color: const Color(0xFFB8BDF1),
+            ),
+          ),
+        );
+      }
+    });
+
+
+    print('MoDitLog: All initialization complete. Running app...');
+    runApp(const MoDitApp());
+  } catch (e) {
+    print('MoDitLog: ERROR in main(): $e');
+  }
 }
+
 
 class MoDitApp extends StatelessWidget {
   const MoDitApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    print('MoDitLog: Building MoDitApp...');
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'MoDitApp',
       theme: ThemeData(
-        fontFamily: 'nanum_round', // 전체 폰트 지정
+        fontFamily: 'nanum_round',
       ),
-      localizationsDelegates: const [ // 한글 showDatePicker() 사용을 위해 추가함
+      localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -46,11 +114,8 @@ class MoDitApp extends StatelessWidget {
         Locale('ko', 'KR'),
         Locale('en', 'US'),
       ],
-      home: HomeScreen(
-      //   groupId: '-OPqe387N6zi4K4UK3IT',
-         currentUserEmail: 'ga@naver.com',
-       ),
+
+      home: SplashScreen(),
     );
-    //home: NoteScreen());
   }
 }
