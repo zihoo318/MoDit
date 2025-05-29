@@ -34,7 +34,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   final db = FirebaseDatabase.instance.ref();
   final Map<String, String> _userNameCache = {};
   late PageController _pageController;
-  int selectedTaskIndex = 0;
+  int? selectedTaskIndex;  // null 허용
   int _homeworkTabIndex = 0;
   String? selectedTaskTitle;
   String? selectedSubTaskTitle;
@@ -102,7 +102,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         if (data == null || data is! Map) {
           setState(() {
             tasks.clear();
-            submissions.clear();
+            selectedTaskIndex = null;  // 초기 선택 해제
           });
           return;
         }
@@ -145,9 +145,10 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
         });
 
         // 선택된 taskId 유지
-        final currentTaskId = (tasks.isNotEmpty && selectedTaskIndex < tasks.length)
-            ? tasks[selectedTaskIndex]['taskId']
+        final currentTaskId = (tasks.isNotEmpty && selectedTaskIndex != null && selectedTaskIndex! < tasks.length)
+            ? tasks[selectedTaskIndex!]['taskId']
             : null;
+
 
         int newSelectedIndex = 0;
         if (currentTaskId != null) {
@@ -164,7 +165,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
           tasks
             ..clear()
             ..addAll(sortedLoadedTasks);
-          selectedTaskIndex = 0; // 정렬된 리스트의 첫 번째 과제 선택
+          selectedTaskIndex = null; // 초기에는 아무것도 선택 안 함
         });
 
         parseSubmissionsFromTasks(taskMap);
@@ -547,7 +548,9 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
   }
 
   Widget _buildManageTab() {
-    final task = tasks.isNotEmpty ? tasks[selectedTaskIndex] : null;
+    final task = (selectedTaskIndex != null && tasks.isNotEmpty)
+        ? tasks[selectedTaskIndex!]
+        : null;
 
     return Padding(
       padding: const EdgeInsets.all(2),
@@ -602,6 +605,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                             final deadline = DateTime.parse(task['deadline']);
                             final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
                             return deadlineDate.isAfter(nowDate) || deadlineDate.isAtSameMomentAs(nowDate);
+                            //return deadlineDate.isBefore(nowDate); // 마감일 지난 과제도 출력
                           })
                               .toList()
                             ..sort((a, b) => DateTime.parse(a['deadline']).compareTo(DateTime.parse(b['deadline'])));
@@ -610,9 +614,7 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                             itemCount: sortedTasks.length,
                             itemBuilder: (context, index) {
                               final task = sortedTasks[index];
-                              final originalIndex = tasks.indexOf(
-                                task,
-                              ); // 정렬 전 index 찾기
+                              final originalIndex = tasks.indexOf(task); // 정렬 전 index 찾기
 
                               return GestureDetector(
                                 onTap: () {
@@ -721,8 +723,8 @@ class _TaskManageScreenState extends State<TaskManageScreen> {
                   },
                   child: Container(
                     key: ValueKey(
-                      tasks.isNotEmpty
-                          ? tasks[selectedTaskIndex]['taskId']
+                      (tasks.isNotEmpty && selectedTaskIndex != null)
+                          ? tasks[selectedTaskIndex!]['taskId']
                           : 'no_task',
                     ),
                     padding: const EdgeInsets.all(24),
