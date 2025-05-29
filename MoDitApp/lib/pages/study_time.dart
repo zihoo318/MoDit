@@ -239,7 +239,7 @@ class _StudyTimeWidgetState extends State<StudyTimeWidget> {
                   )
                 : Center(
                     child: Wrap(
-                      spacing: 80,
+                      spacing: 100,
                       runSpacing: 45,
                       alignment: WrapAlignment.center,
                       children: allKeys.map(_buildStudent).toList(),
