@@ -8,7 +8,7 @@ import 'package:mime/mime.dart';
 
 class Api {
   // 공통 API URL 설정
-  static const String baseUrl = "http://192.168.219.102:8080";
+  static const String baseUrl = "http://3.38.105.45:8080";
 
   Future<Map<String, dynamic>?> uploadVoiceFile(File audioFile, String groupId) async {
     final uri = Uri.parse('$baseUrl/stt/upload');

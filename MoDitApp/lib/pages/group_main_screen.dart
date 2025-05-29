@@ -64,12 +64,16 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
   final List<String> menuIcons = ['menu_icon', 'study_icon', 'calendar_icon', 'homework_icon', 'notice_icon', 'chatting_icon'];
   final List<String> menuIconsSelected = ['menu_icon2', 'study_icon2', 'calendar_icon2', 'homework_icon2', 'notice_icon2', 'chatting_icon2'];
 
+  String? _fetchedUserName;
+
+
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialTabIndex;
     _nameController = TextEditingController(text: widget.currentUserName);
     _loadGroupInfo();
+    _loadUserNameFromDB();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final renderBox = context.findRenderObject() as RenderBox;
       final offset = renderBox.localToGlobal(Offset.zero);
@@ -83,6 +87,19 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     });
     print(" currentUserName: "+widget.currentUserName);
   }
+
+  Future<void> _loadUserNameFromDB() async {
+    final userKey = widget.currentUserEmail.replaceAll('.', '_');
+    final userSnap = await db.child('user').child(userKey).get();
+    if (userSnap.exists) {
+      final userData = userSnap.value as Map;
+      setState(() {
+        _fetchedUserName = userData['name'] ?? '이름 없음';
+        _nameController.text = _fetchedUserName!; // 이름 수정 모드 진입 시 입력창에도 반영
+      });
+    }
+  }
+
 
   void _loadGroupInfo() async {
     final groupSnap = await db.child('groupStudies').child(widget.groupId).get();
@@ -111,6 +128,7 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
     if (newName.isEmpty) return;
     final userKey = widget.currentUserEmail.replaceAll('.', '_');
     await db.child('user').child(userKey).update({'name': newName});
+    await _loadUserNameFromDB();
     setState(() => _isEditingName = false);
     ScaffoldMessenger.of(
       context,
@@ -439,115 +457,131 @@ class _GroupMainScreenState extends State<GroupMainScreen> {
             ],
           ),
           if (_isMyPageOpen)
-            Positioned(
-              top: 100,
-              right: 40,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  key: const ValueKey("mypage_home"),
-                  width: 280,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(color: const Color(0xFFE0E0E0)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        '내 프로필',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D0A64),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      const CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white,
-                        backgroundImage: AssetImage(
-                          'assets/images/user_icon2.png',
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _isEditingName
-                          ? TextField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 17),
-                        decoration: InputDecoration(
-                          hintText: '이름 입력',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 12,
-                          ),
-                        ),
-                      )
-                          : Text(
-                        _nameController.text,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (_isEditingName) {
-                              _updateName();
-                            } else {
-                              setState(() => _isEditingName = true);
-                            }
-                          },
-                          icon: const Icon(Icons.edit, size: 18),
-                          label: Text(_isEditingName ? '저장' : '이름 수정'),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFF0F0F0),
-                            foregroundColor: Colors.black87,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.logout, size: 18),
-                          label: const Text('로그아웃'),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFFBE9E9),
-                            foregroundColor: Colors.redAccent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+            Stack(
+              children: [
+                // 🔹 외부 클릭 감지용 투명 레이어 추가
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _isMyPageOpen = false);
+                    },
+                    child: Container(
+                      color: Colors.transparent,
+                    ),
                   ),
                 ),
-              ),
+
+                Positioned(
+                  top: 140,
+                  right: 40,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      key: const ValueKey("mypage_home"),
+                      width: 280,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '내 프로필',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0D0A64),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          const CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.white,
+                            backgroundImage: AssetImage(
+                              'assets/images/user_icon2.png',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _isEditingName
+                              ? TextField(
+                            controller: _nameController,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 17),
+                            decoration: InputDecoration(
+                              hintText: '이름 입력',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                                horizontal: 12,
+                              ),
+                            ),
+                          )
+                              : Text(
+                            _fetchedUserName ?? '로딩 중...',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (_isEditingName) {
+                                  _updateName();
+                                } else {
+                                  setState(() => _isEditingName = true);
+                                }
+                              },
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: Text(_isEditingName ? '저장' : '이름 수정'),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFF0F0F0),
+                                foregroundColor: Colors.black87,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _logout,
+                              icon: const Icon(Icons.logout, size: 18),
+                              label: const Text('로그아웃'),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFFBE9E9),
+                                foregroundColor: Colors.redAccent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           _buildBackButton(),
         ],
