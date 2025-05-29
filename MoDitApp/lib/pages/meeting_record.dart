@@ -460,8 +460,18 @@ class _MeetingRecordWidgetState extends State<MeetingRecordWidget> with SingleTi
         _isPlaying = false;
         _playingIndex = null;
       }
+
+      // 🔹 현재 선택된 텍스트가 삭제되는 항목이면 초기화
+      if (_selectedTextUrl == recording['text_url']) {
+        _selectedTextUrl = null;
+        _cachedTextUrl = null;
+        _textFuture = null;
+        _summaryFuture = null;
+      }
+
       recordings.removeAt(index);
     });
+
 
     ScaffoldMessenger.of(
       context,

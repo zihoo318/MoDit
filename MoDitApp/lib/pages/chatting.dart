@@ -61,7 +61,9 @@ class _ChattingPageState extends State<ChattingPage> {
   }
 
   void _loadGroupMembers() async {
-    final groupSnap = await db.child('groupStudies').child(widget.groupId).get();
+    final groupSnap = await db.child('groupStudies')
+        .child(widget.groupId)
+        .get();
     if (groupSnap.exists) {
       final data = Map<String, dynamic>.from(groupSnap.value as Map);
       final members = Map<String, dynamic>.from(data['members'] ?? {});
@@ -69,7 +71,10 @@ class _ChattingPageState extends State<ChattingPage> {
 
       for (var emailKey in members.keys) {
         final userSnap = await db.child('user').child(emailKey).get();
-        final name = userSnap.child('name').value?.toString() ?? emailKey.split('@')[0];
+        final name = userSnap
+            .child('name')
+            .value
+            ?.toString() ?? emailKey.split('@')[0];
         loaded.add({'email': emailKey, 'name': name});
       }
 
@@ -81,13 +86,17 @@ class _ChattingPageState extends State<ChattingPage> {
           _listenToMessages(targetUserEmail); // ✅ 첫 친구 채팅 불러오기
         }
       });
-
     }
   }
 
   void _listenToMessages(String receiverEmail) {
     _messageSubscription?.cancel();
-    _messageSubscription = db.child('groupStudies').child(widget.groupId).child('chat').onValue.listen((event) {
+    _messageSubscription = db
+        .child('groupStudies')
+        .child(widget.groupId)
+        .child('chat')
+        .onValue
+        .listen((event) {
       final snapshot = event.snapshot;
       if (snapshot.exists) {
         final data = Map<String, dynamic>.from(snapshot.value as Map);
@@ -101,7 +110,8 @@ class _ChattingPageState extends State<ChattingPage> {
           final currentUser = widget.currentUserEmail.replaceAll('.', '_');
           final target = receiverEmail.replaceAll('.', '_');
 
-          return !isPoke && ((sender == currentUser && receiver == target) || (sender == target && receiver == currentUser));
+          return !isPoke && ((sender == currentUser && receiver == target) ||
+              (sender == target && receiver == currentUser));
         }).map((e) {
           final v = e.value as Map;
           return {
@@ -132,17 +142,26 @@ class _ChattingPageState extends State<ChattingPage> {
     if (targetUserEmail.isEmpty) return;
     final message = messageController.text.trim();
     if (message.isNotEmpty) {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final chatRef = db.child('groupStudies').child(widget.groupId).child('chat').push();
+      final timestamp = DateTime
+          .now()
+          .millisecondsSinceEpoch
+          .toString();
+      final chatRef = db.child('groupStudies').child(widget.groupId).child(
+          'chat').push();
       await chatRef.set({
         'senderId': widget.currentUserEmail,
         'receiverId': targetUserEmail,
         'message': message,
         'timestamp': timestamp,
       });
+      print("파베에 저장되는 receiverId: $targetUserEmail");
 
-      final userSnap = await db.child('user').child(widget.currentUserEmail.replaceAll('.', '_')).get();
-      final senderName = userSnap.child('name').value?.toString() ?? widget.currentUserEmail;
+      final userSnap = await db.child('user').child(
+          widget.currentUserEmail.replaceAll('.', '_')).get();
+      final senderName = userSnap
+          .child('name')
+          .value
+          ?.toString() ?? widget.currentUserEmail;
 
       // 🔒 수신자에게만 푸시 전송
       await _sendPushNotification("$senderName: $message", targetUserEmail);
@@ -154,12 +173,16 @@ class _ChattingPageState extends State<ChattingPage> {
   Future<void> _sendReminderMessage() async {
     if (targetUserEmail.isEmpty) return;
 
-    final reminderRef = db.child('groupStudies').child(widget.groupId).child('reminder').push();
+    final reminderRef = db.child('groupStudies').child(widget.groupId).child(
+        'reminder').push();
     await reminderRef.set({
       'senderId': widget.currentUserEmail,
       'receiverId': targetUserEmail,
       'message': '공부하세요!',
-      'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+      'timestamp': DateTime
+          .now()
+          .millisecondsSinceEpoch
+          .toString(),
     });
 
     // 🔒 수신자에게만 푸시 전송
@@ -169,33 +192,36 @@ class _ChattingPageState extends State<ChattingPage> {
       showDialog(
         context: context,
         barrierDismissible: false, // 팝업 바깥 클릭으로 닫히지 않도록
-        builder: (_) => Center(
-          child: Animate(
-            effects: const [
-              ScaleEffect(curve: Curves.elasticOut, duration: Duration(milliseconds: 500)),
-              FadeEffect(duration: Duration(milliseconds: 300)),
-            ],
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECE6F0), // ✅ 여기 배경색 변경!
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  )
+        builder: (_) =>
+            Center(
+              child: Animate(
+                effects: const [
+                  ScaleEffect(curve: Curves.elasticOut,
+                      duration: Duration(milliseconds: 500)),
+                  FadeEffect(duration: Duration(milliseconds: 300)),
                 ],
-              ),
-              child: const Text(
-                "상대방에게 '공부하세요!' 알림을 보냈습니다.",
-                style: TextStyle(fontSize: 16, color: Color(0xFF404040)),
-                textAlign: TextAlign.center,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECE6F0), // ✅ 여기 배경색 변경!
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: const Text(
+                    "상대방에게 '공부하세요!' 알림을 보냈습니다.",
+                    style: TextStyle(fontSize: 16, color: Color(0xFF404040)),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
       );
 
       // 팝업 자동 닫기
@@ -205,7 +231,6 @@ class _ChattingPageState extends State<ChattingPage> {
         }
       });
     }
-
   }
 
   Future<void> _sendPushNotification(String message, String toEmail) async {
@@ -213,7 +238,10 @@ class _ChattingPageState extends State<ChattingPage> {
 
     final userKey = toEmail.replaceAll('.', '_');
     final userSnap = await db.child('user').child(userKey).get();
-    final token = userSnap.child('fcmToken').value?.toString();
+    final token = userSnap
+        .child('fcmToken')
+        .value
+        ?.toString();
     if (token == null) return;
 
     final body = {
@@ -324,11 +352,11 @@ class _ChattingPageState extends State<ChattingPage> {
   }
 
 
-
   Widget _buildChatArea() {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 40, 12, 12), // 왼쪽은 0, 위는 조금 내리고, 오른쪽 & 아래는 그대로
+        padding: const EdgeInsets.fromLTRB(0, 40, 12, 12),
+        // 왼쪽은 0, 위는 조금 내리고, 오른쪽 & 아래는 그대로
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -347,14 +375,13 @@ class _ChattingPageState extends State<ChattingPage> {
   }
 
 
-
-
   Widget _buildTopBar() {
     return Container(
       height: 90,
       decoration: BoxDecoration(
         color: const Color(0xFFB8BDF1).withOpacity(0.3),
-        borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), topRight: Radius.circular(15)),
+        borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(15), topRight: Radius.circular(15)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -364,7 +391,9 @@ class _ChattingPageState extends State<ChattingPage> {
             backgroundImage: AssetImage('assets/images/user_icon2.png'),
           ),
           const SizedBox(width: 10),
-          Text(targetUserName.isEmpty ? '' : targetUserName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+          Text(targetUserName.isEmpty ? '' : targetUserName,
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w500)),
           const Spacer(),
           GestureDetector(
             onTap: () {
@@ -373,7 +402,9 @@ class _ChattingPageState extends State<ChattingPage> {
             },
             child: Animate(
               effects: const [ShakeEffect()],
-              key: ValueKey(DateTime.now().millisecondsSinceEpoch), // 매번 새로 흔들림
+              key: ValueKey(DateTime
+                  .now()
+                  .millisecondsSinceEpoch), // 매번 새로 흔들림
               child: Row(
                 children: [
                   Image.asset('assets/images/hand_icon.png', width: 40),
@@ -437,7 +468,8 @@ class _ChattingPageState extends State<ChattingPage> {
             ),
           ),
           Container(
-            decoration: BoxDecoration(color: const Color(0xFFECE6F0), borderRadius: BorderRadius.circular(30)),
+            decoration: BoxDecoration(color: const Color(0xFFECE6F0),
+                borderRadius: BorderRadius.circular(30)),
             child: IconButton(
               icon: const Icon(Icons.send),
               onPressed: _sendMessage,
