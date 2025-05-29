@@ -124,7 +124,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           onTap: () => setState(() => _selectedCardIndex = 1),
                           targetCenter: widget.targetCenter,
                           child: SizedBox(
-                            height: 320, // 원하는 높이로 지정
+                            height: 360, // 원하는 높이로 지정
                             child: _buildCardContainer(
                               title: '공부 시간',
                               icon: 'study_icon',
@@ -149,7 +149,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           onTap: () => setState(() => _selectedCardIndex = 3),
                           targetCenter: widget.targetCenter,
                           child: SizedBox(
-                            height: 107, // 원하는 높이로 조절
+                            height: 140, // 원하는 높이로 조절
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 4),
                               child: _buildTaskCard(),
@@ -170,7 +170,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 onTap: () => setState(() => _selectedCardIndex = 4),
                                 targetCenter: widget.targetCenter,
                                 child: SizedBox(
-                                  height: 110, // 원하는 높이로 설정
+                                  height: 135, // 원하는 높이로 설정
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 1),
                                     child: _buildCard(
@@ -190,7 +190,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 onTap: () => setState(() => _selectedCardIndex = 5),
                                 targetCenter: widget.targetCenter,
                                 child: SizedBox(
-                                  height: 110, // 원하는 높이로 설정
+                                  height: 135, // 원하는 높이로 설정
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 4),
                                     child: _buildCard(
