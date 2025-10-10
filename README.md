@@ -4,7 +4,7 @@
 
 
 ## [작품 개요]
-**📚 그룹스터디 최적화 올인원 협업 플랫폼**
+**그룹스터디 최적화 올인원 협업 플랫폼**
 
 > **모딧(Modit)** 은 음성 녹음 텍스트화, 손글씨 인식, AI 요약 기능을 결합해 회의록과 학습 자료를 직접 생성·공유할 수 있는 그룹 스터디 특화 올인원 플랫폼입니다. 앱 내에서 과제를 직접 작성하고 공유할 수 있어 협업 효율이 높고, 반복적인 기록 작업을 줄여 학습과 팀플에 집중할 수 있습니다.
 
@@ -33,7 +33,7 @@
 
 ---
 
-## 📱 MoDitApp (Flutter)
+## MoDitApp (Flutter)
 > MoDit 프로젝트의 프론트엔드 앱
 
 Flutter 기반 태블릿 전용 앱으로, 사용자 인터페이스와 Firebase 실시간 연동을 통해 그룹별 과제, 회의록, 메모, 채팅, 공부 시간 등을 통합 관리할 수 있습니다.
@@ -45,7 +45,7 @@ Flutter 기반 태블릿 전용 앱으로, 사용자 인터페이스와 Firebase
 - 공지사항
 - 채팅
 
-### 🚀 시작하기
+### 시작하기
 AI 기능이 탑재된 Flask 백엔드와 연동되어, **손글씨 OCR**, **음성 텍스트 변환**, **텍스트 요약** 기능을 수행합니다.
 
 - Flutter 3.x 기반으로 개발  
@@ -53,7 +53,7 @@ AI 기능이 탑재된 Flask 백엔드와 연동되어, **손글씨 OCR**, **음
 - Flask REST API와 통신 (OCR, 음성 인식, 자연어 처리)
 
 
-## 🧠 MoDitFlask (Python Flask Backend)
+## MoDitFlask (Python Flask Backend)
 > AI 기능 연산 및 Firebase와 연동되는 서버 백엔드
 
 
@@ -71,7 +71,7 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 - 녹음의 텍스트 or 필기노트 → Flask Summarization → 요약 텍스트 출력력
 
 ---
-  ## 🎯 기대 효과
+  ## 기대 효과
   **1. 플랫폼 분산 해소**  
         - 노션, 밴드 등 여러 앱을 오가는 번거로움을 없애고, 통합된 협업 플랫폼 제공  
   
@@ -83,7 +83,7 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ---
 
-## 🖼️ 주요 기능 시연 영상
+## 주요 기능 시연 영상
 
 <table style="width: 100%; table-layout: fixed;">
   <tr>
@@ -145,7 +145,7 @@ Flutter 앱은 Flask 서버에 HTTP 요청을 보내며 다음과 같이 연동�
 
 ---
 
-## 🛠 사용 모듈 및 버전 관리
+## 사용 모듈 및 버전 관리
 >Flask 백엔드에서 사용하는 주요 Python 모듈과 해당 버전입니다.
 
 **python  -version 3.8**
@@ -173,5 +173,6 @@ pip install firebase-admin
 **권장 Python 버전: Python 3.8**
 
 **가상환경 사용 권장: python -m venv venv**
+
 
 
